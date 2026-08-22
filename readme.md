@@ -13,15 +13,11 @@ O projeto é inspirado no fluxo da Hemorrede/SUS (centros de coleta e doação �
 
 | Integrante | Papel |
 |---|---|
+| Gabriel Cavalcante | Integrante |
 | Lucas Bonfim | Líder Técnico |
 | Lucas Carvalho | Integrante |
 | Lucas Valença | Integrante |
+| Miguel Duarte de Barros | Integrante |
+| Pablo Tamborini | Integrante |
 | Raysa Queiroz | Integrante |
 | Rodrigo Montenegro | Integrante |
-| Pablo Tamborini | Integrante |
-| Miguel Duarte de Barros | Integrante |
-
-## Status do projeto
-
-- Projeto no Jira: pendente — aguardando acesso do professor de Projeto.
-- Projeto no GitHub: público, com esta página de README.
