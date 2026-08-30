@@ -34,7 +34,8 @@ As histórias de usuário do produto, com regras de negócio e cenários de vali
 
 ## Protótipo (Figma)
 
-🔗 [Protótipo Lo-Fi no Figma](https://www.figma.com/proto/o33X78ZoRifSqpQZyOuI2U/Hemotrack---Prototipo-LOFI?node-id=22-1369&p=f&t=lZZpbP0FcOU6a8yM-1&scaling=min-zoom&content-scaling=fixed&page-id=0%3A1&starting-point-node-id=21%3A9)
+🔗 [Protótipo Lo-Fi no Figma](https://www.figma.com/proto/o33X78ZoRifSqpQZyOuI2U/Hemotrack---Prototipo-LOFI?node-id=21-9&p=f&t=jxS6u0a4MgkJWZHt-1&scaling=min-zoom&content-scaling=fixed&page-id=0%3A1&starting-point-node-id=21%3A9)
+
 
 🎥 [Screencast navegando o protótipo (YouTube)](https://www.youtube.com/watch?v=_Mo2xrN9wh8)
 
