@@ -65,11 +65,11 @@ Histórias restantes implementadas, versionamento contínuo, novos screencasts e
 
 | Nome completo | E-mail (CESAR School) | Papel |
 |---|---|---|
-| Lucas Bonfim | *pendente* | Líder Técnico |
-| Lucas Carvalho | *pendente* | Integrante |
-| Lucas Valença | lgpvb@cesar.school | Integrante |
-| Raysa Queiroz | *pendente* | Integrante |
-| Rodrigo Montenegro | *pendente* | Integrante |
-| Pablo Tamborini | *pendente* | Integrante |
+| Lucas Bonfim Gomes | lbg2@cesar.school | Líder Técnico |
+| Lucas Moreira de Carvalho | lmc4@cesar.school | Integrante |
+| Lucas Guilherme Pinheiro Valença Barbosa  | lgpvb@cesar.school | Integrante |
+| Raysa Costa Queiroz | rcq@cesar.school | Integrante |
+| Rodrigo Morais Silvestri de Castro Montenegro | rmscm@cesar.school | Integrante |
+| Pablo Tamborini Nogueira | ptn@cesar.school | Integrante |
 | Miguel Duarte de Barros | mdb@cesar.school | Integrante |
-| Gabriel Cavalcante | *pendente* | Integrante |
+| Gabriel Cavalcante | gcbo@cesar.school | Integrante |
