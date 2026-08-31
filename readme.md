@@ -67,7 +67,7 @@ Histórias restantes implementadas, versionamento contínuo, novos screencasts e
 |---|---|---|
 | Lucas Bonfim | *pendente* | Líder Técnico |
 | Lucas Carvalho | *pendente* | Integrante |
-| Lucas Valença | *pendente* | Integrante |
+| Lucas Valença | lgpvb@cesar.school | Integrante |
 | Raysa Queiroz | *pendente* | Integrante |
 | Rodrigo Montenegro | *pendente* | Integrante |
 | Pablo Tamborini | *pendente* | Integrante |
