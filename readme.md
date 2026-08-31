@@ -72,4 +72,4 @@ Histórias restantes implementadas, versionamento contínuo, novos screencasts e
 | Rodrigo Morais Silvestri de Castro Montenegro | rmscm@cesar.school | Integrante |
 | Pablo Tamborini Nogueira | ptn@cesar.school | Integrante |
 | Miguel Duarte de Barros | mdb@cesar.school | Integrante |
-| Gabriel Cavalcante | gcbo@cesar.school | Integrante |
+| Gabriel Cavalcante Barros de Oliveira  | gcbo@cesar.school | Integrante |
