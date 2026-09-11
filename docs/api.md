@@ -8,17 +8,6 @@ Coleta ────► Hemocentro ────► Hospital
 
 Descricao basica das APIs do nosso sistema.
 
-> **Escopo desta revisão:** HU01–HU05 (cadastro/acesso, estoque, criar requisição, acompanhar requisição, aceitar/recusar). HU06 (seleção de compatíveis) já é coberta pelo endpoint de alocação existente. HU07, HU08 e HU09 (distribuição, transporte, indicadores) ficam para depois — não modeladas ainda.
-
-> **O que mudou nesta revisão (pra referência do time):**
-> - `RequisicaoDeTransfusao` ganhou `hospitalId` (sem isso não dá pra filtrar "minhas requisições", HU04) e `motivoRecusa`.
-> - `StatusRequisicao` ganhou `ACEITA` (separa "hemocentro topou atender" — HU05 — de "hemocomponentes já reservados" — HU06/alocação) e `RECUSADA` (antes só existia `CANCELADA`, que agora fica só pra cancelamento do lado do hospital).
-> - Ações dedicadas `POST /requisicoes/{id}/aceitar` e `/recusar`, em vez de mudar status via PATCH genérico.
-> - `Estoque` deixou de ser uma classe/array embutido em `Instituicao`. Vira uma *view* calculada a partir de `Bolsa`/`Hemocomponente` (ver seção **Estoque** abaixo).
-> - `Bolsa` e `Hemocomponente` ganharam `instituicaoAtualId`.
-> - `DELETE` removido de `/requisicoes/{id}`, `/bolsas/{id}` e `/hemocomponentes/{id}` — essas entidades têm ciclo de vida com status; apagar o registro destruiria rastreabilidade. Continuam com `DELETE` só `/usuarios` e `/instituicoes`, que não têm esse problema.
-> - `Usuario`: schema de resposta não inclui a senha.
-
 ## **Sistema**
 
 ### class `Usuario`
@@ -32,7 +21,12 @@ A senha nunca é devolvida pela API — schema de resposta e de entrada são dif
 - **Usuário Hemocentro** — visualiza requisições recebidas, aceita/recusa, aloca hemocomponentes, gerencia estoque.
 - **Usuário Hospital** — cria Requisições De Transfusão (RT), acompanha suas próprias requisições.
 
-Cada rota abaixo indica, quando relevante, qual tipo de usuário pode chamá-la (HU01: "cada perfil deve ter acesso às funcionalidades correspondentes").
+### enum `TipoPerfil`
+`PADRAO`, `ADMIN`
+
+Campo novo em `Usuario`, ortogonal ao `TipoInstituicao`. `TipoInstituicao` diz *o que* o usuário faz no domínio (Hospital pede, Hemocentro atende); `TipoPerfil` diz *o nível de acesso* — `ADMIN` é operação/suporte do próprio HemoTrack, não um papel de negócio. Um usuário `ADMIN` continua vinculado a uma instituição (pode ser uma instituição interna "HemoTrack Sistema") mas pode chamar rotas que um usuário `PADRAO` não pode — hoje, basicamente os `DELETE`.
+
+Cada rota abaixo indica quem pode chamá-la (HU01: "cada perfil deve ter acesso às funcionalidades correspondentes").
 
 ---
 ### enum `TipoABO`
@@ -102,35 +96,36 @@ A estrutura de índice por hash + fila de prioridade por validade (FEFO), que o 
 
 ---
 
-# Detalhamento da API WIP
+# Detalhamento da API
 
 ## `/login`
 
-| Método | Rota          | Body | Descrição |
-|--------|---------------|------|-----------|
-| POST   | `/login` | `{email, senha}` | Autentica o usuário e devolve token. Necessário para HU01 ("informar suas credenciais... permitir o acesso"). |
+| Método | Rota          | Body | Quem chama | Descrição |
+|--------|---------------|------|------------|-----------|
+| POST   | `/login` | `{email, senha}` | Público | Autentica o usuário e devolve token. Necessário para HU01 ("informar suas credenciais... permitir o acesso"). |
 
 ## `/usuarios`
 
 | Método | Rota          | Body                   | Quem chama | Descrição                                                     |
 |--------|---------------|------------------------|------------|---------------------------------------------------------------|
-| GET    | `/usuarios`      | —                      | — | Retorna todos os **Usuarios** cadastrados (sem senha). |
-| POST   | `/usuarios`      | json | — | Cria um **Usuario** com infos do Body (cadastro, HU01). |
-| GET    | `/usuarios/{id}` | —                      | — | Retorna **Usuario** com `id`, caso exista (sem senha). |
-| DELETE | `/usuarios/{id}` | —                      | — | Deleta **Usuario** indicado, caso exista. |
-| PUT    | `/usuarios/{id}` | json | — | Atualiza completamente o **Usuario** com `id`, com infos do Body. |
-| PATCH  | `/usuarios/{id}` | json (parcial) | — | Atualiza parcialmente **Usuario** com `id`, com dados do Body. |
+| GET    | `/usuarios`      | —                      | `ADMIN` | Lista todos os **Usuarios** cadastrados (sem senha). Ver todos os usuários do sistema, entre instituições, é sensível — não é operação de um usuário `PADRAO`. |
+| POST   | `/usuarios`      | json | Público | Cria um **Usuario** vinculado a uma `instituicaoId` já existente (cadastro, HU01). |
+| GET    | `/usuarios/{id}` | —                      | Próprio usuário / `ADMIN` | Retorna **Usuario** com `id`, caso exista (sem senha). |
+| DELETE | `/usuarios/{id}` | —                      | `ADMIN` | Ver **Dúvida: DELETE para quem?** abaixo. |
+| PUT    | `/usuarios/{id}` | json | Próprio usuário | Atualiza completamente o **Usuario** com `id`, com infos do Body. |
+| PATCH  | `/usuarios/{id}` | json (parcial) | Próprio usuário | Atualiza parcialmente **Usuario** com `id`, com dados do Body. |
 
 ## `/instituicoes`
 
-| Método | Rota          | Body                   | Descrição                                                     |
-|--------|---------------|------------------------|---------------------------------------------------------------|
-| GET    | `/instituicoes`| — | Retorna todos os **Instituicoes** cadastrados. |
-| POST   | `/instituicoes`      | json | Cria um **Instituicao** com infos do Body (cadastro, HU01). CNPJ deve ser único. |
-| GET    | `/instituicoes/{id}` | —    | Retorna **Instituicao** com `id`, caso exista.|
-| DELETE | `/instituicoes/{id}` | —    | Deleta **Instituicao** indicado, caso exista. |
-| PUT    | `/instituicoes/{id}` | json | Atualiza completamente o **Instituicao** com `id`, com infos do Body.|
-| PATCH  | `/instituicoes/{id}` | json (parcial) | Atualiza parcialmente **Instituicao** com `id`, com dados do Body. |
+| Método | Rota          | Body                   | Quem chama | Descrição                                                     |
+|--------|---------------|------------------------|------------|---------------------------------------------------------------|
+| GET    | `/instituicoes`| — | Qualquer usuário autenticado | Retorna todas as **Instituicoes** cadastradas. |
+| POST   | `/instituicoes`      | json | Público | Cria uma **Instituicao** com infos do Body (cadastro, HU01, antes de existir qualquer usuário). CNPJ deve ser único. |
+| GET    | `/instituicoes/{id}` | —    | Qualquer usuário autenticado | Retorna **Instituicao** com `id`, caso exista.|
+| GET    | `/instituicoes/{id}/estoque` | —    | Hemocentro dono | Retorna a visão agregada do estoque **calculado** da instituição (só para `HEMOCENTRO`) — contagem por `tipoHemocomponente` + `tipoABO` + `fatorRh`. Parâmetros opcionais: `tipoHemocomponente`, `tipoABO`, `fatorRh` (filtram a agregação); `detalhado=true` (devolve a lista de `Hemocomponente`, não só a contagem). Atende HU02 ("consultar estoque disponível por tipo sanguíneo/componente"). |
+| DELETE | `/instituicoes/{id}` | —    | `ADMIN` | Ver **Dúvida: DELETE para quem?** abaixo. |
+| PUT    | `/instituicoes/{id}` | json | Usuário da própria instituição | Atualiza completamente a **Instituicao** com `id`, com infos do Body.|
+| PATCH  | `/instituicoes/{id}` | json (parcial) | Usuário da própria instituição | Atualiza parcialmente a **Instituicao** com `id`, com dados do Body. |
 
 ## `/requisicoes`
 
@@ -143,27 +138,36 @@ A estrutura de índice por hash + fila de prioridade por validade (FEFO), que o 
 | POST   | `/requisicoes/{id}/recusar` | `{motivo}` | Hemocentro | `ABERTA → RECUSADA`. `motivo` obrigatório (HU05). |
 | POST   | `/requisicoes/{id}/alocacoes` | — | Hemocentro | Só permitido com status `ACEITA`. Aloca hemocomponentes compatíveis (ABO/Rh + FEFO), muda status para `ALOCADA` e retorna os ids alocados (HU06). 409 se não houver hemocomponente compatível disponível. |
 | PATCH  | `/requisicoes/{id}` | json (parcial, campos como `prioridade`, `observacoes`) | Hospital dono | Atualiza dados da requisição — **não altera `status`**, que só muda pelas ações acima. |
-| — | ~~DELETE `/requisicoes/{id}`~~ | — | — | Removido: cancelamento é `status = CANCELADA` (via PATCH ou ação dedicada), não remoção do registro. |
+| DELETE | `/requisicoes/{id}` | — | `ADMIN` | Ver **Dúvida: DELETE para quem?** abaixo — não é o caminho normal de cancelamento (isso é `status = CANCELADA`). |
 
 ## `/bolsas`
 
-| Método | Rota          | Body                   | Descrição                                                     |
-|--------|---------------|------------------------|---------------------------------------------------------------|
-| GET    | `/bolsas`| — | Retorna todas as **Bolsas** presentes no sistema. Filtros: `tipoABO`, `fatorRh`, `instituicaoAtualId`. |
-| POST   | `/bolsas`      | json | Cria uma **Bolsa** com infos do Body (coleta). `instituicaoAtualId` = ponto de coleta/hemocentro que recebeu. |
-| POST   | `/bolsas/{id}/hemocomponentes`      | json | Processa **Bolsa** indicada e retorna os ids dos **Hemocomponentes** resultantes, já com `instituicaoAtualId` herdado da bolsa. |
-| GET    | `/bolsas/{id}` | —    | Retorna **Bolsa** com `id`, caso exista.|
-| PUT    | `/bolsas/{id}` | json | Atualiza completamente a **Bolsa** com `id`, com infos do Body.|
-| PATCH  | `/bolsas/{id}` | json (parcial) | Atualiza parcialmente **Bolsa** com `id` — inclui mover `instituicaoAtualId` (transporte) e marcar descarte. |
-| — | ~~DELETE `/bolsas/{id}`~~ | — | Removido — mesma razão de `/requisicoes`. Bolsa vencida/contaminada é status, não remoção. |
+| Método | Rota          | Body                   | Quem chama | Descrição                                                     |
+|--------|---------------|------------------------|------------|---------------------------------------------------------------|
+| GET    | `/bolsas`| — | Hemocentro / Ponto de Coleta (da própria instituição) | Retorna as **Bolsas** da instituição do usuário. Filtros: `tipoABO`, `fatorRh`, `instituicaoAtualId` (`ADMIN` pode ver todas). |
+| POST   | `/bolsas`      | json | Ponto de Coleta / Hemocentro | Cria uma **Bolsa** com infos do Body (coleta). `instituicaoAtualId` = ponto de coleta/hemocentro que recebeu. |
+| POST   | `/bolsas/{id}/hemocomponentes`      | json | Hemocentro | Processa **Bolsa** indicada e retorna os ids dos **Hemocomponentes** resultantes, já com `instituicaoAtualId` herdado da bolsa. |
+| GET    | `/bolsas/{id}` | —    | Hemocentro / Ponto de Coleta dono | Retorna **Bolsa** com `id`, caso exista.|
+| PUT    | `/bolsas/{id}` | json | Hemocentro / Ponto de Coleta dono | Atualiza completamente a **Bolsa** com `id`, com infos do Body.|
+| PATCH  | `/bolsas/{id}` | json (parcial) | Hemocentro / Ponto de Coleta dono | Atualiza parcialmente **Bolsa** com `id` — inclui mover `instituicaoAtualId` (transporte) e marcar descarte. |
+| DELETE | `/bolsas/{id}` | — | `ADMIN` | Ver **Dúvida: DELETE para quem?** abaixo — não é o caminho normal de descarte (isso é status). |
 
 ## `/hemocomponentes`
 
-| Método | Rota          | Body                   | Descrição                                                     |
-|--------|---------------|------------------------|---------------------------------------------------------------|
-| GET    | `/hemocomponentes`| — | Retorna todos os **Hemocomponentes** presentes no sistema. Filtros: `tipoHemocomponente`, `tipoABO`, `fatorRh`, `instituicaoAtualId`, `statusQualidade`. |
-| ~~POST~~   | ~~`/hemocomponentes`~~      | ~~json~~ | ~~Cria uma **Hemocomponente** com infos do Body.~~ Não existe — só nasce de `/bolsas/{id}/hemocomponentes`. |
-| GET    | `/hemocomponentes/{id}` | —    | Retorna **Hemocomponente** com `id`, caso exista.|
-| PUT    | `/hemocomponentes/{id}` | json | Atualiza completamente o **Hemocomponente** com `id`, com infos do Body.|
-| PATCH  | `/hemocomponentes/{id}` | json (parcial) | Atualiza parcialmente **Hemocomponente** com `id` — inclui `statusQualidade` (ex.: marcar `DESCARTADO`) e `instituicaoAtualId`. |
-| — | ~~DELETE `/hemocomponentes/{id}`~~ | — | Removido — descarte é `statusQualidade = DESCARTADO`, não remoção do registro. |
+| Método | Rota          | Body                   | Quem chama | Descrição                                                     |
+|--------|---------------|------------------------|------------|---------------------------------------------------------------|
+| GET    | `/hemocomponentes`| — | Hemocentro (da própria instituição) | Retorna os **Hemocomponentes** da instituição do usuário. Filtros: `tipoHemocomponente`, `tipoABO`, `fatorRh`, `instituicaoAtualId`, `statusQualidade` (`ADMIN` pode ver todos). |
+| ~~POST~~   | ~~`/hemocomponentes`~~      | ~~json~~ | — | Não existe — só nasce de `/bolsas/{id}/hemocomponentes`. |
+| GET    | `/hemocomponentes/{id}` | —    | Hemocentro dono | Retorna **Hemocomponente** com `id`, caso exista.|
+| PUT    | `/hemocomponentes/{id}` | json | Hemocentro dono | Atualiza completamente o **Hemocomponente** com `id`, com infos do Body.|
+| PATCH  | `/hemocomponentes/{id}` | json (parcial) | Hemocentro dono | Atualiza parcialmente **Hemocomponente** com `id` — inclui `statusQualidade` (ex.: marcar `DESCARTADO`) e `instituicaoAtualId`. |
+| DELETE | `/hemocomponentes/{id}` | — | `ADMIN` | Ver **Dúvida: DELETE para quem?** abaixo — não é o caminho normal de descarte (isso é `statusQualidade = DESCARTADO`). |
+
+## Dúvida: DELETE para quem?
+
+Faz sentido, sim — mas com duas ressalvas:
+
+1. **Precisa existir o papel.** Hoje o domínio só tem Hospital e Hemocentro (via `TipoInstituicao`), que são papéis de negócio, não de acesso. "Admin do sistema" é um conceito novo — por isso o `TipoPerfil` (`PADRAO`/`ADMIN`) acima. Sem isso modelado, "só admin pode deletar" não tem como ser verificado em lugar nenhum.
+2. **Mesmo o `ADMIN` deletando por engano/erro, considerar soft delete por baixo do capô.** Pra `Usuario` e `Instituicao` um `DELETE` físico tende a ser inofensivo. Já pra `Bolsa`, `Hemocomponente` e `Requisicao` — que têm indicadores (HU09, mais pra frente) e potencialmente auditoria de saúde pública — a recomendação é a rota continuar respondendo `204` normalmente, mas internamente marcar o registro como removido (`removidoEm`, por exemplo) em vez de apagar a linha. Do ponto de vista do contrato da API não muda nada; muda só a implementação, e evita que uma correção de erro vire perda de histórico.
+
+Pro escopo do projeto (rubrica não cobra RBAC granular), não vale super-engenhar isso: um campo `TipoPerfil` + uma checagem simples no controller/service já resolve.
