@@ -1,4 +1,4 @@
-package com.hemotrack.backend.model;
+package com.hemotrack.backend.model.usuario;
 
 import jakarta.annotation.Nullable;
 import jakarta.persistence.*;

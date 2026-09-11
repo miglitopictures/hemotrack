@@ -1,4 +1,4 @@
-package com.hemotrack.backend.model;
+package com.hemotrack.backend.model.instituicao;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
