@@ -11,7 +11,8 @@ import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 
-@Entity 
+@Entity
+@Table(name = "bolsas")
 public class Bolsa {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

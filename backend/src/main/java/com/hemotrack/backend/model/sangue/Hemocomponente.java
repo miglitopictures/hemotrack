@@ -12,6 +12,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 
 @Entity
+@Table(name = "hemocomponentes")
 public class Hemocomponente {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
