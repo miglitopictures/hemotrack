@@ -13,12 +13,15 @@ Coleta ────► Hemocentro ────► Hospital
 ## Sistema
 
 ### `User`
-**Campos:** Id, Nome, Area, Instituicao ... *(pesquisar)*
+**Campos:** Id, Email, Senha, CPF, Instituicao
 
 **Tipos de usuário:**
-- **Usuário Coletor** — está no ponto de coleta e pode aumentar/diminuir o número de bolsas no estoque.
-- **Usuário Hemocentro** — usuário master.
+- **Usuário Hemocentro** — ...
 - **Usuário Hospital** — cria as `RequisicoesDeTransfusao` (RT).
+
+| # | História | Ator principal |
+|---|---|---|
+| [HU01](#hu01--cadastro-e-acesso-à-plataforma) | Cadastro e acesso à plataforma | Representante de hospital/hemocentro |
 
 ### `RequisicaoDeTransfusao`
 **Campos:** Id, Data, Paciente, Hemocomponente, Prioridade
@@ -37,10 +40,10 @@ Coleta ────► Hemocentro ────► Hospital
 **Campos:** Id, EstoqueBolsas, NumBolsas, Infos ... *(pesquisar)*
 
 ### `Hemocentro`
-**Campos:** Id, EstoqueBolsas, EstoqueHemocomponentes, Requisicoes, Infos ... *(pesquisar)*
+**Campos:** Id, CNPJ, EstoqueBolsas, EstoqueHemocomponentes, Requisicoes, Infos ... *(pesquisar)*
 
 ### `Hospital`
-**Campos:** Id, EstoqueHemocomponentes, Infos ... *(pesquisar)*
+**Campos:** Id, CNPJ, EstoqueHemocomponentes, Infos ... *(pesquisar)*
 
 ---
 
@@ -57,6 +60,8 @@ Coleta ────► Hemocentro ────► Hospital
 | PUT    | `/users/{id}` | json (infos completas atualizadas) |
 | PATCH  | `/users/{id}` | json (campo específico a atualizar)|
 
+[HU01](#hu01--cadastro-e-acesso-à-plataforma)
+
 ## `/requisicoes`
 
 | Método | Rota          | Body                              |
@@ -67,6 +72,8 @@ Coleta ────► Hemocentro ────► Hospital
 | POST   | `/requisicoes`      | json (infos do requisicao)            |
 | PUT    | `/requisicoes/{id}` | json (infos completas atualizadas) |
 | PATCH  | `/requisicoes/{id}` | json (campo específico a atualizar)|
+
+
 
 ## `/bolsas`
 
