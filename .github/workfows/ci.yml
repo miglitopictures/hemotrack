@@ -1,0 +1,40 @@
+name: CI
+
+## Quando?
+on:
+  # sempre que fizermos push ou pr para <main>
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+## O que?
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+        ## clona repo no ambiente virtual
+      - name: Check out code
+        uses: actions/checkout@v4
+
+        ## instala jdk 17 no ambiente virtual
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+        ## roda o script de teste do Maven (ferramenta de build que usamos com spring)
+      - name: Build and run tests
+        working-directory: backend
+        run: ./mvnw -B clean verify
+
+        ## sobe o report de resultados do teste
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: backend/target/surefire-reports/
