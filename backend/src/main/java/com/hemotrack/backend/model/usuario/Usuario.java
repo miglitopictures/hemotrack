@@ -50,7 +50,7 @@ public class Usuario {
     public Long getId(){
         return this.id;
     }
-    void setId(Long id){
+    public void setId(Long id){
         this.id = id;
     }
     
@@ -58,7 +58,7 @@ public class Usuario {
     public String getNomeCompleto(){
         return this.nomeCompleto;
     }
-    void setNomeCompleto(String nomeCompleto){
+    public void setNomeCompleto(String nomeCompleto){
         this.nomeCompleto = nomeCompleto;
     }
 
@@ -66,7 +66,7 @@ public class Usuario {
     public String getEmail(){
         return this.email;
     }
-    void setEmail(String email){
+    public void setEmail(String email){
         this.email = email;
     }
 
@@ -74,7 +74,7 @@ public class Usuario {
     public String getPassword(){
         return this.password;
     }
-    void setPassword(String password){
+    public void setPassword(String password){
         this.password = password;
     }
 
@@ -82,7 +82,7 @@ public class Usuario {
     public String getCpf(){
         return this.cpf;
     }
-    void setCpf(String cpf){
+    public void setCpf(String cpf){
         this.cpf = cpf;
     }
 
@@ -90,7 +90,7 @@ public class Usuario {
     public Long getIdInstituicao(){
         return this.idInstituicao;
     }
-    void getIdInstituicao(Long idInstituicao){
+    public void setIdInstituicao(Long idInstituicao){
         this.idInstituicao = idInstituicao;
     }
 
@@ -98,7 +98,7 @@ public class Usuario {
     public TipoUsuario getTipoUsuario(){
         return this.tipo;
     }
-    void setTipoUsuario(TipoUsuario tipo){
+    public void setTipoUsuario(TipoUsuario tipo){
         this.tipo = tipo;
     }
 
