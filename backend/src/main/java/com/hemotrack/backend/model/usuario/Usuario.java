@@ -31,5 +31,75 @@ public class Usuario {
 
     @Nullable 
     private TipoUsuario tipo = TipoUsuario.PADRAO;
+
+    // Construtores
+    public Usuario() {  }
+
+    public Usuario(Long id, String nomeCompleto, String email, String password, String cpf, Long idInstituicao) {
+        this.id = id;
+        this.nomeCompleto = nomeCompleto;
+        this.email = email;
+        this.password = password;
+        this.cpf = cpf;
+        this.idInstituicao = idInstituicao;
+    }
     
+    // Getters e Setters
+    
+    // id
+    public Long getId(){
+        return this.id;
+    }
+    void setId(Long id){
+        this.id = id;
+    }
+    
+    // nome completo
+    public String getNomeCompleto(){
+        return this.nomeCompleto;
+    }
+    void setNomeCompleto(String nomeCompleto){
+        this.nomeCompleto = nomeCompleto;
+    }
+
+    // email
+    public String getEmail(){
+        return this.email;
+    }
+    void setEmail(String email){
+        this.email = email;
+    }
+
+    // password
+    public String getPassword(){
+        return this.password;
+    }
+    void setPassword(String password){
+        this.password = password;
+    }
+
+    // cpf
+    public String getCpf(){
+        return this.cpf;
+    }
+    void setCpf(String cpf){
+        this.cpf = cpf;
+    }
+
+    // id instituicao
+    public Long getIdInstituicao(){
+        return this.idInstituicao;
+    }
+    void getIdInstituicao(Long idInstituicao){
+        this.idInstituicao = idInstituicao;
+    }
+
+    // tipo
+    public TipoUsuario getTipoUsuario(){
+        return this.tipo;
+    }
+    void setTipoUsuario(TipoUsuario tipo){
+        this.tipo = tipo;
+    }
+
 }

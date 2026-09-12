@@ -14,18 +14,18 @@ import jakarta.validation.constraints.*;
 
 @Entity 
 @Table(name = "requisicoes")
-public class RequisicaoDeTransfusao {
+public class Requisicao {
     
     @Id 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long id;
+    private Long id;
 
     @CreationTimestamp
     @Column(name = "data_criacao", nullable = false, updatable = false)
     private Instant dataCriacao;
 
     @NotNull 
-    private long hospitalId;
+    private Long hospitalId;
 
     @NotNull 
     private  TipoHemocomponente tipo;

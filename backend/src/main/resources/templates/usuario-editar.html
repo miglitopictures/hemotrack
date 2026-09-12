@@ -1,0 +1,39 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Inserir / editar usuario</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<h1>Inserir / editar usuario</h1>
+
+<form action="/usuarios/salvar" method="post">
+    <input type="hidden" name="id" th:value="${usuario.id}">
+    
+    <label>Nome Completo:</label>
+    <input type="text" name="nomeCompleto"
+           th:value="${usuario.nomeCompleto}" minlength="3" maxlength="80"><p>
+    
+    <label>E-mail:</label>
+    <input type="email" name="email"
+           th:value="${usuario.email}" required><p>
+
+    <label>Senha:</label>
+    <input type="password" name="password"
+           th:value="${usuario.password}" minlength="6"><p>
+    
+    <label>CPF:</label>
+    <input type="text" name="cpf"
+           th:value="${usuario.cpf}" minlength="11" maxlength="11"><p>
+
+    <label>Id da Instituição:</label>
+    <input type="text" name="idInstituicao"
+           th:value="${usuario.idInstituicao}" minlength="3" maxlength="32"><p>
+
+    <button type="submit">Salvar Alterações</button>
+</form>
+<a href="/usuarios">Voltar</a> </body></html>
+
