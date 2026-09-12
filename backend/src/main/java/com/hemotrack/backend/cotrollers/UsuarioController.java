@@ -47,14 +47,14 @@ public class UsuarioController {
             return "usuario-editar";
         }
         service.salvar(usuario);
-        return "redirect:/usuarios/";
+        return "redirect:/usuarios";
     }
     
     // @PathVariable Long id --> Extrai o valor do ID da URL
     @GetMapping("/remover/{id}")
     public String remover(@PathVariable Long id) {
         service.remover(id);
-        return "redirect:/usuarios/";
+        return "redirect:/usuarios";
     }
     
 
