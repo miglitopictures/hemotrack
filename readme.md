@@ -59,7 +59,7 @@ Histórias restantes implementadas, versionamento contínuo, novos screencasts e
 
 ## Como rodar o projeto
 
-*A detalhar a partir da Entrega 02, quando a aplicação estiver em execução (obrigatório pela disciplina de POO).*
+Instruções de instalação e execução (Linux, Windows e macOS) em [`docs/como-rodar.md`](./docs/como-rodar.md).
 
 ## Equipe
 

@@ -1,4 +1,4 @@
-package com.hemotrack.backend.model;
+package com.hemotrack.backend.model.sangue;
 
 public enum TipoHemocomponente {
     HEMACIAS,        // Concentrado de Hemacias
