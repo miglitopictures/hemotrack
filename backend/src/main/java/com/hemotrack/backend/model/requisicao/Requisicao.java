@@ -102,10 +102,10 @@ public class Requisicao {
     }
 
     // abo
-    public TipoABO getABO(){
+    public TipoABO getAbo(){
         return this.abo;
     }
-    public void setABO(TipoABO abo){
+    public void setAbo(TipoABO abo){
         this.abo = abo;
     }
 
@@ -131,6 +131,14 @@ public class Requisicao {
     }
     public void setPrioridade(Prioridade prioridade){
         this.prioridade = prioridade;
+    }
+
+    // status
+    public StatusRequisicao getStatus(){
+        return this.status;
+    }
+    public void setStatus(StatusRequisicao status){
+        this.status = status;
     }
 
     // observacoes
