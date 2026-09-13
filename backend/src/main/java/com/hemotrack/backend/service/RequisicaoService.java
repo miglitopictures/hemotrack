@@ -9,7 +9,7 @@ import com.hemotrack.backend.repositories.RequisicaoRepository;
 
 
 
-// codigo temporarios para testar pipeline de inegracao
+// codigo temporarios para testar pipeline de integracao (nao esta sendo utilizado)
 @Service 
 public class RequisicaoService {
     private final RequisicaoRepository repository;
