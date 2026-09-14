@@ -30,7 +30,7 @@
 # ATENÇÃO: é 200, não 201, e não vem header Location.
 # Os enums vão como STRING. Mandar número (ex.: "tipo": 0) até funciona —
 # o Jackson aceita o ordinal — mas amarra o JSON à ordem de declaração do
-# enum, que é exatamente a lacuna #3 do api.md. Não use.
+# enum (os enums são persistidos como ORDINAL). Não use.
 # @name criar
 POST {{baseUrl}}/requisicoes
 Content-Type: {{contentType}}
@@ -139,7 +139,6 @@ Content-Type: {{contentType}}
 # Aqui o JSON FOI lido com sucesso — o problema é outro: falta `@Valid` no
 # @RequestBody do controller, então o @NotNull de `tipo` só estoura no flush
 # do Hibernate, tarde demais para virar 400.
-# -> Lacuna #1 em docs/api.md
 POST {{baseUrl}}/requisicoes
 Content-Type: {{contentType}}
 

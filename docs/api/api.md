@@ -11,7 +11,7 @@ Este documento tem duas partes:
 1. **[Estado atual](#estado-atual-implementado)** — o que existe e roda hoje no código, com exemplos reais.
 2. **[Desenho alvo](#desenho-alvo-planejado)** — o contrato completo que a API deve ter quando as HUs estiverem fechadas.
 
-Quando os dois divergirem, a parte 1 é a verdade. As divergências conhecidas estão listadas em [Divergências e lacunas](#divergências-e-lacunas).
+Quando os dois divergirem, a parte 1 é a verdade.
 
 ---
 
@@ -94,7 +94,7 @@ O `Service` lança `ResponseStatusException` direto (ainda não há exceptions d
 
 | Campo | Tipo | Obrigatório no POST | Observação |
 |---|---|---|---|
-| `id` | `Long` | não | gerado (`IDENTITY`). **Hoje é aceito no body** — ver lacunas |
+| `id` | `Long` | não | gerado (`IDENTITY`). **Hoje é aceito no body** |
 | `dataCriacao` | `Instant` (ISO-8601 UTC) | não | preenchido por `@CreationTimestamp`, imutável |
 | `hospitalId` | `Long` | **sim** | hoje vem do body (não há token) |
 | `tipo` | `TipoHemocomponente` | **sim** | |
@@ -102,7 +102,7 @@ O `Service` lança `ResponseStatusException` direto (ainda não há exceptions d
 | `rh` | `FatorRh` | **sim** | |
 | `volumeMl` | `double` | **sim** (primitivo, default `0.0`) | não há validação de mínimo |
 | `prioridade` | `Prioridade` | **sim** | |
-| `status` | `StatusRequisicao` | não | default `ABERTA`. **Hoje é aceito no body** — ver lacunas |
+| `status` | `StatusRequisicao` | não | default `ABERTA`. **Hoje é aceito no body** |
 | `observacoes` | `String` | não | |
 | `motivoRecusa` | `String` | não | preenchido só pelo `POST /recusar` |
 
@@ -142,33 +142,6 @@ O `Service` lança `ResponseStatusException` direto (ainda não há exceptions d
 | `GET` | `/usuarios/remover/{id}` | `302` redirect — **delete via GET** |
 
 Quando esse recurso virar REST, é a hora de: separar DTO de entrada/saída (a senha hoje está em texto puro no campo `password` e seria serializada), trocar `GET /remover/{id}` por `DELETE /usuarios/{id}`, e devolver `400` com os erros de validação em vez de re-renderizar o formulário.
-
----
-
-## Divergências e lacunas
-
-### Divergências entre o código e o desenho alvo
-
-| # | Onde | Código hoje | Desenho alvo |
-|---|---|---|---|
-| 5 | `PUT /requisicoes/{id}` | atualiza só `prioridade` | `PATCH` com campos parciais; `PUT` completo |
-| 6 | `GET /requisicoes` | sem filtros | `?status=ABERTA` (HU05) |
-
-### Lacunas que valem virar issue
-
-1. **Falta `@Valid` no `@RequestBody`.** O `RequisicaoController` recebe `@RequestBody Requisicao` sem `@Valid`, então as anotações `@NotNull` da entidade não rodam no controller. Elas só disparam no *flush* do Hibernate, o que vira **`500 Internal Server Error`** em vez de `400 Bad Request` com a lista de campos faltando. Fix: `@Valid @RequestBody` + um `@RestControllerAdvice` para `MethodArgumentNotValidException`.
-
-2. **`status` e `id` são aceitos no body do POST.** Como não há DTO de entrada, um cliente pode criar uma requisição já `ATENDIDA`, ou tentar forçar um `id`. Fix: `RequisicaoRequest` DTO só com os campos que o hospital pode mandar.
-
-3. **Enums persistidos como `ORDINAL`.** Nenhum campo enum tem `@Enumerated(EnumType.STRING)`, então o H2 grava o **índice** (`0`, `1`, `2`…). Combinado com `ddl-auto=update` e um banco em arquivo que sobrevive entre execuções, **reordenar um enum corrompe silenciosamente as linhas existentes** — e a divergência #2 acima é exatamente esse risco já materializado. Fix: `@Enumerated(EnumType.STRING)` em todos os campos enum (e apagar `backend/data/hemotrack-db.mv.db` uma vez depois da mudança).
-
-4. **Sem autenticação.** `hospitalId` vem do body, então qualquer um cria requisição em nome de qualquer hospital, e qualquer um aceita/recusa. Toda a coluna "Quem chama" do desenho alvo está inaplicável hoje.
-
-5. **Sem `hospitalId` como FK.** É um `Long` solto, não um `@ManyToOne` para `Instituicao`. Nada impede apontar para uma instituição inexistente ou para um `HEMOCENTRO`.
-
-6. **Sem testes.** `BackendApplicationTests` só tem o `contextLoads()`. As regras de transição (`409` ao aceitar duas vezes, `400` sem motivo) são exatamente o tipo de coisa que cabe num `@WebMvcTest` e que a rubrica costuma cobrar — e o CI (`.github/workflows/ci.yml`) já roda `mvnw verify` em todo PR para `main`, então o teste passa a valer automaticamente.
-
-7. **Detalhe de nomenclatura:** o setter de `volumeMl` está escrito `setvolumeMl` (v minúsculo). Funciona por acidente — o Jackson resolve a propriedade pelo getter — mas qualquer ferramenta que dependa de convenção JavaBean estrita vai tropeçar. O mesmo vale para `getTipoUsuario()` sobre o campo `tipo` em `Usuario`, que faria a propriedade JSON virar `tipoUsuario`.
 
 ---
 
@@ -236,7 +209,7 @@ O arquivo cobre:
 | Blocos | O que exercita |
 |---|---|
 | 1–5 | caminho feliz: criar → listar → buscar → alterar prioridade → aceitar |
-| 6–11 | erros: `409` (aceitar/recusar fora de `ABERTA`), `404`, `400` (enum inválido, `volumeMl` nulo) e o `500` da lacuna #1 |
+| 6–11 | erros: `409` (aceitar/recusar fora de `ABERTA`), `404`, `400` (enum inválido, `volumeMl` nulo) e o `500` de campo obrigatório ausente |
 | 12–15 | fluxo de recusa: sem motivo → `400`, motivo em branco → `400`, motivo válido → `RECUSADA` |
 | 16–18 | limpeza: delete das duas requisições + confirmação `404` |
 | final | rotas do desenho alvo que **ainda não existem** (filtro `?status=`, `/alocacoes`, `/cancelar`) |
@@ -246,7 +219,7 @@ O arquivo cobre:
 - **O corpo JSON é sempre a última coisa do bloco.** Depois da linha em branco que fecha os headers, tudo vira corpo — inclusive linhas `@variavel`. Por isso todo comentário fica **acima** da linha do método.
 - `@baseUrl` e `@contentType` estão no topo; não repita a URL literal nos blocos.
 - Para encadear um id, nomeie o bloco de origem com `# @name criar` e use `{{criar.response.body.$.id}}` nos seguintes.
-- Enums vão como **string**. Mandar o ordinal (`"tipo": 0`) funciona, mas amarra o JSON à ordem de declaração do enum — é exatamente a lacuna #3 acima. Não use.
+- Enums vão como **string**. Mandar o ordinal (`"tipo": 0`) funciona, mas amarra o JSON à ordem de declaração do enum. Não use.
 - Bloco novo = nova linha `### <número>. <o que faz>` + um comentário com o **esperado** (`# Esperado: 409 ...`). É o esperado que transforma o arquivo em teste, não a chamada.
 
 ## Conferindo o que gravou no banco
@@ -257,7 +230,7 @@ O arquivo cobre:
 SELECT * FROM REQUISICOES;
 ```
 
-Repare que `TIPO`, `ABO`, `RH`, `PRIORIDADE` e `STATUS` aparecem como **números**, não como texto — é a lacuna #3 acima.
+Repare que `TIPO`, `ABO`, `RH`, `PRIORIDADE` e `STATUS` aparecem como **números**, não como texto: os enums são persistidos como `ORDINAL`.
 
 **Para começar do zero:** pare a aplicação e apague `backend/data/hemotrack-db.mv.db`. Com `ddl-auto=update` o schema é recriado no próximo start.
 
