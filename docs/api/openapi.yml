@@ -22,16 +22,11 @@ openapi: 3.1.0
 info:
   title: HemoTrack API
   version: 0.1.0-alvo
-  summary: Distribuicao e rastreio de hemocomponentes entre hemocentros e hospitais.
   description: |
-    Contrato alvo do projeto integrador HemoTrack (Rota Vital).
+    Distribuicao e rastreio de hemocomponentes entre hemocentros e hospitais.
+      
+        Hemocentro ->  Hospital   
 
-        Ponto de coleta  ->  Hemocentro  ->  Hospital
-                              (fraciona a bolsa, aceita requisicoes,
-                               aloca por compatibilidade + FEFO)
-
-    Cada operacao referencia a historia de usuario que a motiva (HU01..HU09),
-    em `docs/historias.md`.
   contact:
     name: Squad HemoTrack - CESAR
   license:
@@ -50,8 +45,6 @@ tags:
     description: Hospitais, hemocentros, pontos de coleta e o estoque calculado (HU01, HU02)
   - name: requisicoes
     description: Requisicoes de transfusao e suas transicoes (HU03 a HU06)
-  - name: bolsas
-    description: Sangue total coletado, e o fracionamento (HU02)
   - name: hemocomponentes
     description: Unidades alocaveis geradas do fracionamento (HU02, HU06)
 
@@ -86,7 +79,7 @@ paths:
                 password:
                   type: string
                   format: password
-            example:
+            examples:
               email: ana@hemope.pe.gov.br
               password: segredo123
       responses:
@@ -407,7 +400,7 @@ paths:
                   - type: array
                     items:
                       $ref: '#/components/schemas/Hemocomponente'
-              example:
+              examples:
                 - tipo: HEMACIAS
                   abo: O
                   rh: NEGATIVO
@@ -520,7 +513,7 @@ paths:
                   $ref: '#/components/schemas/Prioridade'
                 observacoes:
                   type: string
-            example:
+            examples:
               prioridade: NORMAL
       responses:
         '200':
@@ -597,7 +590,7 @@ paths:
                   type: string
                   minLength: 1
                   description: Vazio ou so espacos devolve 400.
-            example:
+            examples:
               motivoRecusa: Estoque de O- insuficiente
       responses:
         '200':
@@ -659,7 +652,7 @@ paths:
                     items:
                       type: integer
                       format: int64
-              example:
+              examples:
                 requisicaoId: 1
                 status: ALOCADA
                 volumeMlAlocado: 450.0
@@ -699,183 +692,6 @@ paths:
         '409':
           $ref: '#/components/responses/ConflitoDeStatus'
 
-  # -------------------------------------------------------------- bolsas ----
-  /bolsas:
-    get:
-      tags: [bolsas]
-      summary: Lista as bolsas da instituicao
-      description: 'ESTADO: nao implementado. Entidade e repository prontos.'
-      operationId: listarBolsas
-      parameters:
-        - name: abo
-          in: query
-          schema:
-            $ref: '#/components/schemas/TipoABO'
-        - name: rh
-          in: query
-          schema:
-            $ref: '#/components/schemas/FatorRh'
-        - name: instituicaoAtualId
-          in: query
-          description: So ADMIN consulta outra instituicao
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '200':
-          description: Lista de bolsas
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Bolsa'
-    post:
-      tags: [bolsas]
-      summary: Registra uma coleta
-      description: Ponto de coleta ou hemocentro. `instituicaoAtualId` e quem coletou.
-      operationId: criarBolsa
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Bolsa'
-      responses:
-        '201':
-          description: Criada
-          headers:
-            Location:
-              schema:
-                type: string
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Bolsa'
-        '400':
-          $ref: '#/components/responses/DadosInvalidos'
-
-  /bolsas/{id}:
-    parameters:
-      - $ref: '#/components/parameters/IdPath'
-    get:
-      tags: [bolsas]
-      summary: Busca uma bolsa
-      operationId: buscarBolsa
-      responses:
-        '200':
-          description: Bolsa encontrada
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Bolsa'
-        '404':
-          $ref: '#/components/responses/NaoEncontrado'
-    patch:
-      tags: [bolsas]
-      summary: Altera a bolsa
-      description: Cobre o transporte - mover a bolsa de instituicao e marcar `emTransito`.
-      operationId: alterarBolsa
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              minProperties: 1
-              properties:
-                instituicaoAtualId:
-                  type: integer
-                  format: int64
-                emTransito:
-                  type: boolean
-      responses:
-        '200':
-          description: Atualizada
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Bolsa'
-        '404':
-          $ref: '#/components/responses/NaoEncontrado'
-    delete:
-      tags: [bolsas]
-      summary: Remove uma bolsa
-      description: Restrito a ADMIN.
-      operationId: removerBolsa
-      responses:
-        '204':
-          description: Removida
-        '403':
-          $ref: '#/components/responses/Proibido'
-        '404':
-          $ref: '#/components/responses/NaoEncontrado'
-
-  /bolsas/{id}/hemocomponentes:
-    parameters:
-      - $ref: '#/components/parameters/IdPath'
-    post:
-      tags: [bolsas]
-      summary: Fraciona a bolsa em hemocomponentes
-      description: |
-        Hemocentro. Cada hemocomponente gerado herda `abo`, `rh` e
-        `instituicaoAtualId` da bolsa, aponta para ela em `bolsaOrigemId` e
-        nasce `EM_ANALISE`.
-
-        E o unico jeito de criar hemocomponente - nao existe `POST
-        /hemocomponentes`.
-
-        ESTADO: nao implementado, e **o corpo ainda nao foi decidido**. A
-        pergunta em aberto: o cliente informa quais componentes e com que
-        volume, ou o servidor aplica uma regra fixa de fracionamento por tipo?
-        O corpo abaixo assume a primeira opcao.
-      operationId: fracionarBolsa
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [componentes]
-              properties:
-                componentes:
-                  type: array
-                  minItems: 1
-                  items:
-                    type: object
-                    required: [tipo, volumeMl]
-                    properties:
-                      tipo:
-                        $ref: '#/components/schemas/TipoHemocomponente'
-                      volumeMl:
-                        type: number
-                        format: double
-                        exclusiveMinimum: 0
-            example:
-              componentes:
-                - tipo: HEMACIAS
-                  volumeMl: 250
-                - tipo: PLASMA
-                  volumeMl: 150
-      responses:
-        '201':
-          description: Hemocomponentes gerados
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Hemocomponente'
-        '400':
-          $ref: '#/components/responses/DadosInvalidos'
-        '404':
-          $ref: '#/components/responses/NaoEncontrado'
-        '409':
-          description: A bolsa ja foi fracionada
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
 
   # ----------------------------------------------------- hemocomponentes ----
   /hemocomponentes:
@@ -967,7 +783,7 @@ paths:
                   format: int64
                 emTransito:
                   type: boolean
-            example:
+            examples:
               status: APTO
       responses:
         '200':
@@ -1014,7 +830,7 @@ components:
       schema:
         type: integer
         format: int64
-      example: 1
+      examples: 1
 
   responses:
     DadosInvalidos:
@@ -1041,7 +857,7 @@ components:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/ProblemDetail'
-          example:
+          examples:
             type: about:blank
             title: Not Found
             status: 404
@@ -1053,7 +869,7 @@ components:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/ProblemDetail'
-          example:
+          examples:
             type: about:blank
             title: Conflict
             status: 409
@@ -1150,7 +966,7 @@ components:
             - $ref: '#/components/schemas/TipoUsuario'
           readOnly: true
           description: Default PADRAO. So ADMIN promove.
-      example:
+      examples:
         id: 1
         nomeCompleto: Ana Ribeiro
         email: ana@hemope.pe.gov.br
@@ -1175,7 +991,7 @@ components:
         cnpj:
           type: string
           description: Unico no sistema (HU01)
-      example:
+      examples:
         id: 3
         tipo: HEMOCENTRO
         razaoSocial: Fundacao HEMOPE
@@ -1234,7 +1050,7 @@ components:
           type: [string, 'null']
           readOnly: true
           description: Preenchido so pelo `recusar`
-      example:
+      examples:
         id: 1
         dataCriacao: '2026-09-14T21:14:03.482119Z'
         hospitalId: 7
@@ -1282,7 +1098,7 @@ components:
         emTransito:
           type: boolean
           default: false
-      example:
+      examples:
         id: 5
         instituicaoAtualId: 3
         abo: O
@@ -1346,7 +1162,7 @@ components:
         emTransito:
           type: boolean
           default: false
-      example:
+      examples:
         id: 18
         bolsaOrigemId: 5
         instituicaoAtualId: 3
