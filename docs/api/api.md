@@ -68,7 +68,7 @@ O `Service` lança `ResponseStatusException` direto (ainda não há exceptions d
 | `TipoInstituicao` | `PONTO_COLETA`, `HEMOCENTRO`, `HOSPITAL` |
 | `StatusHemocomponente` | `EM_ANALISE`, `APTO`, `DESCARTADO` |
 
-> ⚠ É **`PLASMA`**, não `PLASMA_FRESCO_CONGELADO`. Mandar o valor errado devolve `400`.
+Os valores vão como **string** e são exatamente estes: qualquer outro devolve `400`. `PLASMA` é o nome curto de Plasma Fresco Congelado.
 
 ---
 
@@ -230,7 +230,7 @@ O arquivo cobre:
 SELECT * FROM REQUISICOES;
 ```
 
-Repare que `TIPO`, `ABO`, `RH`, `PRIORIDADE` e `STATUS` aparecem como **números**, não como texto: os enums são persistidos como `ORDINAL`.
+Repare que `TIPO`, `ABO`, `RH`, `PRIORIDADE` e `STATUS` aparecem como **números**, não como texto: nenhum campo enum tem `@Enumerated(EnumType.STRING)`, então o H2 grava o índice. Com `ddl-auto=update` e banco em arquivo, reordenar um enum corrompe as linhas já gravadas — ver a nota em `Prioridade`, no desenho alvo.
 
 **Para começar do zero:** pare a aplicação e apague `backend/data/hemotrack-db.mv.db`. Com `ddl-auto=update` o schema é recriado no próximo start.
 
@@ -239,172 +239,300 @@ Repare que `TIPO`, `ABO`, `RH`, `PRIORIDADE` e `STATUS` aparecem como **números
 
 # Desenho alvo (planejado)
 
-> Tudo abaixo é o contrato que queremos atingir, **não o que está implementado**. Conferir contra a parte 1 antes de usar.
+> Os **nomes de classe, campo e enum abaixo são os do código**. O que ainda não existe está marcado como tal. Quando esta parte divergir da parte 1, a parte 1 é a verdade.
 
-## **Sistema**
+## Estado da modelagem, por agregado
 
-### class `Usuario`
-**Campos (resposta):** Id, Nome Completo, Email, CPF, InstituicaoId
+| Pacote `model/` | Entidades e enums | Repository | Service | Controller |
+|---|---|---|---|---|
+| `requisicao/` | `Requisicao`, `StatusRequisicao`, `Prioridade`, `dto/RecusaRequest` | ✓ | ✓ | ✓ REST |
+| `usuario/` | `Usuario`, `TipoUsuario` | ✓ | ✓ | ⚠ MVC Thymeleaf |
+| `instituicao/` | `Instituicao`, `TipoInstituicao` | ✓ | ✗ | ✗ |
+| `sangue/` | `Bolsa`, `Hemocomponente`, `StatusHemocomponente`, `TipoHemocomponente` | ✓ | ✗ | ✗ |
+| `shared/` | `TipoABO`, `FatorRh` | — | — | — |
 
-**Campos (entrada — POST/PUT/PATCH):** Nome Completo, Email, Senha, CPF, InstituicaoId
+As camadas ficam em `model/<agregado>/`, `repositories/`, `service/` e `cotrollers/` — esta última com o typo preservado no código.
 
-A senha nunca é devolvida pela API — schema de resposta e de entrada são diferentes.
-
-**Tipos de usuário** (definidos pelo `TipoInstituicao` da instituição vinculada):
-- **Usuário Hemocentro** — visualiza requisições recebidas, aceita/recusa, aloca hemocomponentes, gerencia estoque.
-- **Usuário Hospital** — cria Requisições De Transfusão (RT), acompanha suas próprias requisições.
-
-### enum `TipoPerfil`
-`PADRAO`, `ADMIN`
-
-Campo novo em `Usuario`, ortogonal ao `TipoInstituicao`. `TipoInstituicao` diz *o que* o usuário faz no domínio (Hospital pede, Hemocentro atende); `TipoPerfil` diz *o nível de acesso* — `ADMIN` é operação/suporte do próprio HemoTrack, não um papel de negócio. Um usuário `ADMIN` continua vinculado a uma instituição (pode ser uma instituição interna "HemoTrack Sistema") mas pode chamar rotas que um usuário `PADRAO` não pode — hoje, basicamente os `DELETE`.
-
-*(No código já existe como `TipoUsuario`.)*
-
-Cada rota abaixo indica quem pode chamá-la (HU01: "cada perfil deve ter acesso às funcionalidades correspondentes").
+Nenhuma entidade usa `@ManyToOne`: todos os vínculos são `Long` soltos (`hospitalId`, `idInstituicao`, `instituicaoAtualId`, `bolsaOrigemId`, `requisicaoAlocadaId`). É uma escolha consciente enquanto não há autenticação nem telas; virar FK de verdade é um passo previsto, não um esquecimento.
 
 ---
+
+## `shared/` — tipos compartilhados
+
 ### enum `TipoABO`
 `A`, `B`, `AB`, `O`
+
 ### enum `FatorRh`
 `POSITIVO`, `NEGATIVO`
-### enum `TipoHemocomponente`
-`HEMACIAS`, `PLASMA_FRESCO_CONGELADO`, `PLAQUETAS`, `CRIOPRECIPITADO`
+
+Aparecem em `Requisicao`, `Bolsa` e `Hemocomponente`. São o par que define compatibilidade (HU06).
 
 ---
-### enum `Prioridade`
-`NORMAL`, `URGENCIA`, `EMERGENCIA`
 
-### enum `StatusRequisicao`
-`ABERTA` → `ACEITA` → `ALOCADA` → `ATENDIDA`
-ou `ABERTA` → `RECUSADA`
-ou `ABERTA` / `ACEITA` → `CANCELADA` (cancelada pelo hospital)
+## `usuario/`
 
-- **ABERTA** — Pendente (HU03/HU04). Requisição criada, aguardando análise do hemocentro.
-- **ACEITA** — hemocentro confirmou que consegue atender (HU05), ainda sem hemocomponentes específicos reservados.
-- **ALOCADA** — hemocomponentes já reservados via compatibilidade + FEFO (HU06).
-- **ATENDIDA** — entregue. *(A granularidade "em separação"/"em transporte" do HU04 entra quando HU07/HU08 forem modeladas; por ora ATENDIDA cobre tudo depois da alocação.)*
-- **RECUSADA** — hemocentro não consegue atender; exige `motivoRecusa` preenchido (HU05).
-- **CANCELADA** — cancelada pelo hospital antes de ser atendida.
+### enum `TipoUsuario`
+`PADRAO`, `ADMIN`
 
-### class `RequisicaoDeTransfusao`
-**Campos:** Id, Data, **hospitalId**, **TipoHemocomponente**, **TipoABO**, **FatorRh**, volumeMl, observacoes (opcional), **Prioridade**, **StatusRequisicao**, **motivoRecusa** (preenchido só quando `RECUSADA`)
+Nível de acesso, ortogonal ao `TipoInstituicao`. `TipoInstituicao` diz *o que* o usuário faz no domínio (Hospital pede, Hemocentro atende); `TipoUsuario` diz *o quanto* ele pode — `ADMIN` é operação/suporte do próprio HemoTrack, não papel de negócio. Um `ADMIN` continua vinculado a uma instituição.
 
----
-### class `Bolsa`
-**Campos:** id, **TipoABO**, **FatorRh**, volumeMl, dataDeColeta, validade, **instituicaoAtualId**, boolEmTransito.
+### class `Usuario`
 
----
-### enum `StatusQualidade`
-`EM_ANALISE`, `APTO`, `DESCARTADO`
+| Campo | Tipo | Validação no código | Nota |
+|---|---|---|---|
+| `id` | `Long` | `@GeneratedValue(IDENTITY)` | |
+| `nomeCompleto` | `String` | `@NotBlank`, `@Size(3..80)` | |
+| `email` | `String` | `@NotBlank`, `@Email` | alvo: único |
+| `password` | `String` | `@NotBlank`, `@Size(min=6)` | texto puro hoje; alvo: hash |
+| `cpf` | `String` | `@NotBlank` | alvo: único |
+| `idInstituicao` | `Long` | `@NotNull` | alvo: FK para `Instituicao` |
+| `tipo` | `TipoUsuario` | `@Nullable`, default `PADRAO` | getter é `getTipoUsuario()` |
 
-*(No código já existe como `StatusHemocomponente`.)*
+**Contrato de saída:** `password` nunca é devolvido. Como a entidade é serializada direto, isso exige um DTO de resposta (`UsuarioResponse`) ou `@JsonIgnore` no campo — hoje não existe nenhum dos dois, e é por isso que `/usuarios` ainda não é REST.
 
-### class `Hemocomponente`
-**Campos:** id, **TipoABO**, **FatorRh**, **TipoHemocomponente**, volumeMl, bolsaOrigemId, dataProcessamento, **StatusQualidade**, validade, **instituicaoAtualId**, requisicaoAlocadaId, boolEmTransito.
+**Contrato de entrada:** `nomeCompleto`, `email`, `password`, `cpf`, `idInstituicao`. `id` e `tipo` não vêm do cliente.
 
-`StatusQualidade` descreve só o resultado do controle de qualidade (passou/não passou no laboratório). Ele **não** é o mesmo que disponibilidade de estoque — ver seção **Estoque**.
+**Detalhe de serialização:** o getter chama-se `getTipoUsuario()` sobre o campo `tipo`, então o Jackson vai expor a propriedade como `tipoUsuario`, não `tipo` — diferente de `Requisicao`, onde `tipo` é `tipo`. Renomear o getter para `getTipo()` alinha os dois.
 
 ---
+
+## `instituicao/`
+
 ### enum `TipoInstituicao`
 `PONTO_COLETA`, `HEMOCENTRO`, `HOSPITAL`
 
+Define o papel no fluxo: `PONTO_COLETA` gera bolsas, `HEMOCENTRO` processa e aloca, `HOSPITAL` requisita e recebe.
+
 ### class `Instituicao`
-**Campos:** Id, Razao Social, CNPJ, **TipoInstituicao**.
 
-*(Não tem mais campo `Estoque` — ver abaixo.)*
+| Campo | Tipo | Validação no código | Nota |
+|---|---|---|---|
+| `id` | `Long` | `@GeneratedValue(IDENTITY)` | |
+| `tipo` | `TipoInstituicao` | `@NotNull` | |
+| `razaoSocial` | `String` | `@NotBlank`, `@Size(3..80)` | |
+| `cnpj` | `String` | `@NotBlank` | alvo: `@Column(unique = true)` — HU01 exige CNPJ único |
 
-## **Estoque**
+Não tem campo `estoque` — ver **Estoque** abaixo.
 
-`Estoque` não é uma entidade persistida nem um array guardado dentro de `Instituicao`. É uma **visão calculada** a partir de `Hemocomponente.instituicaoAtualId`.
+**Bloqueio para virar REST:** a classe não tem getters nem setters. O JPA funciona (acessa os campos direto), mas o Jackson serializa pelos getters: hoje um `GET /instituicoes` devolveria `{}`. Vale para `Bolsa` e `Hemocomponente` também.
 
-Só `HEMOCENTRO` tem estoque disponível para alocação (`PONTO_COLETA` só gera bolsas; `HOSPITAL` só recebe).
+**CNPJ único:** a unicidade do HU01 precisa das duas pontas — `@Column(unique = true)` para o banco garantir, e um `findByCnpj` no repository para o service devolver `409` com mensagem em vez de deixar estourar `DataIntegrityViolationException` (que viraria `500`).
 
-Disponibilidade de um `Hemocomponente` também é calculada, não é um campo próprio:
+---
 
-| "Status" exibido (HU02) | Regra |
+## `requisicao/`
+
+### enum `Prioridade`
+`NORMAL`, `EMERGENCIA`, `URGENCIA`
+
+> A ordem de declaração no código é `NORMAL, EMERGENCIA, URGENCIA`, que **não** é a ordem de gravidade (`NORMAL < URGENCIA < EMERGENCIA`). Enquanto os enums forem persistidos como `ORDINAL`, reordenar corrompe os dados existentes; e ordenar fila por prioridade não pode usar o ordinal. Alvo: `@Enumerated(EnumType.STRING)` primeiro, reordenar depois, ou manter a ordem e ordenar por um peso explícito.
+
+### enum `StatusRequisicao`
+
+```
+ABERTA → ACEITA → ALOCADA → ATENDIDA
+ABERTA → RECUSADA
+ABERTA / ACEITA → CANCELADA
+```
+
+| Valor | Significado | HU | Implementado |
+|---|---|---|---|
+| `ABERTA` | criada, aguardando análise do hemocentro ("Pendente" no HU04) | HU03 | ✓ default |
+| `ACEITA` | hemocentro confirmou que atende, sem hemocomponente reservado ainda | HU05 | ✓ `POST /aceitar` |
+| `ALOCADA` | hemocomponentes reservados via compatibilidade + FEFO | HU06 | ✗ |
+| `ATENDIDA` | entregue ao hospital | HU08 | ✗ |
+| `RECUSADA` | hemocentro não atende; exige `motivoRecusa` | HU05 | ✓ `POST /recusar` |
+| `CANCELADA` | cancelada pelo hospital antes do atendimento | — | ✗ |
+
+O HU04 pede "Em separação" e "Em transporte" como status visíveis ao hospital. Eles não entram neste enum: separação é `ALOCADA`, e transporte é estado do `Shipment` (HU07/HU08), que ainda não foi modelado. O que o hospital vê é derivado dos dois.
+
+### class `Requisicao`
+
+| Campo | Tipo | Validação no código | Nota |
+|---|---|---|---|
+| `id` | `Long` | `@GeneratedValue(IDENTITY)` | alvo: não aceitar no body |
+| `dataCriacao` | `Instant` | `@CreationTimestamp`, `updatable = false` | imutável |
+| `hospitalId` | `Long` | `@NotNull` | alvo: vir do usuário autenticado, não do body |
+| `tipo` | `TipoHemocomponente` | `@NotNull` | |
+| `abo` | `TipoABO` | `@NotNull` | |
+| `rh` | `FatorRh` | `@NotNull` | |
+| `volumeMl` | `double` | `nullable = false` | primitivo: default `0.0`, `@NotNull` não se aplica; alvo: `@Positive` |
+| `prioridade` | `Prioridade` | `@NotNull` | |
+| `observacoes` | `String` | `@Nullable` | |
+| `status` | `StatusRequisicao` | `@Nullable`, default `ABERTA` | alvo: não aceitar no body |
+| `motivoRecusa` | `String` | `@Nullable` | preenchido só no `POST /recusar` |
+
+**Quantidade:** o HU03 fala em "quantidade"; o código resolveu isso como `volumeMl` (um `double`), não como número de bolsas. É uma decisão de modelagem que vale registrar: a alocação (HU06) vai somar volumes de hemocomponentes até cobrir o pedido, não contar unidades.
+
+**Hemocentro responsável:** o HU04 pede que a requisição mostre o "hemocentro responsável (quando definido)". Não há campo para isso — falta um `hemocentroId`, preenchido no `aceitar`.
+
+**Setter fora de convenção:** `setvolumeMl` (v minúsculo). Funciona porque o Jackson resolve a propriedade pelo getter, mas quebra qualquer ferramenta que siga JavaBean estrito.
+
+### DTOs
+
+`dto/RecusaRequest` — `{ motivoRecusa }`. É o único DTO que existe, e é o padrão a seguir para os demais:
+
+| DTO alvo | Para quê |
 |---|---|
-| Disponível | `StatusQualidade = APTO` e `validade >= hoje` e `requisicaoAlocadaId = null` |
-| Reservada | `requisicaoAlocadaId != null` |
-| Vencida | `validade < hoje` |
-| Utilizada | fora de escopo por enquanto (depende de HU08 — transporte/entrega) |
+| `RequisicaoRequest` | entrada do `POST`/`PATCH`, sem `id` e sem `status` |
+| `UsuarioResponse` | saída sem `password` |
+| `AlocacaoResponse` | ids dos hemocomponentes alocados (HU06) |
 
-A estrutura de índice por hash + fila de prioridade por validade (FEFO), que o time de Algoritmos precisa entregar, é interna ao serviço de alocação — não é exposta na API, só o resultado (bolsas alocadas).
+---
+
+## `sangue/`
+
+### enum `TipoHemocomponente`
+`HEMACIAS`, `PLASMA`, `PLAQUETAS`, `CRIOPRECIPITADO`
+
+`PLASMA` é o nome curto de "Plasma Fresco Congelado" — o valor no JSON é `PLASMA`.
+
+### enum `StatusHemocomponente`
+`EM_ANALISE`, `APTO`, `DESCARTADO`
+
+Só o resultado do controle de qualidade do laboratório. **Não** é disponibilidade de estoque — ver **Estoque**.
+
+### class `Bolsa`
+
+Sangue total, como sai da coleta. Não tem tipo de hemocomponente: é o que ainda vai ser fracionado.
+
+| Campo | Tipo | Validação no código | Nota |
+|---|---|---|---|
+| `id` | `Long` | `@GeneratedValue(IDENTITY)` | |
+| `instituicaoAtualId` | `Long` | `@NotNull` | onde a bolsa está agora |
+| `abo` | `TipoABO` | `@NotNull` | |
+| `rh` | `FatorRh` | `@NotNull` | |
+| `volumeMl` | `double` | `nullable = false` | |
+| `dataColeta` | `Instant` | `@CreationTimestamp`, `updatable = false` | |
+| `validade` | `int` | `@NotNull` (sem efeito em primitivo) | **a decidir** — ver abaixo |
+| `emTransito` | `boolean` | default `false` | |
+
+### class `Hemocomponente`
+
+O que sai do fracionamento de uma bolsa. É a unidade que se aloca para uma requisição.
+
+| Campo | Tipo | Validação no código | Nota |
+|---|---|---|---|
+| `id` | `Long` | `@GeneratedValue(IDENTITY)` | |
+| `bolsaOrigemId` | `Long` | `@NotNull` | rastreabilidade até a coleta |
+| `instituicaoAtualId` | `Long` | `@NotNull` | onde está agora |
+| `requisicaoAlocadaId` | `Long` | `@Nullable` | preenchido só quando alocado |
+| `tipo` | `TipoHemocomponente` | `@NotNull` | |
+| `abo` | `TipoABO` | `@NotNull` | herdado da bolsa |
+| `rh` | `FatorRh` | `@NotNull` | herdado da bolsa |
+| `volumeMl` | `double` | `nullable = false` | |
+| `dataProcessamento` | `Instant` | `@CreationTimestamp`, `updatable = false` | |
+| `validade` | `int` | `@NotNull` (sem efeito em primitivo) | **a decidir** — ver abaixo |
+| `status` | `StatusHemocomponente` | `@NotNull` | |
+| `emTransito` | `boolean` | default `false` | |
+
+**`validade` como `int` é a decisão de modelagem mais importante em aberto.** Um `int` só pode ser *prazo em dias*, não *data de vencimento*. Isso obriga todo cálculo de validade a ser `dataColeta + validade dias`, e a regra FEFO do HU06 ("priorizar vencimento mais próximo") passa a depender de somar as duas colunas em vez de ordenar uma. As opções:
+
+| Opção | Consequência |
+|---|---|
+| `LocalDate dataValidade` | FEFO vira `ORDER BY data_validade`; o vencido do HU02 vira `data_validade < hoje`. Mais simples de consultar. |
+| manter `int validade` (dias) | preserva o prazo por tipo de componente como dado; exige campo derivado ou consulta calculada para ordenar |
+| os dois | `int validadeDias` como regra + `LocalDate dataValidade` gravado no fracionamento |
+
+O HU02 pede "data de validade" explicitamente, o que empurra para a primeira ou a terceira.
+
+---
+
+## Estoque
+
+`Estoque` não é entidade nem coleção dentro de `Instituicao`. É **visão calculada** sobre `Hemocomponente.instituicaoAtualId`.
+
+Só `HEMOCENTRO` tem estoque alocável: `PONTO_COLETA` só gera bolsas, `HOSPITAL` só recebe.
+
+A disponibilidade do HU02 também é calculada, não é campo:
+
+| Status exibido (HU02) | Regra |
+|---|---|
+| Disponível | `status = APTO` **e** não vencido **e** `requisicaoAlocadaId = null` |
+| Reservada | `requisicaoAlocadaId != null` |
+| Vencida | validade já passou (ver a decisão acima) |
+| Utilizada | fora de escopo — depende do HU08 (transporte/entrega) |
+
+Repare que `StatusHemocomponente` responde só à primeira condição. Os quatro rótulos do HU02 saem da combinação dos três campos, e é por isso que não existe (nem deve existir) um enum `StatusEstoque`.
+
+A estrutura de índice por hash + fila de prioridade por validade (FEFO), entrega do time de Algoritmos, é interna ao serviço de alocação. Não é exposta na API — só o resultado.
 
 ---
 
 # Detalhamento da API
 
-## `/login`
+Cada rota indica quem pode chamá-la (HU01: "cada perfil deve ter acesso às funcionalidades correspondentes") e se já existe. **Nenhuma rota é protegida hoje** — a coluna "Quem chama" é alvo, não realidade.
 
-| Método | Rota          | Body | Quem chama | Descrição |
-|--------|---------------|------|------------|-----------|
-| POST   | `/login` | `{email, senha}` | Público | Autentica o usuário e devolve token. Necessário para HU01 ("informar suas credenciais... permitir o acesso"). |
+## `/login` — ✗ não existe
 
-## `/usuarios`
+| Método | Rota | Body | Quem chama | Descrição |
+|--------|------|------|------------|-----------|
+| POST | `/login` | `{email, password}` | Público | Autentica e devolve token (HU01). Enquanto não existir, `hospitalId` vem do body. |
 
-| Método | Rota          | Body                   | Quem chama | Descrição                                                     |
-|--------|---------------|------------------------|------------|---------------------------------------------------------------|
-| GET    | `/usuarios`      | —                      | `ADMIN` | Lista todos os **Usuarios** cadastrados (sem senha). Ver todos os usuários do sistema, entre instituições, é sensível — não é operação de um usuário `PADRAO`. |
-| POST   | `/usuarios`      | json | Público | Cria um **Usuario** vinculado a uma `instituicaoId` já existente (cadastro, HU01). |
-| GET    | `/usuarios/{id}` | —                      | Próprio usuário / `ADMIN` | Retorna **Usuario** com `id`, caso exista (sem senha). |
-| DELETE | `/usuarios/{id}` | —                      | `ADMIN` | Ver **Dúvida: DELETE para quem?** abaixo. |
-| PUT    | `/usuarios/{id}` | json | Próprio usuário | Atualiza completamente o **Usuario** com `id`, com infos do Body. |
-| PATCH  | `/usuarios/{id}` | json (parcial) | Próprio usuário | Atualiza parcialmente **Usuario** com `id`, com dados do Body. |
+## `/usuarios` — ⚠ existe como MVC, não como REST
 
-## `/instituicoes`
+| Método | Rota | Body | Quem chama | Descrição |
+|--------|------|------|------------|-----------|
+| GET | `/usuarios` | — | `ADMIN` | Lista `Usuario` sem `password`. Ver todos os usuários entre instituições é operação sensível. |
+| POST | `/usuarios` | `UsuarioRequest` | Público | Cadastro (HU01), vinculado a uma `idInstituicao` existente. |
+| GET | `/usuarios/{id}` | — | Próprio usuário / `ADMIN` | Sem `password`. |
+| PUT | `/usuarios/{id}` | `UsuarioRequest` | Próprio usuário | Atualização completa. |
+| PATCH | `/usuarios/{id}` | parcial | Próprio usuário | Atualização parcial. |
+| DELETE | `/usuarios/{id}` | — | `ADMIN` | Ver **DELETE para quem?** |
 
-| Método | Rota          | Body                   | Quem chama | Descrição                                                     |
-|--------|---------------|------------------------|------------|---------------------------------------------------------------|
-| GET    | `/instituicoes`| — | Qualquer usuário autenticado | Retorna todas as **Instituicoes** cadastradas. |
-| POST   | `/instituicoes`      | json | Público | Cria uma **Instituicao** com infos do Body (cadastro, HU01, antes de existir qualquer usuário). CNPJ deve ser único. |
-| GET    | `/instituicoes/{id}` | —    | Qualquer usuário autenticado | Retorna **Instituicao** com `id`, caso exista.|
-| GET    | `/instituicoes/{id}/estoque` | —    | Hemocentro dono | Retorna a visão agregada do estoque **calculado** da instituição (só para `HEMOCENTRO`) — contagem por `tipoHemocomponente` + `tipoABO` + `fatorRh`. Parâmetros opcionais: `tipoHemocomponente`, `tipoABO`, `fatorRh` (filtram a agregação); `detalhado=true` (devolve a lista de `Hemocomponente`, não só a contagem). Atende HU02 ("consultar estoque disponível por tipo sanguíneo/componente"). |
-| DELETE | `/instituicoes/{id}` | —    | `ADMIN` | Ver **Dúvida: DELETE para quem?** abaixo. |
-| PUT    | `/instituicoes/{id}` | json | Usuário da própria instituição | Atualiza completamente a **Instituicao** com `id`, com infos do Body.|
-| PATCH  | `/instituicoes/{id}` | json (parcial) | Usuário da própria instituição | Atualiza parcialmente a **Instituicao** com `id`, com dados do Body. |
+Migrar o controller atual exige, nesta ordem: `UsuarioResponse` sem `password`, `@RestController` em vez de `@Controller`, `DELETE /usuarios/{id}` no lugar de `GET /usuarios/remover/{id}`, e `400` com a lista de erros de validação em vez de re-renderizar o formulário.
 
-## `/requisicoes`
+## `/instituicoes` — ✗ não existe (entidade e repository prontos)
 
-| Método | Rota          | Body                   | Quem chama | Descrição                                                     |
-|--------|---------------|------------------------|------------|---------------------------------------------------------------|
-| GET    | `/requisicoes`| — | Hospital (só as próprias, filtrado por `hospitalId` do token) / Hemocentro (todas, ou `?status=ABERTA` para ver pendentes — HU05) | Lista requisições. Suporta filtro `?status=`. |
-| POST   | `/requisicoes`      | json (`hospitalId` vem do usuário autenticado, não do body) | Hospital | Cria uma **RequisicaoDeTransfusao**, status inicial `ABERTA` (HU03). Campos obrigatórios: tipoHemocomponente, tipoABO, fatorRh, volumeMl, prioridade. |
-| GET    | `/requisicoes/{id}` | —    | Hospital dono / Hemocentro | Retorna **RequisicaoDeTransfusao** com `id`, caso exista (HU04). |
-| POST   | `/requisicoes/{id}/aceitar` | — | Hemocentro | `ABERTA → ACEITA`. Confirma que o hemocentro vai atender (HU05). 409 se a requisição não estiver `ABERTA`. |
-| POST   | `/requisicoes/{id}/recusar` | `{motivo}` | Hemocentro | `ABERTA → RECUSADA`. `motivo` obrigatório (HU05). |
-| POST   | `/requisicoes/{id}/alocacoes` | — | Hemocentro | Só permitido com status `ACEITA`. Aloca hemocomponentes compatíveis (ABO/Rh + FEFO), muda status para `ALOCADA` e retorna os ids alocados (HU06). 409 se não houver hemocomponente compatível disponível. |
-| PATCH  | `/requisicoes/{id}` | json (parcial, campos como `prioridade`, `observacoes`) | Hospital dono | Atualiza dados da requisição — **não altera `status`**, que só muda pelas ações acima. |
-| DELETE | `/requisicoes/{id}` | — | `ADMIN` | Ver **Dúvida: DELETE para quem?** abaixo — não é o caminho normal de cancelamento (isso é `status = CANCELADA`). |
+| Método | Rota | Body | Quem chama | Descrição |
+|--------|------|------|------------|-----------|
+| GET | `/instituicoes` | — | Autenticado | Lista todas. |
+| POST | `/instituicoes` | json | Público | Cadastro (HU01), antes de existir qualquer usuário. CNPJ único → `409` se repetido. |
+| GET | `/instituicoes/{id}` | — | Autenticado | |
+| GET | `/instituicoes/{id}/estoque` | — | Hemocentro dono | Estoque **calculado** (HU02): contagem por `tipo` + `abo` + `rh`. Filtros: `tipo`, `abo`, `rh`. `detalhado=true` devolve a lista de `Hemocomponente` em vez da contagem. Só faz sentido para `HEMOCENTRO`. |
+| PUT / PATCH | `/instituicoes/{id}` | json | Usuário da própria instituição | |
+| DELETE | `/instituicoes/{id}` | — | `ADMIN` | Ver **DELETE para quem?** |
 
-## `/bolsas`
+## `/requisicoes` — ✓ implementado (exceto onde indicado)
 
-| Método | Rota          | Body                   | Quem chama | Descrição                                                     |
-|--------|---------------|------------------------|------------|---------------------------------------------------------------|
-| GET    | `/bolsas`| — | Hemocentro / Ponto de Coleta (da própria instituição) | Retorna as **Bolsas** da instituição do usuário. Filtros: `tipoABO`, `fatorRh`, `instituicaoAtualId` (`ADMIN` pode ver todas). |
-| POST   | `/bolsas`      | json | Ponto de Coleta / Hemocentro | Cria uma **Bolsa** com infos do Body (coleta). `instituicaoAtualId` = ponto de coleta/hemocentro que recebeu. |
-| POST   | `/bolsas/{id}/hemocomponentes`      | json | Hemocentro | Processa **Bolsa** indicada e retorna os ids dos **Hemocomponentes** resultantes, já com `instituicaoAtualId` herdado da bolsa. |
-| GET    | `/bolsas/{id}` | —    | Hemocentro / Ponto de Coleta dono | Retorna **Bolsa** com `id`, caso exista.|
-| PUT    | `/bolsas/{id}` | json | Hemocentro / Ponto de Coleta dono | Atualiza completamente a **Bolsa** com `id`, com infos do Body.|
-| PATCH  | `/bolsas/{id}` | json (parcial) | Hemocentro / Ponto de Coleta dono | Atualiza parcialmente **Bolsa** com `id` — inclui mover `instituicaoAtualId` (transporte) e marcar descarte. |
-| DELETE | `/bolsas/{id}` | — | `ADMIN` | Ver **Dúvida: DELETE para quem?** abaixo — não é o caminho normal de descarte (isso é status). |
+| Método | Rota | Body | Quem chama | Descrição |
+|--------|------|------|------------|-----------|
+| GET | `/requisicoes` | — | Hospital (só as próprias) / Hemocentro (todas) | Alvo: filtro `?status=ABERTA` para o hemocentro ver pendentes (HU05) — **✗ o parâmetro é ignorado hoje**. |
+| POST | `/requisicoes` | `RequisicaoRequest` | Hospital | Cria com status `ABERTA` (HU03). Obrigatórios: `tipo`, `abo`, `rh`, `volumeMl`, `prioridade`. Alvo: `hospitalId` do token; `201` + `Location`. |
+| GET | `/requisicoes/{id}` | — | Hospital dono / Hemocentro | HU04. |
+| PATCH | `/requisicoes/{id}` | parcial (`prioridade`, `observacoes`) | Hospital dono | Nunca altera `status`. **Hoje é `PUT` e só copia `prioridade`** — o alvo é trocar o verbo, não o comportamento. |
+| POST | `/requisicoes/{id}/aceitar` | — | Hemocentro | `ABERTA → ACEITA` (HU05). `409` fora de `ABERTA`. Alvo: gravar também o `hemocentroId`. |
+| POST | `/requisicoes/{id}/recusar` | `RecusaRequest` | Hemocentro | `ABERTA → RECUSADA` (HU05). `motivoRecusa` obrigatório → `400`. |
+| POST | `/requisicoes/{id}/alocacoes` | — | Hemocentro | **✗** Só a partir de `ACEITA`. Aloca por compatibilidade ABO/Rh + FEFO, muda para `ALOCADA`, devolve os ids (HU06). `409` sem hemocomponente compatível. |
+| POST | `/requisicoes/{id}/cancelar` | — | Hospital dono | **✗** `ABERTA`/`ACEITA` → `CANCELADA`. |
+| DELETE | `/requisicoes/{id}` | — | `ADMIN` | Não é o caminho de cancelamento — isso é `CANCELADA`. Ver **DELETE para quem?** |
 
-## `/hemocomponentes`
+## `/bolsas` — ✗ não existe (entidade e repository prontos)
 
-| Método | Rota          | Body                   | Quem chama | Descrição                                                     |
-|--------|---------------|------------------------|------------|---------------------------------------------------------------|
-| GET    | `/hemocomponentes`| — | Hemocentro (da própria instituição) | Retorna os **Hemocomponentes** da instituição do usuário. Filtros: `tipoHemocomponente`, `tipoABO`, `fatorRh`, `instituicaoAtualId`, `statusQualidade` (`ADMIN` pode ver todos). |
-| ~~POST~~   | ~~`/hemocomponentes`~~      | ~~json~~ | — | Não existe — só nasce de `/bolsas/{id}/hemocomponentes`. |
-| GET    | `/hemocomponentes/{id}` | —    | Hemocentro dono | Retorna **Hemocomponente** com `id`, caso exista.|
-| PUT    | `/hemocomponentes/{id}` | json | Hemocentro dono | Atualiza completamente o **Hemocomponente** com `id`, com infos do Body.|
-| PATCH  | `/hemocomponentes/{id}` | json (parcial) | Hemocentro dono | Atualiza parcialmente **Hemocomponente** com `id` — inclui `statusQualidade` (ex.: marcar `DESCARTADO`) e `instituicaoAtualId`. |
-| DELETE | `/hemocomponentes/{id}` | — | `ADMIN` | Ver **Dúvida: DELETE para quem?** abaixo — não é o caminho normal de descarte (isso é `statusQualidade = DESCARTADO`). |
+| Método | Rota | Body | Quem chama | Descrição |
+|--------|------|------|------------|-----------|
+| GET | `/bolsas` | — | Hemocentro / Ponto de Coleta da própria instituição | Filtros: `abo`, `rh`, `instituicaoAtualId` (`ADMIN` vê todas). |
+| POST | `/bolsas` | json | Ponto de Coleta / Hemocentro | Registra a coleta. `instituicaoAtualId` = quem coletou. |
+| GET | `/bolsas/{id}` | — | Dono | |
+| POST | `/bolsas/{id}/hemocomponentes` | json | Hemocentro | Fraciona a bolsa e devolve os ids dos `Hemocomponente` gerados, com `bolsaOrigemId` e `instituicaoAtualId` herdados. |
+| PUT / PATCH | `/bolsas/{id}` | json | Dono | Inclui mover `instituicaoAtualId` e marcar `emTransito`. |
+| DELETE | `/bolsas/{id}` | — | `ADMIN` | Ver **DELETE para quem?** |
 
-## Dúvida: DELETE para quem?
+## `/hemocomponentes` — ✗ não existe (entidade e repository prontos)
 
-Faz sentido, sim — mas com duas ressalvas:
+| Método | Rota | Body | Quem chama | Descrição |
+|--------|------|------|------------|-----------|
+| GET | `/hemocomponentes` | — | Hemocentro da própria instituição | Filtros: `tipo`, `abo`, `rh`, `status`, `instituicaoAtualId` (`ADMIN` vê todos). |
+| ~~POST~~ | ~~`/hemocomponentes`~~ | — | — | Não existe: só nasce de `POST /bolsas/{id}/hemocomponentes`. |
+| GET | `/hemocomponentes/{id}` | — | Hemocentro dono | |
+| PUT / PATCH | `/hemocomponentes/{id}` | json | Hemocentro dono | Inclui `status` (ex.: `DESCARTADO`) e `instituicaoAtualId`. |
+| DELETE | `/hemocomponentes/{id}` | — | `ADMIN` | Descarte normal é `status = DESCARTADO`, não `DELETE`. Ver abaixo. |
 
-1. **Precisa existir o papel.** Hoje o domínio só tem Hospital e Hemocentro (via `TipoInstituicao`), que são papéis de negócio, não de acesso. "Admin do sistema" é um conceito novo — por isso o `TipoPerfil` (`PADRAO`/`ADMIN`) acima. Sem isso modelado, "só admin pode deletar" não tem como ser verificado em lugar nenhum.
-2. **Mesmo o `ADMIN` deletando por engano/erro, considerar soft delete por baixo do capô.** Pra `Usuario` e `Instituicao` um `DELETE` físico tende a ser inofensivo. Já pra `Bolsa`, `Hemocomponente` e `Requisicao` — que têm indicadores (HU09, mais pra frente) e potencialmente auditoria de saúde pública — a recomendação é a rota continuar respondendo `204` normalmente, mas internamente marcar o registro como removido (`removidoEm`, por exemplo) em vez de apagar a linha. Do ponto de vista do contrato da API não muda nada; muda só a implementação, e evita que uma correção de erro vire perda de histórico.
+## DELETE para quem?
 
-Pro escopo do projeto (rubrica não cobra RBAC granular), não vale super-engenhar isso: um campo `TipoPerfil` + uma checagem simples no controller/service já resolve.
+Faz sentido, com duas ressalvas:
+
+1. **Precisa existir o papel.** `TipoInstituicao` são papéis de negócio, não de acesso. `TipoUsuario.ADMIN` já está modelado e é o que torna "só admin deleta" verificável — falta só a checagem no service.
+2. **Soft delete por baixo do capô.** Para `Usuario` e `Instituicao` o delete físico é inofensivo. Para `Bolsa`, `Hemocomponente` e `Requisicao` — que alimentam os indicadores do HU09 e a rastreabilidade — a rota continua respondendo `204`, mas internamente marca `removidoEm`. O contrato não muda; muda a implementação, e um erro de operação deixa de virar perda de histórico.
+
+Para o escopo do projeto (a rubrica não cobra RBAC granular), um `TipoUsuario` + uma checagem no service resolve. Não vale super-engenhar.

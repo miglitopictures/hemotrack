@@ -105,8 +105,8 @@ Accept: {{contentType}}
 ### 9. Enum inválido -> 400 Bad Request
 # Esperado: 400 + "detail": "Failed to read request".
 # O Jackson não desserializa o enum e o corpo nunca vira um objeto —
-# nenhuma linha do service roda. O valor correto NO CÓDIGO HOJE é
-# "PLASMA"; o nome longo abaixo é só do desenho alvo.
+# nenhuma linha do service roda. O valor válido é "PLASMA"; o nome
+# longo abaixo não existe no enum, por isso serve de caso de erro.
 POST {{baseUrl}}/requisicoes
 Content-Type: {{contentType}}
 
