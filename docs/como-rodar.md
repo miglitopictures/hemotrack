@@ -47,12 +47,6 @@ git clone https://github.com/miglitopictures/hemotrack.git
 cd hemotrack
 ```
 
-O trabalho mais recente está na branch `modelagem_dominio` (não na `main`). Confira com `git branch -a` e, se necessário:
-
-```bash
-git checkout modelagem_dominio
-```
-
 ## 2. Rodar o backend
 
 Todos os comandos abaixo devem ser executados **dentro da pasta `backend/`** (é onde fica o `pom.xml` e o wrapper):
