@@ -1,7 +1,7 @@
 
 ```
 Coleta ────► Hemocentro ────► Hospital
-                 |
+                 │
                  └─ processamento
 ```
 # Hemotrack — API REST
@@ -21,12 +21,12 @@ Quando os dois divergirem, a parte 1 é a verdade. As divergências conhecidas e
 
 | Recurso | Estado |
 |---|---|
-| `/requisicoes` | ✅ **REST funcional** — CRUD + transições `aceitar` / `recusar` |
-| `/usuarios` | ⚠️ **Não é REST** — é MVC Thymeleaf (devolve HTML, não JSON) |
-| `/instituicoes` | ❌ não existe (entidade modelada, sem controller) |
-| `/bolsas` | ❌ não existe (entidade modelada, sem controller) |
-| `/hemocomponentes` | ❌ não existe (entidade modelada, sem controller) |
-| `/login` / autenticação | ❌ não existe — **nenhuma rota é protegida** |
+| `/requisicoes` | ✓ **REST funcional** — CRUD + transições `aceitar` / `recusar` |
+| `/usuarios` | ⚠ **Não é REST** — é MVC Thymeleaf (devolve HTML, não JSON) |
+| `/instituicoes` | ✗ não existe (entidade modelada, sem controller) |
+| `/bolsas` | ✗ não existe (entidade modelada, sem controller) |
+| `/hemocomponentes` | ✗ não existe (entidade modelada, sem controller) |
+| `/login` / autenticação | ✗ não existe — **nenhuma rota é protegida** |
 
 **Base URL:** `http://localhost:8080` · **Console H2:** `http://localhost:8080/h2-console` (JDBC `jdbc:h2:file:./data/hemotrack-db`, user `sa`, senha em branco)
 
@@ -68,7 +68,7 @@ O `Service` lança `ResponseStatusException` direto (ainda não há exceptions d
 | `TipoInstituicao` | `PONTO_COLETA`, `HEMOCENTRO`, `HOSPITAL` |
 | `StatusHemocomponente` | `EM_ANALISE`, `APTO`, `DESCARTADO` |
 
-> ⚠️ É **`PLASMA`**, não `PLASMA_FRESCO_CONGELADO`. Mandar o valor errado devolve `400`.
+> ⚠ É **`PLASMA`**, não `PLASMA_FRESCO_CONGELADO`. Mandar o valor errado devolve `400`.
 
 ---
 
@@ -111,11 +111,11 @@ O `Service` lança `ResponseStatusException` direto (ainda não há exceptions d
 | Método | Rota | Body | Sucesso | Erros |
 |---|---|---|---|---|
 | `GET` | `/requisicoes` | — | `200` + array (vazio se não houver nada) | — |
-| `POST` | `/requisicoes` | `Requisicao` | `200` + objeto criado | `400` JSON malformado/enum inválido · `500` campo `@NotNull` ausente |
+| `POST` | `/requisicoes` | `Requisicao` | `200` + objeto criado | `400` JSON malformado/enum inválido; `500` campo `@NotNull` ausente |
 | `GET` | `/requisicoes/{id}` | — | `200` + objeto | `404` |
 | `PUT` | `/requisicoes/{id}` | `Requisicao` | `200` + objeto | `404` |
-| `POST` | `/requisicoes/{id}/aceitar` | — | `200` + objeto com `status: ACEITA` | `404` · `409` se não estiver `ABERTA` |
-| `POST` | `/requisicoes/{id}/recusar` | `{ "motivoRecusa": "..." }` | `200` + objeto com `status: RECUSADA` | `400` motivo vazio · `404` · `409` se não estiver `ABERTA` |
+| `POST` | `/requisicoes/{id}/aceitar` | — | `200` + objeto com `status: ACEITA` | `404`; `409` se não estiver `ABERTA` |
+| `POST` | `/requisicoes/{id}/recusar` | `{ "motivoRecusa": "..." }` | `200` + objeto com `status: RECUSADA` | `400` motivo vazio; `404`; `409` se não estiver `ABERTA` |
 | `DELETE` | `/requisicoes/{id}` | — | `200` corpo vazio | `404` |
 
 **Notas de comportamento que não dá para adivinhar pela tabela:**
@@ -129,9 +129,9 @@ O `Service` lança `ResponseStatusException` direto (ainda não há exceptions d
 
 ---
 
-## Recurso `Usuario` — ⚠️ não é REST
+## Recurso `Usuario` — ⚠ não é REST
 
-`UsuarioController` é `@Controller` (não `@RestController`) e serve páginas Thymeleaf. **Não devolve JSON — testar com Insomnia/curl não faz sentido aqui**, use o navegador.
+`UsuarioController` é `@Controller` (não `@RestController`) e serve páginas Thymeleaf. **Não devolve JSON — não adianta apontar uma ferramenta de API para cá**, use o navegador.
 
 | Método | Rota | Retorno |
 |---|---|---|
@@ -174,127 +174,80 @@ Quando esse recurso virar REST, é a hora de: separar DTO de entrada/saída (a s
 
 # Como testar a API
 
-## Recomendação
+## Ferramenta: use a que você preferir
 
-| Ferramenta | Quando usar |
+Testar a API é **agnóstico de ferramenta**. Postman, Insomnia, Bruno, `curl`, HTTPie — qualquer coisa que fale HTTP serve. Use o que já estiver na sua máquina e no seu fluxo.
+
+O que o repo oferece é o **roteiro de teste versionado**: [`docs/api/requisicoes.http`](./requisicoes.http). Ele lista, na ordem, cada chamada e o resultado esperado — inclusive os casos de erro. Mesmo que você não use o formato `.http`, vale abrir o arquivo e ler: é a lista do que precisa ser verificado. A vantagem de ele estar no repo é que versiona junto com o código e aparece no diff do PR, então quem mexer no controller vê na hora o que quebrou.
+
+### Opção 1 — REST Client / HTTP Client (roda o `.http` direto)
+
+**Opcional**, mas é o caminho mais curto: roda o arquivo do repo sem conversão nenhuma.
+
+| Editor | O que instalar |
 |---|---|
-| **Arquivo `.http` + REST Client (VS Code)** | 🥇 **Padrão do projeto.** Zero instalação além de uma extensão, o arquivo mora no repo e versiona junto com o código. O time inteiro roda o mesmo teste. |
-| **Bruno** | 🥈 Se quiser GUI de verdade. Open source, offline, e — diferente do Insomnia/Postman — salva a coleção como **arquivos de texto na pasta do projeto**, então dá para commitar. Linux/macOS/Windows. |
-| **curl** | 🥉 Fallback universal. Já está instalado em tudo, serve para colar num terminal ou num relatório. |
-| **Insomnia** | Funciona, mas a coleção fica presa na máquina de quem criou — não serve como artefato do projeto. |
+| VS Code / VSCodium | extensão **REST Client** — `humao.rest-client` |
+| IntelliJ IDEA | nada — o formato `.http` é nativo (HTTP Client) |
 
-**O ganho de commitar os testes** é que a documentação para de envelhecer sozinha: quem mexer no controller roda o `.http` e vê na hora o que quebrou. É a diferença entre "tem uma doc" e "tem uma doc que o professor consegue verificar".
+No VS Code também dá pela linha de comando:
 
-## Opção 1 — arquivo `.http` (recomendado)
+```bash
+code --install-extension humao.rest-client
+```
 
-Já está no repo: **[`docs/requisicoes.http`](./requisicoes.http)**
+### Opção 2 — Postman / Insomnia / Bruno
 
-**Setup:** VS Code → extensão **REST Client** (`humao.rest-client`). Abrir o arquivo e clicar em `Send Request` acima de cada bloco. No IntelliJ IDEA o formato é nativo, não precisa de nada.
+Funciona igual. Só lembre que a coleção fica na sua máquina, então ela não substitui o `.http` como artefato do projeto — trate o `.http` como a fonte da verdade do que testar, e a coleção como sua cópia de trabalho. O Postman e o Bruno importam arquivos `.http`; no Insomnia, recrie os blocos na mão (são 18).
 
-O arquivo cobre o caminho feliz completo e os três caminhos de erro (`404`, `409`, `400`), encadeando o `id` de uma requisição para a próxima chamada automaticamente.
+Aponte a base para `http://localhost:8080`.
 
-## Opção 2 — Bruno
+### Opção 3 — curl / HTTPie
 
-1. Instalar de [usebruno.com](https://www.usebruno.com) (`.deb`/`.rpm`/AppImage no Linux, Homebrew no macOS, winget no Windows).
-2. **Create Collection** → apontar para `hemotrack/docs/bruno/` — a coleção vira arquivos `.bru` versionáveis.
-3. Criar um Environment `local` com a variável `baseUrl = http://localhost:8080`.
-
-## Opção 3 — curl
-
-Roteiro completo, na ordem. Cada passo assume que o anterior rodou.
+Direto no terminal, sem instalar nada além do que já existe:
 
 ```bash
 BASE=http://localhost:8080
-```
 
-**1. Criar uma requisição** (guarda o `id` na variável `RID`)
-
-```bash
+# criar (bloco 1) — guarda o id em RID
 RID=$(curl -s -X POST $BASE/requisicoes \
   -H 'Content-Type: application/json' \
-  -d '{
-    "hospitalId": 7,
-    "tipo": "HEMACIAS",
-    "abo": "O",
-    "rh": "NEGATIVO",
-    "volumeMl": 450,
-    "prioridade": "EMERGENCIA",
-    "observacoes": "Paciente politraumatizado, sala vermelha"
-  }' | grep -o '"id":[0-9]*' | head -1 | cut -d: -f2)
-echo "criada: $RID"
+  -d '{"hospitalId":7,"tipo":"HEMACIAS","abo":"O","rh":"NEGATIVO","volumeMl":450,"prioridade":"EMERGENCIA"}' \
+  | grep -o '"id":[0-9]*' | head -1 | cut -d: -f2)
+
+curl -s $BASE/requisicoes/$RID | python3 -m json.tool   # bloco 3
+curl -s -i -X POST $BASE/requisicoes/$RID/aceitar       # bloco 5
+curl -s -i -X POST $BASE/requisicoes/$RID/aceitar       # bloco 6 -> 409
 ```
 
-Esperado: objeto com `"status": "ABERTA"` e `dataCriacao` preenchida.
+Com HTTPie o mesmo fica mais curto: `http POST :8080/requisicoes hospitalId:=7 tipo=HEMACIAS abo=O rh=NEGATIVO volumeMl:=450 prioridade=EMERGENCIA`.
 
-**2. Listar todas**
+> No **PowerShell**, `curl` é alias de `Invoke-WebRequest` e não aceita essas flags — chame `curl.exe` explicitamente (existe no Windows 10+), e escape as aspas do JSON: `-d '{\"hospitalId\":7,...}'`.
 
-```bash
-curl -s $BASE/requisicoes | python3 -m json.tool
-```
+## Rodando os testes
 
-**3. Buscar uma**
+1. Subir o backend (`cd backend && ./mvnw spring-boot:run`) — ver [`como-rodar.md`](../como-rodar.md).
+2. Abrir [`docs/api/requisicoes.http`](./requisicoes.http).
+3. Com REST Client/IntelliJ: clicar em **Send Request** acima de cada bloco `###` (no IntelliJ, o ▶ na margem). Com outra ferramenta: reproduzir as chamadas na ordem em que estão no arquivo.
 
-```bash
-curl -s $BASE/requisicoes/$RID | python3 -m json.tool
-```
+Rode **na ordem** na primeira vez: os blocos 3 em diante reutilizam o `id` devolvido pelo bloco 1 — no `.http` isso é automático (`{{criar.response.body.$.id}}`); em outra ferramenta, copie o `id` da resposta do bloco 1 à mão ou guarde numa variável de ambiente.
 
-**4. Alterar a prioridade** (lembre: o PUT só copia `prioridade`)
+O arquivo cobre:
 
-```bash
-curl -s -X PUT $BASE/requisicoes/$RID \
-  -H 'Content-Type: application/json' \
-  -d '{"prioridade": "NORMAL"}' | python3 -m json.tool
-```
+| Blocos | O que exercita |
+|---|---|
+| 1–5 | caminho feliz: criar → listar → buscar → alterar prioridade → aceitar |
+| 6–11 | erros: `409` (aceitar/recusar fora de `ABERTA`), `404`, `400` (enum inválido, `volumeMl` nulo) e o `500` da lacuna #1 |
+| 12–15 | fluxo de recusa: sem motivo → `400`, motivo em branco → `400`, motivo válido → `RECUSADA` |
+| 16–18 | limpeza: delete das duas requisições + confirmação `404` |
+| final | rotas do desenho alvo que **ainda não existem** (filtro `?status=`, `/alocacoes`, `/cancelar`) |
 
-**5. Aceitar** → `ABERTA → ACEITA`
+## Convenções do `.http` (só para quem for editar o arquivo)
 
-```bash
-curl -s -X POST $BASE/requisicoes/$RID/aceitar | python3 -m json.tool
-```
-
-**6. Aceitar de novo** → deve dar **`409 Conflict`**
-
-```bash
-curl -s -i -X POST $BASE/requisicoes/$RID/aceitar | head -1
-```
-
-**7. Recusar sem motivo** → deve dar **`400 Bad Request`**
-(crie outra requisição antes, porque a `$RID` já não está mais `ABERTA`)
-
-```bash
-curl -s -i -X POST $BASE/requisicoes/$RID/recusar \
-  -H 'Content-Type: application/json' -d '{}' | head -1
-```
-
-**8. Recusar com motivo** → `ABERTA → RECUSADA`
-
-```bash
-curl -s -X POST $BASE/requisicoes/2/recusar \
-  -H 'Content-Type: application/json' \
-  -d '{"motivoRecusa": "Estoque de O- insuficiente"}' | python3 -m json.tool
-```
-
-**9. Id inexistente** → deve dar **`404 Not Found`**
-
-```bash
-curl -s $BASE/requisicoes/99999 | python3 -m json.tool
-```
-
-**10. Deletar**
-
-```bash
-curl -s -i -X DELETE $BASE/requisicoes/$RID | head -1
-```
-
-### No Windows (PowerShell)
-
-`curl` no PowerShell é um alias de `Invoke-WebRequest` e **não aceita as flags acima**. Use `curl.exe` explicitamente (existe no Windows 10+):
-
-```powershell
-curl.exe -s -X POST http://localhost:8080/requisicoes -H "Content-Type: application/json" -d '{\"hospitalId\":7,\"tipo\":\"HEMACIAS\",\"abo\":\"O\",\"rh\":\"NEGATIVO\",\"volumeMl\":450,\"prioridade\":\"EMERGENCIA\"}'
-```
-
-Esse escaping é justamente o motivo de o `.http` ser a opção recomendada para um time em SOs diferentes.
+- **O corpo JSON é sempre a última coisa do bloco.** Depois da linha em branco que fecha os headers, tudo vira corpo — inclusive linhas `@variavel`. Por isso todo comentário fica **acima** da linha do método.
+- `@baseUrl` e `@contentType` estão no topo; não repita a URL literal nos blocos.
+- Para encadear um id, nomeie o bloco de origem com `# @name criar` e use `{{criar.response.body.$.id}}` nos seguintes.
+- Enums vão como **string**. Mandar o ordinal (`"tipo": 0`) funciona, mas amarra o JSON à ordem de declaração do enum — é exatamente a lacuna #3 acima. Não use.
+- Bloco novo = nova linha `### <número>. <o que faz>` + um comentário com o **esperado** (`# Esperado: 409 ...`). É o esperado que transforma o arquivo em teste, não a chamada.
 
 ## Conferindo o que gravou no banco
 
