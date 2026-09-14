@@ -6,6 +6,7 @@ Guia mínimo para clonar e subir o backend localmente. O projeto ainda não tem 
 
 - **Git**
 - **JDK 17 ou superior** (qualquer distribuição — Temurin/Adoptium é a mais comum)
+- **Alguma ferramenta de HTTP** para testar a API — *opcional, e a escolha é sua*: Postman, Insomnia, Bruno, `curl`, HTTPie, ou a extensão **REST Client** do VS Code (`humao.rest-client`), que roda direto o arquivo `.http` do repo. Ver passo 4.
 
 Não é preciso instalar o Maven: o projeto já traz o Maven Wrapper (`mvnw` / `mvnw.cmd`), que baixa a versão correta sozinho no primeiro uso.
 
@@ -28,6 +29,16 @@ Não é preciso instalar o Maven: o projeto já traz o Maven Wrapper (`mvnw` / `
 | Windows | `winget install EclipseAdoptium.Temurin.17.JDK` (ou instalador em [adoptium.net](https://adoptium.net)) |
 
 Confira com `java -version` — precisa aparecer `17` ou mais recente (o `pom.xml` fixa `<java.version>17</java.version>` como alvo de compilação, não como teto; versões mais novas da JDK rodam o projeto normalmente).
+
+### Instalando o REST Client (VS Code) — opcional
+
+Só se você quiser rodar o arquivo `.http` do repo dentro do editor. Extensões → buscar por **REST Client** (autor `Huachao Mao`), ou pelo terminal:
+
+```bash
+code --install-extension humao.rest-client
+```
+
+No IntelliJ IDEA não precisa de nada — o formato é nativo. E se você já usa Postman, Insomnia, `curl` ou HTTPie, siga com o que você tem.
 
 ## 1. Clonar o repositório
 
@@ -79,6 +90,16 @@ Para parar: `Ctrl+C` no terminal.
   - Password: *(em branco)*
 
 O banco é um arquivo local (`data/hemotrack-db.mv.db`) criado automaticamente na pasta de onde o `mvnw` foi executado — por isso o passo 2 pede para rodar sempre a partir de `backend/`, senão cada execução cria o banco em um lugar diferente.
+
+## 4. Testar a API
+
+O roteiro de teste está em **`docs/api/requisicoes.http`**: cada chamada, na ordem, com o resultado esperado — caminho feliz, erros (`400`, `404`, `409`) e as rotas que ainda não existem.
+
+**Use a ferramenta que você preferir.** Com REST Client (VS Code) ou IntelliJ, é só abrir o arquivo e clicar em **Send Request** acima de cada bloco `###`. Com Postman, Insomnia, `curl` ou HTTPie, use o arquivo como roteiro e reproduza as chamadas — a base é `http://localhost:8080`.
+
+Rode **na ordem** na primeira vez: os blocos 3 em diante reutilizam o `id` devolvido pelo bloco 1.
+
+O contrato completo da API e exemplos por ferramenta estão em [`docs/api/api.md`](./api/api.md).
 
 ## Observações importantes
 
