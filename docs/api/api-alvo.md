@@ -2,9 +2,13 @@
 
 Rotas planejadas. **Nada aqui está implementado, exceto onde marcado ✓** — o que roda hoje está em [`api.md`](./api.md).
 
+Este arquivo é a visão de leitura rápida. O mesmo contrato, formal e executável por ferramenta, está em [`openapi.yml`](./openapi.yml) — schemas, exemplos e códigos de erro por operação.
+
 A coluna "Quem chama" é alvo: não há autenticação, nenhuma rota é protegida.
 
 Legenda: ✓ existe · ⚠ existe de outra forma · ✗ não existe
+
+Não há `PUT` em lugar nenhum: com tantos campos preenchidos pelo servidor, mandar a representação inteira de volta não faz sentido. Atualização parcial é `PATCH`, e cada rota diz quais campos aceita.
 
 ---
 
@@ -23,15 +27,14 @@ HU01. Enquanto não existir, `hospitalId` vem do body.
 | Método | Rota | Body | Quem chama |
 |---|---|---|---|
 | GET | `/usuarios` | — | `ADMIN` |
-| POST | `/usuarios` | `UsuarioRequest` | Público (cadastro, HU01) |
+| POST | `/usuarios` | json | Público (cadastro, HU01) |
 | GET | `/usuarios/{id}` | — | Próprio usuário / `ADMIN` |
-| PUT | `/usuarios/{id}` | `UsuarioRequest` | Próprio usuário |
-| PATCH | `/usuarios/{id}` | parcial | Próprio usuário |
+| PATCH | `/usuarios/{id}` | `nomeCompleto`, `email`, `password` | Próprio usuário |
 | DELETE | `/usuarios/{id}` | — | `ADMIN` |
 
 Ver todos os usuários entre instituições é operação sensível — por isso `ADMIN`.
 
-**Para migrar, nesta ordem:** `UsuarioResponse` sem `password` → `@RestController` → `DELETE /usuarios/{id}` no lugar de `GET /usuarios/remover/{id}` → `400` com a lista de erros de validação em vez de re-renderizar o formulário.
+**Para migrar, nesta ordem:** parar de serializar `password` na saída → `@RestController` → `DELETE /usuarios/{id}` no lugar de `GET /usuarios/remover/{id}` → `400` com a lista de erros de validação em vez de re-renderizar o formulário.
 
 ---
 
@@ -43,7 +46,7 @@ Ver todos os usuários entre instituições é operação sensível — por isso
 | POST | `/instituicoes` | json | Público — HU01, antes de existir usuário |
 | GET | `/instituicoes/{id}` | — | Autenticado |
 | GET | `/instituicoes/{id}/estoque` | — | Hemocentro dono |
-| PUT / PATCH | `/instituicoes/{id}` | json | Usuário da própria instituição |
+| PATCH | `/instituicoes/{id}` | `razaoSocial` | Usuário da própria instituição |
 | DELETE | `/instituicoes/{id}` | — | `ADMIN` |
 
 `POST` devolve `409` se o CNPJ já existir (HU01).
@@ -57,11 +60,11 @@ Ver todos os usuários entre instituições é operação sensível — por isso
 | Método | Rota | Body | Quem chama | |
 |---|---|---|---|---|
 | GET | `/requisicoes` | — | Hospital (só as próprias) / Hemocentro (todas) | ✓ |
-| POST | `/requisicoes` | `RequisicaoRequest` | Hospital | ✓ |
+| POST | `/requisicoes` | json | Hospital | ✓ |
 | GET | `/requisicoes/{id}` | — | Hospital dono / Hemocentro | ✓ |
 | PATCH | `/requisicoes/{id}` | `prioridade`, `observacoes` | Hospital dono | ⚠ hoje é `PUT` |
 | POST | `/requisicoes/{id}/aceitar` | — | Hemocentro | ✓ |
-| POST | `/requisicoes/{id}/recusar` | `RecusaRequest` | Hemocentro | ✓ |
+| POST | `/requisicoes/{id}/recusar` | `{motivoRecusa}` | Hemocentro | ✓ |
 | POST | `/requisicoes/{id}/alocacoes` | — | Hemocentro | ✗ |
 | POST | `/requisicoes/{id}/cancelar` | — | Hospital dono | ✗ |
 | DELETE | `/requisicoes/{id}` | — | `ADMIN` | ✓ |
@@ -88,7 +91,7 @@ As que faltam:
 | POST | `/bolsas` | json | Ponto de Coleta / Hemocentro — registra a coleta |
 | GET | `/bolsas/{id}` | — | Dono |
 | POST | `/bolsas/{id}/hemocomponentes` | json | Hemocentro — fraciona |
-| PUT / PATCH | `/bolsas/{id}` | json | Dono |
+| PATCH | `/bolsas/{id}` | `instituicaoAtualId`, `emTransito` | Dono |
 | DELETE | `/bolsas/{id}` | — | `ADMIN` |
 
 Filtros do `GET`: `abo`, `rh`, `instituicaoAtualId` (`ADMIN` vê todas).
@@ -105,7 +108,7 @@ Filtros do `GET`: `abo`, `rh`, `instituicaoAtualId` (`ADMIN` vê todas).
 |---|---|---|---|
 | GET | `/hemocomponentes` | — | Hemocentro da própria instituição |
 | GET | `/hemocomponentes/{id}` | — | Hemocentro dono |
-| PUT / PATCH | `/hemocomponentes/{id}` | json | Hemocentro dono |
+| PATCH | `/hemocomponentes/{id}` | `status`, `instituicaoAtualId`, `emTransito` | Hemocentro dono |
 | DELETE | `/hemocomponentes/{id}` | — | `ADMIN` |
 
 Não há `POST`: hemocomponente só nasce de `POST /bolsas/{id}/hemocomponentes`.

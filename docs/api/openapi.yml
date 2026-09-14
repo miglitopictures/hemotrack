@@ -1,0 +1,1382 @@
+openapi: 3.1.0
+
+# =============================================================================
+# HemoTrack - contrato da API publica.
+#
+# Este arquivo descreve o FORMATO DOS DADOS NA REDE, nao classes Java.
+# Nao ha schema "UsuarioRequest" ou "RequisicaoPatch" aqui: cada recurso tem
+# um schema so, e o que muda entre entrada e saida esta marcado no campo:
+#
+#   readOnly: true   o servidor preenche; nao mande no corpo
+#   writeOnly: true  o cliente manda; a API nunca devolve
+#
+# Quem for implementar decide se isso vira DTO, projecao ou anotacao na
+# entidade. O contrato nao opina sobre isso.
+#
+# Estado: o que ja roda esta em api.md. Cada operacao abaixo tem uma linha
+# ESTADO: dizendo onde o codigo esta em relacao a este contrato.
+#
+# Abrir em https://editor.swagger.io
+# =============================================================================
+
+info:
+  title: HemoTrack API
+  version: 0.1.0-alvo
+  summary: Distribuicao e rastreio de hemocomponentes entre hemocentros e hospitais.
+  description: |
+    Contrato alvo do projeto integrador HemoTrack (Rota Vital).
+
+        Ponto de coleta  ->  Hemocentro  ->  Hospital
+                              (fraciona a bolsa, aceita requisicoes,
+                               aloca por compatibilidade + FEFO)
+
+    Cada operacao referencia a historia de usuario que a motiva (HU01..HU09),
+    em `docs/historias.md`.
+  contact:
+    name: Squad HemoTrack - CESAR
+  license:
+    name: Uso academico
+
+servers:
+  - url: http://localhost:8080
+    description: Desenvolvimento local
+
+tags:
+  - name: auth
+    description: Autenticacao (HU01)
+  - name: usuarios
+    description: Usuarios vinculados a uma instituicao (HU01)
+  - name: instituicoes
+    description: Hospitais, hemocentros, pontos de coleta e o estoque calculado (HU01, HU02)
+  - name: requisicoes
+    description: Requisicoes de transfusao e suas transicoes (HU03 a HU06)
+  - name: bolsas
+    description: Sangue total coletado, e o fracionamento (HU02)
+  - name: hemocomponentes
+    description: Unidades alocaveis geradas do fracionamento (HU02, HU06)
+
+security:
+  - bearerAuth: []
+
+paths:
+
+  # ---------------------------------------------------------------- auth ----
+  /login:
+    post:
+      tags: [auth]
+      summary: Autentica e devolve o token
+      description: |
+        HU01 - "informar suas credenciais... permitir o acesso".
+
+        ESTADO: nao implementado. Sem token, `hospitalId` viaja no corpo do
+        POST /requisicoes.
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+            example:
+              email: ana@hemope.pe.gov.br
+              password: segredo123
+      responses:
+        '200':
+          description: Autenticado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  usuario:
+                    $ref: '#/components/schemas/Usuario'
+        '401':
+          $ref: '#/components/responses/NaoAutorizado'
+
+  # ------------------------------------------------------------ usuarios ----
+  /usuarios:
+    get:
+      tags: [usuarios]
+      summary: Lista os usuarios
+      description: |
+        Restrito a ADMIN: ver usuarios de todas as instituicoes e operacao
+        sensivel, nao tarefa de um usuario PADRAO.
+
+        ESTADO: existe como pagina Thymeleaf - devolve HTML.
+      operationId: listarUsuarios
+      responses:
+        '200':
+          description: Lista de usuarios
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Usuario'
+        '403':
+          $ref: '#/components/responses/Proibido'
+    post:
+      tags: [usuarios]
+      summary: Cadastra um usuario
+      description: |
+        HU01. Publico - e o cadastro. A `idInstituicao` precisa existir.
+
+        ESTADO: existe como `POST /usuarios/salvar`, form-urlencoded, resposta 302.
+      operationId: criarUsuario
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Usuario'
+      responses:
+        '201':
+          description: Criado
+          headers:
+            Location:
+              description: URI do usuario criado
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Usuario'
+        '400':
+          $ref: '#/components/responses/DadosInvalidos'
+        '409':
+          description: E-mail ou CPF ja cadastrado
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /usuarios/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    get:
+      tags: [usuarios]
+      summary: Busca um usuario
+      description: Proprio usuario ou ADMIN.
+      operationId: buscarUsuario
+      responses:
+        '200':
+          description: Usuario encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Usuario'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+    patch:
+      tags: [usuarios]
+      summary: Altera dados do usuario
+      description: |
+        Proprio usuario. Nao altera `idInstituicao` (vinculo institucional) nem
+        `tipo` (nivel de acesso, so ADMIN).
+      operationId: alterarUsuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                nomeCompleto:
+                  type: string
+                  minLength: 3
+                  maxLength: 80
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                  minLength: 6
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Usuario'
+        '400':
+          $ref: '#/components/responses/DadosInvalidos'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+    delete:
+      tags: [usuarios]
+      summary: Remove um usuario
+      description: Restrito a ADMIN.
+      operationId: removerUsuario
+      responses:
+        '204':
+          description: Removido
+        '403':
+          $ref: '#/components/responses/Proibido'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+
+  # -------------------------------------------------------- instituicoes ----
+  /instituicoes:
+    get:
+      tags: [instituicoes]
+      summary: Lista as instituicoes
+      operationId: listarInstituicoes
+      parameters:
+        - name: tipo
+          in: query
+          schema:
+            $ref: '#/components/schemas/TipoInstituicao'
+      responses:
+        '200':
+          description: Lista de instituicoes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Instituicao'
+    post:
+      tags: [instituicoes]
+      summary: Cadastra uma instituicao
+      description: |
+        HU01. Publico - acontece antes de existir qualquer usuario.
+        O CNPJ e unico (HU01, cenario 2).
+
+        ESTADO: nao implementado. Entidade e repository prontos.
+      operationId: criarInstituicao
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Instituicao'
+      responses:
+        '201':
+          description: Criada
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Instituicao'
+        '400':
+          $ref: '#/components/responses/DadosInvalidos'
+        '409':
+          description: CNPJ ja cadastrado
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /instituicoes/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    get:
+      tags: [instituicoes]
+      summary: Busca uma instituicao
+      operationId: buscarInstituicao
+      responses:
+        '200':
+          description: Instituicao encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Instituicao'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+    patch:
+      tags: [instituicoes]
+      summary: Altera dados da instituicao
+      description: |
+        Usuario da propria instituicao. O CNPJ nao muda: e a identidade do
+        cadastro.
+      operationId: alterarInstituicao
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                razaoSocial:
+                  type: string
+                  minLength: 3
+                  maxLength: 80
+      responses:
+        '200':
+          description: Atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Instituicao'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+    delete:
+      tags: [instituicoes]
+      summary: Remove uma instituicao
+      description: Restrito a ADMIN.
+      operationId: removerInstituicao
+      responses:
+        '204':
+          description: Removida
+        '403':
+          $ref: '#/components/responses/Proibido'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+
+  /instituicoes/{id}/estoque:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    get:
+      tags: [instituicoes]
+      summary: Estoque calculado da instituicao
+      description: |
+        HU02 - "consultar estoque disponivel por tipo sanguineo/componente".
+
+        Estoque nao e entidade: e uma agregacao sobre
+        `Hemocomponente.instituicaoAtualId`. So faz sentido para HEMOCENTRO.
+
+        `detalhado=true` devolve a lista de hemocomponentes em vez da contagem.
+
+        ESTADO: nao implementado. O formato da agregacao abaixo e proposta -
+        confirmar com quem for fazer a tela.
+      operationId: consultarEstoque
+      parameters:
+        - name: tipo
+          in: query
+          schema:
+            $ref: '#/components/schemas/TipoHemocomponente'
+        - name: abo
+          in: query
+          schema:
+            $ref: '#/components/schemas/TipoABO'
+        - name: rh
+          in: query
+          schema:
+            $ref: '#/components/schemas/FatorRh'
+        - name: detalhado
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: |
+            Contagem agrupada por tipo + abo + rh; ou a lista de
+            hemocomponentes quando `detalhado=true`.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      type: object
+                      properties:
+                        tipo:
+                          $ref: '#/components/schemas/TipoHemocomponente'
+                        abo:
+                          $ref: '#/components/schemas/TipoABO'
+                        rh:
+                          $ref: '#/components/schemas/FatorRh'
+                        disponiveis:
+                          type: integer
+                          description: APTO, dentro da validade e nao alocado
+                        reservados:
+                          type: integer
+                          description: com `requisicaoAlocadaId` preenchido
+                        vencidos:
+                          type: integer
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/Hemocomponente'
+              example:
+                - tipo: HEMACIAS
+                  abo: O
+                  rh: NEGATIVO
+                  disponiveis: 12
+                  reservados: 3
+                  vencidos: 1
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '409':
+          description: A instituicao nao e um HEMOCENTRO
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  # --------------------------------------------------------- requisicoes ----
+  /requisicoes:
+    get:
+      tags: [requisicoes]
+      summary: Lista requisicoes
+      description: |
+        HU04 (hospital ve as proprias) e HU05 (hemocentro ve as pendentes).
+
+        O escopo sai do token: hospital recebe so as suas, hemocentro recebe
+        as dirigidas a ele, ADMIN recebe tudo.
+
+        ESTADO: implementado sem escopo e sem filtro - `status` e ignorado e a
+        lista vem inteira.
+      operationId: listarRequisicoes
+      parameters:
+        - name: status
+          in: query
+          description: HU05 usa `ABERTA` para ver as pendentes.
+          schema:
+            $ref: '#/components/schemas/StatusRequisicao'
+      responses:
+        '200':
+          description: Lista de requisicoes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Requisicao'
+    post:
+      tags: [requisicoes]
+      summary: Cria uma requisicao de transfusao
+      description: |
+        HU03. Nasce `ABERTA` ("Pendente" na linguagem da HU).
+
+        ESTADO: implementado com tres diferencas - responde 200 sem `Location`,
+        aceita `id` e `status` no corpo, e le `hospitalId` do corpo.
+      operationId: criarRequisicao
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Requisicao'
+      responses:
+        '201':
+          description: Criada
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Requisicao'
+        '400':
+          $ref: '#/components/responses/DadosInvalidos'
+
+  /requisicoes/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    get:
+      tags: [requisicoes]
+      summary: Busca uma requisicao
+      description: HU04 - hospital dono ou hemocentro.
+      operationId: buscarRequisicao
+      responses:
+        '200':
+          description: Requisicao encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Requisicao'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+    patch:
+      tags: [requisicoes]
+      summary: Altera dados da requisicao
+      description: |
+        Hospital dono. Nao altera `status` - isso so muda pelas transicoes
+        (`aceitar`, `recusar`, `alocacoes`, `cancelar`).
+
+        ESTADO: hoje e um `PUT` que copia so `prioridade` e ignora o resto do
+        corpo. O comportamento ja e de PATCH; o verbo e que nao.
+      operationId: alterarRequisicao
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                prioridade:
+                  $ref: '#/components/schemas/Prioridade'
+                observacoes:
+                  type: string
+            example:
+              prioridade: NORMAL
+      responses:
+        '200':
+          description: Atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Requisicao'
+        '400':
+          $ref: '#/components/responses/DadosInvalidos'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+    delete:
+      tags: [requisicoes]
+      summary: Remove uma requisicao
+      description: |
+        Restrito a ADMIN, e nao e o caminho de cancelamento - para isso existe
+        `POST /requisicoes/{id}/cancelar`.
+
+        ESTADO: implementado como hard delete respondendo 200.
+      operationId: removerRequisicao
+      responses:
+        '204':
+          description: Removida
+        '403':
+          $ref: '#/components/responses/Proibido'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+
+  /requisicoes/{id}/aceitar:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    post:
+      tags: [requisicoes]
+      summary: Aceita a requisicao
+      description: |
+        HU05. `ABERTA -> ACEITA`. Grava o hemocentro responsavel, que a HU04
+        pede que o hospital veja.
+
+        ESTADO: implementado, menos o `hemocentroId`.
+      operationId: aceitarRequisicao
+      responses:
+        '200':
+          description: Aceita
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Requisicao'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '409':
+          $ref: '#/components/responses/ConflitoDeStatus'
+
+  /requisicoes/{id}/recusar:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    post:
+      tags: [requisicoes]
+      summary: Recusa a requisicao
+      description: |
+        HU05. `ABERTA -> RECUSADA`. O motivo e obrigatorio e fica registrado.
+
+        ESTADO: implementado.
+      operationId: recusarRequisicao
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [motivoRecusa]
+              properties:
+                motivoRecusa:
+                  type: string
+                  minLength: 1
+                  description: Vazio ou so espacos devolve 400.
+            example:
+              motivoRecusa: Estoque de O- insuficiente
+      responses:
+        '200':
+          description: Recusada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Requisicao'
+        '400':
+          description: Motivo ausente, vazio ou so espacos
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '409':
+          $ref: '#/components/responses/ConflitoDeStatus'
+
+  /requisicoes/{id}/alocacoes:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    post:
+      tags: [requisicoes]
+      summary: Aloca hemocomponentes compativeis
+      description: |
+        HU06. So a partir de `ACEITA`. Seleciona hemocomponentes compativeis em
+        ABO/Rh, aptos, nao vencidos e nao reservados, priorizando validade mais
+        proxima (FEFO), ate cobrir o `volumeMl` pedido.
+
+        Move a requisicao para `ALOCADA` e marca `requisicaoAlocadaId` em cada
+        hemocomponente escolhido.
+
+        O indice por hash + fila de prioridade e interno ao servico de
+        alocacao; a API expoe so o resultado.
+
+        ESTADO: nao implementado. O corpo da resposta abaixo e proposta - o
+        minimo e devolver quais hemocomponentes foram reservados.
+      operationId: alocarHemocomponentes
+      responses:
+        '200':
+          description: Alocado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  requisicaoId:
+                    type: integer
+                    format: int64
+                  status:
+                    $ref: '#/components/schemas/StatusRequisicao'
+                  volumeMlAlocado:
+                    type: number
+                    format: double
+                  hemocomponentes:
+                    type: array
+                    description: Ids reservados, na ordem FEFO em que foram escolhidos
+                    items:
+                      type: integer
+                      format: int64
+              example:
+                requisicaoId: 1
+                status: ALOCADA
+                volumeMlAlocado: 450.0
+                hemocomponentes: [18, 22]
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '409':
+          description: |
+            A requisicao nao esta `ACEITA`, ou nao ha hemocomponente compativel
+            disponivel em estoque.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /requisicoes/{id}/cancelar:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    post:
+      tags: [requisicoes]
+      summary: Cancela a requisicao
+      description: |
+        Hospital dono. `ABERTA` ou `ACEITA` -> `CANCELADA`. Depois de alocada
+        nao cancela por aqui - as reservas teriam que ser desfeitas.
+
+        ESTADO: nao implementado.
+      operationId: cancelarRequisicao
+      responses:
+        '200':
+          description: Cancelada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Requisicao'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '409':
+          $ref: '#/components/responses/ConflitoDeStatus'
+
+  # -------------------------------------------------------------- bolsas ----
+  /bolsas:
+    get:
+      tags: [bolsas]
+      summary: Lista as bolsas da instituicao
+      description: 'ESTADO: nao implementado. Entidade e repository prontos.'
+      operationId: listarBolsas
+      parameters:
+        - name: abo
+          in: query
+          schema:
+            $ref: '#/components/schemas/TipoABO'
+        - name: rh
+          in: query
+          schema:
+            $ref: '#/components/schemas/FatorRh'
+        - name: instituicaoAtualId
+          in: query
+          description: So ADMIN consulta outra instituicao
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Lista de bolsas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Bolsa'
+    post:
+      tags: [bolsas]
+      summary: Registra uma coleta
+      description: Ponto de coleta ou hemocentro. `instituicaoAtualId` e quem coletou.
+      operationId: criarBolsa
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Bolsa'
+      responses:
+        '201':
+          description: Criada
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bolsa'
+        '400':
+          $ref: '#/components/responses/DadosInvalidos'
+
+  /bolsas/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    get:
+      tags: [bolsas]
+      summary: Busca uma bolsa
+      operationId: buscarBolsa
+      responses:
+        '200':
+          description: Bolsa encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bolsa'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+    patch:
+      tags: [bolsas]
+      summary: Altera a bolsa
+      description: Cobre o transporte - mover a bolsa de instituicao e marcar `emTransito`.
+      operationId: alterarBolsa
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                instituicaoAtualId:
+                  type: integer
+                  format: int64
+                emTransito:
+                  type: boolean
+      responses:
+        '200':
+          description: Atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bolsa'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+    delete:
+      tags: [bolsas]
+      summary: Remove uma bolsa
+      description: Restrito a ADMIN.
+      operationId: removerBolsa
+      responses:
+        '204':
+          description: Removida
+        '403':
+          $ref: '#/components/responses/Proibido'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+
+  /bolsas/{id}/hemocomponentes:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    post:
+      tags: [bolsas]
+      summary: Fraciona a bolsa em hemocomponentes
+      description: |
+        Hemocentro. Cada hemocomponente gerado herda `abo`, `rh` e
+        `instituicaoAtualId` da bolsa, aponta para ela em `bolsaOrigemId` e
+        nasce `EM_ANALISE`.
+
+        E o unico jeito de criar hemocomponente - nao existe `POST
+        /hemocomponentes`.
+
+        ESTADO: nao implementado, e **o corpo ainda nao foi decidido**. A
+        pergunta em aberto: o cliente informa quais componentes e com que
+        volume, ou o servidor aplica uma regra fixa de fracionamento por tipo?
+        O corpo abaixo assume a primeira opcao.
+      operationId: fracionarBolsa
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [componentes]
+              properties:
+                componentes:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [tipo, volumeMl]
+                    properties:
+                      tipo:
+                        $ref: '#/components/schemas/TipoHemocomponente'
+                      volumeMl:
+                        type: number
+                        format: double
+                        exclusiveMinimum: 0
+            example:
+              componentes:
+                - tipo: HEMACIAS
+                  volumeMl: 250
+                - tipo: PLASMA
+                  volumeMl: 150
+      responses:
+        '201':
+          description: Hemocomponentes gerados
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Hemocomponente'
+        '400':
+          $ref: '#/components/responses/DadosInvalidos'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '409':
+          description: A bolsa ja foi fracionada
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  # ----------------------------------------------------- hemocomponentes ----
+  /hemocomponentes:
+    get:
+      tags: [hemocomponentes]
+      summary: Lista os hemocomponentes da instituicao
+      description: |
+        HU02 - a visao de estoque do hemocentro.
+
+        ESTADO: nao implementado. Entidade e repository prontos.
+      operationId: listarHemocomponentes
+      parameters:
+        - name: tipo
+          in: query
+          schema:
+            $ref: '#/components/schemas/TipoHemocomponente'
+        - name: abo
+          in: query
+          schema:
+            $ref: '#/components/schemas/TipoABO'
+        - name: rh
+          in: query
+          schema:
+            $ref: '#/components/schemas/FatorRh'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/StatusHemocomponente'
+        - name: disponivel
+          in: query
+          description: |
+            `true` devolve so o que pode ser alocado: APTO, dentro da validade
+            e sem `requisicaoAlocadaId`.
+          schema:
+            type: boolean
+        - name: instituicaoAtualId
+          in: query
+          description: So ADMIN consulta outra instituicao
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Lista de hemocomponentes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Hemocomponente'
+
+  /hemocomponentes/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    get:
+      tags: [hemocomponentes]
+      summary: Busca um hemocomponente
+      operationId: buscarHemocomponente
+      responses:
+        '200':
+          description: Hemocomponente encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hemocomponente'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+    patch:
+      tags: [hemocomponentes]
+      summary: Altera o hemocomponente
+      description: |
+        Cobre o resultado do laboratorio (`status`) e o transporte
+        (`instituicaoAtualId`, `emTransito`).
+
+        Descarte e `status: DESCARTADO`, nao DELETE.
+      operationId: alterarHemocomponente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              minProperties: 1
+              properties:
+                status:
+                  $ref: '#/components/schemas/StatusHemocomponente'
+                instituicaoAtualId:
+                  type: integer
+                  format: int64
+                emTransito:
+                  type: boolean
+            example:
+              status: APTO
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hemocomponente'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+    delete:
+      tags: [hemocomponentes]
+      summary: Remove um hemocomponente
+      description: Restrito a ADMIN.
+      operationId: removerHemocomponente
+      responses:
+        '204':
+          description: Removido
+        '403':
+          $ref: '#/components/responses/Proibido'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+
+# =============================================================================
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Token devolvido por `POST /login`. Dele saem a instituicao do usuario
+        (que define o escopo das listagens) e o `TipoUsuario`.
+
+        ESTADO: nenhuma rota e protegida hoje.
+
+  parameters:
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+      example: 1
+
+  responses:
+    DadosInvalidos:
+      description: Corpo malformado, enum desconhecido ou campo obrigatorio ausente
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    NaoAutorizado:
+      description: Credenciais invalidas ou token ausente
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    Proibido:
+      description: Autenticado, mas sem permissao para esta operacao
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    NaoEncontrado:
+      description: Recurso inexistente
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: about:blank
+            title: Not Found
+            status: 404
+            detail: Requisicao nao encontrada
+            instance: /requisicoes/99
+    ConflitoDeStatus:
+      description: A transicao nao e valida a partir do status atual
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+          example:
+            type: about:blank
+            title: Conflict
+            status: 409
+            detail: Requisicao nao esta aberta
+            instance: /requisicoes/1/aceitar
+
+  # ---------------------------------------------------------------------------
+  # Um schema por recurso, mais os enums. Nada aqui e inventado: todos existem
+  # como classe em `model/`. O que muda entre pedido e resposta esta no campo.
+  # ---------------------------------------------------------------------------
+  schemas:
+
+    # ------------------------------------------------------------ enums ----
+    TipoABO:
+      type: string
+      enum: [A, B, AB, O]
+
+    FatorRh:
+      type: string
+      enum: [POSITIVO, NEGATIVO]
+
+    TipoHemocomponente:
+      type: string
+      description: '`PLASMA` e o nome curto de Plasma Fresco Congelado.'
+      enum: [HEMACIAS, PLASMA, PLAQUETAS, CRIOPRECIPITADO]
+
+    StatusHemocomponente:
+      type: string
+      description: |
+        Resultado do controle de qualidade, so isso. Disponibilidade de estoque
+        e calculada: este campo + validade + `requisicaoAlocadaId`.
+      enum: [EM_ANALISE, APTO, DESCARTADO]
+
+    Prioridade:
+      type: string
+      description: |
+        Gravidade crescente: NORMAL < URGENCIA < EMERGENCIA. A ordem de
+        declaracao no codigo e outra - ver decisoes.md.
+      enum: [NORMAL, URGENCIA, EMERGENCIA]
+
+    StatusRequisicao:
+      type: string
+      description: |
+        ABERTA -> ACEITA -> ALOCADA -> ATENDIDA
+        ABERTA -> RECUSADA
+        ABERTA | ACEITA -> CANCELADA
+      enum: [ABERTA, ACEITA, ALOCADA, ATENDIDA, RECUSADA, CANCELADA]
+
+    TipoInstituicao:
+      type: string
+      description: |
+        Papel no dominio: PONTO_COLETA gera bolsas, HEMOCENTRO processa e
+        aloca, HOSPITAL requisita e recebe.
+      enum: [PONTO_COLETA, HEMOCENTRO, HOSPITAL]
+
+    TipoUsuario:
+      type: string
+      description: |
+        Nivel de acesso, ortogonal ao TipoInstituicao. ADMIN e operacao do
+        proprio HemoTrack, e continua vinculado a uma instituicao.
+      enum: [PADRAO, ADMIN]
+
+    # -------------------------------------------------------- recursos ----
+    Usuario:
+      type: object
+      description: |
+        `password` entra no cadastro e nunca volta numa resposta - e o que
+        `writeOnly` diz.
+      required: [nomeCompleto, email, password, cpf, idInstituicao]
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        nomeCompleto:
+          type: string
+          minLength: 3
+          maxLength: 80
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 6
+          writeOnly: true
+        cpf:
+          type: string
+        idInstituicao:
+          type: integer
+          format: int64
+        tipo:
+          allOf:
+            - $ref: '#/components/schemas/TipoUsuario'
+          readOnly: true
+          description: Default PADRAO. So ADMIN promove.
+      example:
+        id: 1
+        nomeCompleto: Ana Ribeiro
+        email: ana@hemope.pe.gov.br
+        cpf: '12345678901'
+        idInstituicao: 3
+        tipo: PADRAO
+
+    Instituicao:
+      type: object
+      required: [tipo, razaoSocial, cnpj]
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        tipo:
+          $ref: '#/components/schemas/TipoInstituicao'
+        razaoSocial:
+          type: string
+          minLength: 3
+          maxLength: 80
+        cnpj:
+          type: string
+          description: Unico no sistema (HU01)
+      example:
+        id: 3
+        tipo: HEMOCENTRO
+        razaoSocial: Fundacao HEMOPE
+        cnpj: '11222333000181'
+
+    Requisicao:
+      type: object
+      description: |
+        Requisicao de transfusao. No POST o cliente manda so `tipo`, `abo`,
+        `rh`, `volumeMl`, `prioridade` e `observacoes` - o resto e do servidor.
+      required: [tipo, abo, rh, volumeMl, prioridade]
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        dataCriacao:
+          type: string
+          format: date-time
+          readOnly: true
+        hospitalId:
+          type: integer
+          format: int64
+          readOnly: true
+          description: |
+            Vem do usuario autenticado.
+            ESTADO: hoje e obrigatorio no corpo, porque nao ha token.
+        hemocentroId:
+          type: [integer, 'null']
+          format: int64
+          readOnly: true
+          description: |
+            Preenchido no `aceitar` - e o "hemocentro responsavel" da HU04.
+            ESTADO: campo ainda nao existe na entidade.
+        tipo:
+          $ref: '#/components/schemas/TipoHemocomponente'
+        abo:
+          $ref: '#/components/schemas/TipoABO'
+        rh:
+          $ref: '#/components/schemas/FatorRh'
+        volumeMl:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+          description: A "quantidade" da HU03 e volume, nao contagem de bolsas
+        prioridade:
+          $ref: '#/components/schemas/Prioridade'
+        observacoes:
+          type: [string, 'null']
+        status:
+          allOf:
+            - $ref: '#/components/schemas/StatusRequisicao'
+          readOnly: true
+          description: Nasce ABERTA. So muda pelas transicoes.
+        motivoRecusa:
+          type: [string, 'null']
+          readOnly: true
+          description: Preenchido so pelo `recusar`
+      example:
+        id: 1
+        dataCriacao: '2026-09-14T21:14:03.482119Z'
+        hospitalId: 7
+        hemocentroId: null
+        tipo: HEMACIAS
+        abo: O
+        rh: NEGATIVO
+        volumeMl: 450.0
+        prioridade: EMERGENCIA
+        observacoes: Paciente politraumatizado, sala vermelha
+        status: ABERTA
+        motivoRecusa: null
+
+    Bolsa:
+      type: object
+      description: Sangue total como sai da coleta, antes do fracionamento.
+      required: [instituicaoAtualId, abo, rh, volumeMl]
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        instituicaoAtualId:
+          type: integer
+          format: int64
+        abo:
+          $ref: '#/components/schemas/TipoABO'
+        rh:
+          $ref: '#/components/schemas/FatorRh'
+        volumeMl:
+          type: number
+          format: double
+          exclusiveMinimum: 0
+        dataColeta:
+          type: string
+          format: date-time
+          readOnly: true
+        dataValidade:
+          type: string
+          format: date
+          description: |
+            ESTADO: a entidade tem `int validade` (prazo em dias). O alvo e data
+            de vencimento, que a HU02 pede e o FEFO da HU06 ordena direto -
+            decisoes.md, item 1.
+        emTransito:
+          type: boolean
+          default: false
+      example:
+        id: 5
+        instituicaoAtualId: 3
+        abo: O
+        rh: NEGATIVO
+        volumeMl: 450.0
+        dataColeta: '2026-09-10T09:30:00Z'
+        dataValidade: '2026-10-15'
+        emTransito: false
+
+    Hemocomponente:
+      type: object
+      description: |
+        Unidade alocavel, gerada do fracionamento de uma bolsa. Nunca criada
+        direto: so por `POST /bolsas/{id}/hemocomponentes`, por isso quase tudo
+        aqui e readOnly.
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        bolsaOrigemId:
+          type: integer
+          format: int64
+          readOnly: true
+        instituicaoAtualId:
+          type: integer
+          format: int64
+        requisicaoAlocadaId:
+          type: [integer, 'null']
+          format: int64
+          readOnly: true
+          description: Preenchido pela alocacao (HU06). Nao nulo = reservado.
+        tipo:
+          allOf:
+            - $ref: '#/components/schemas/TipoHemocomponente'
+          readOnly: true
+        abo:
+          allOf:
+            - $ref: '#/components/schemas/TipoABO'
+          readOnly: true
+          description: Herdado da bolsa
+        rh:
+          allOf:
+            - $ref: '#/components/schemas/FatorRh'
+          readOnly: true
+          description: Herdado da bolsa
+        volumeMl:
+          type: number
+          format: double
+          readOnly: true
+        dataProcessamento:
+          type: string
+          format: date-time
+          readOnly: true
+        dataValidade:
+          type: string
+          format: date
+          description: 'ESTADO: mesma pendencia de `Bolsa.dataValidade`.'
+        status:
+          $ref: '#/components/schemas/StatusHemocomponente'
+        emTransito:
+          type: boolean
+          default: false
+      example:
+        id: 18
+        bolsaOrigemId: 5
+        instituicaoAtualId: 3
+        requisicaoAlocadaId: null
+        tipo: HEMACIAS
+        abo: O
+        rh: NEGATIVO
+        volumeMl: 250.0
+        dataProcessamento: '2026-09-11T14:05:00Z'
+        dataValidade: '2026-10-15'
+        status: APTO
+        emTransito: false
+
+    # ---------------------------------------------------------- erros ------
+    ProblemDetail:
+      type: object
+      description: |
+        RFC 7807 - o que o Spring devolve com
+        `spring.mvc.problemdetails.enabled=true`.
+      properties:
+        type:
+          type: string
+          format: uri
+          default: about:blank
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri
