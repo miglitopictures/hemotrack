@@ -15,3 +15,4 @@
 # Recursos
 
 https://spring.io/guides/tutorials/rest
+https://spring.io/guides/gs/handling-form-submission
