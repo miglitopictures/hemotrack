@@ -138,7 +138,7 @@ Content-Type: {{contentType}}
 # Esperado HOJE: 500 Internal Server Error.
 # Aqui o JSON FOI lido com sucesso — o problema é outro: falta `@Valid` no
 # @RequestBody do controller, então o @NotNull de `tipo` só estoura no flush
-# do Hibernate, tarde demais para virar 400.
+# do Hibernate, tarde demais para virar 400. (ver docs/api/decisoes.md)
 POST {{baseUrl}}/requisicoes
 Content-Type: {{contentType}}
 
