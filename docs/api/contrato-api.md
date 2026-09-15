@@ -333,7 +333,7 @@ já estava `APROVADA`
 ### **DELETE** `/instituicoes/{id}`
 Remove a instituição.
 
-**@caller** `ADMIN_SISTEMA`
+**@caller** `ADMIN_INSTITUICAO` (da própria) · `ADMIN_SISTEMA`
 #### `204` - HttpStatus.NO_CONTENT
 removida
 #### `404` - HttpStatus.NOT_FOUND
