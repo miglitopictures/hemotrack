@@ -1,0 +1,32 @@
+Method,Route,Description,Auth,Body,Response,Status
+/login,,,,,,
+GET,/login,Autentica Usuario e devolve token JWT.,Não,(…),"{token, expiraEm}","200, 401"
+/usuarios,,,,,,
+GET,/usuarios,Listar todos os Usuários cadastrados.,ADMIN,(…),"[ {Usuario1}, … {UsuarioN} ]","200, 403"
+POST,/usuarios,Cadastrar novo Usuário no sistema.,Não,{Usuario},{Usuario},"201, 400"
+GET,/usuarios/{id},Retorna dados do Usuário especificado.,"Dono, ADMIN",(…),{Usuario},"200, 403, 404"
+DELETE,/usuarios/{id},Remove Usuário do sistema.,"Dono, ADMIN",(…),(…),"204, 403, 404, 409"
+PUT,/usuarios/{id},Atualiza os dados do Usuário.,"Dono, ADMIN",{Usuario},{Usuario},"200, 400, 404"
+/requisicoes,,,,,,
+GET,/requisicoes,Listar todas as Requisicoes existentes.,"Usuario do HOSPITAL (próprias), Usuario do HEMOCENTRO (todas)",(…),"[ {Requisicao1}, … {RequisicaoN} ]","200, 403"
+POST,/requisicoes,Criar nova Requisicao.,Usuario do HOSPITAL,{Requisicao},{Requisicao},"201, 400, 409"
+GET,/requisicoes/{id},Retorna dados da Requisicao especificada.,"Usuario do HOSPITAL dono, Usuario do Hemocentro.",(…),{Requisicao},"200, 403, 404"
+DELETE,/requisicoes/{id},Deletar uma Requisicao do sistema.,ADMIN,(…),(…),"204, 403, 404, 409"
+PATCH,/requisicoes/{id},Atualizar dados especificos uma Requisicao.,Usuario do HOSPITAL dono,"{prioridade, observacoes}",{Requisicao},"200, 400, 404"
+PATCH,/requisicoes/{id}/cancelar,Cancelar uma requisição. (.status = CANCELADA),Usuario do HEMOCENTRO,(…),{Requisicao},"200, 400, 403, 404"
+PATCH,/requisicoes/{id}/aceitar,Aceitar uma requisição. Muda .status = ACEITA. Configura .hemocentroId em Requisicao.,Usuario do HEMOCENTRO,(…),{Requisicao},"200, 400, 403, 404"
+PATCH,/requisicoes/{id}/recusar,Recusar uma requisição. (.status = RECUSADA),Usuario do HEMOCENTRO,{motivoRecusa},{Requisicao},"200, 400, 403, 404"
+PATCH,/requisicoes/{id}/alocar,Aloca Hemocomponentes para requisição e muda seu status para ALOCADA.,Usuario do Hemocentro dono,(…),"[ {IdHemocomponente1}, … {IdHemocomponenteN} ]","200, 400, 403, 404, 409"
+/instituicoes,,,,,,
+GET,/instituicoes,Listar todos as Instituições cadastrados.,Autenticado,(…),"[ {Instituicao1}, … {InstituicaoN} ]","200, 403"
+POST,/instituicoes,Cadastrar nova Instituição no sistema.,Não,{Instituicao},{Instituicao},"201, 400, 409"
+GET,/instituicoes/{id},Retorna dados da Instituição especificado.,Autenticado,(…),{Instituicao},"200, 403, 404"
+GET,/instituicoes/{id}/estoque,Retorna estoque de hemocomponentes.,Usuario do HEMOCENTRO dono,(…),"[ {Hemocomponente1}, … {HemocomponenteN} ]","200, 403, 404"
+DELETE,/instituicoes/{id},Remove Instituição do sistema.,ADMIN,(…),(…),"204, 403, 404, 409"
+PATCH,/instituicoes/{id},Atualizar dados especificos da Instituição.,Usuario da Instituição dona,"{razaoSocial, …}",{Instituicao},"200, 400, 404"
+/instituicoes/{id}/estoque,,,,,,
+GET,/instituicoes/{id}/estoque,Retorna Estoque de Hemocomponentes.,Usuario do HEMOCENTRO dono,(…),"[ {Hemocomponente1}, … {HemocomponenteN} ]","200, 403"
+POST,/instituicoes/{id}/estoque,Registrar novo Hemocomponente no Estoque.,Usuario do HEMOCENTRO dono,{Hemocomponente},{Hemocomponente},"201, 400, 409"
+GET,/instituicoes/{id}/estoque/{idHemoc},Retorna dados da Hemocompoente especificado.,Usuario do HEMOCENTRO dono,(…),{Hemocomponente},"200, 403, 404"
+DELETE,/instituicoes/{id}/estoque/{idHemoc},Remover um Hemocompoente do estoque.,ADMIN,(…),(…),"204, 403, 404, 409"
+PATCH,/instituicoes/{id}/estoque/{idHemoc},Atualizar dados especificos da Hemocompoente.,Usuario da Instituição dona ,"{boolEmTransito, status}",{Hemocomponente},"200, 400, 404"
