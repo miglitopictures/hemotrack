@@ -26,13 +26,13 @@ Todos os endpoints do nossa API. O detalhamento de cada rota (body, exemplos, ca
 | GET | `/instituicoes/{id}` | Retorna dados da `Instituicao` especificada. | Autenticado | — | `{Instituicao}` | 200, 403, 404 |
 | PATCH | `/instituicoes/{id}` | Atualizar dados cadastrais da `Instituicao`. | `ADMIN_INSTITUICAO`, `ADMIN_SISTEMA` | `{razaoSocial, endereco, telefone, …}` | `{Instituicao}` | 200, 400, 403, 404 |
 | PATCH | `/instituicoes/{id}/aprovar` | Aprova o cadastro. `status = APROVADA`. Libera as demais rotas para os `Usuarios` dela. | `ADMIN_SISTEMA` | — | `{Instituicao}` | 200, 403, 404, 409 |
-| DELETE | `/instituicoes/{id}` | Remove `Instituicao`. `409` se houver `Requisicao` em aberto ou estoque não vazio. | `ADMIN_SISTEMA` | — | — | 204, 403, 404, 409 |
+| DELETE | `/instituicoes/{id}` | Remove `Instituicao`. `409` se houver `Requisicao` em aberto. | `ADMIN_INSTITUICAO`, `ADMIN_SISTEMA` | — | — | 204, 403, 404, 409 |
 
 ### `/instituicoes/{id}/usuarios`
 
 | Método | Rota | Descrição | Auth | Body | Response | Status |
 |---|---|---|---|---|---|---|
-| GET | `/instituicoes/{id}/usuarios` | Lista `Usuarios` da `Instituicao`. Aceita `?papel&ativo&page&size`. | Membro, `ADMIN_SISTEMA` | — | `[{UsuarioResponse}]` | 200, 403, 404 |
+| GET | `/instituicoes/{id}/usuarios` | Lista `Usuarios` da `Instituicao`. Aceita `?papel&ativo`. | Membro, `ADMIN_SISTEMA` | — | `[{UsuarioResponse}]` | 200, 403, 404 |
 | POST | `/instituicoes/{id}/usuarios` | Cadastra novo `Usuario` na `Instituicao`. `409` se o e-mail já existir. | `ADMIN_INSTITUICAO` | `{UsuarioRequest}` | `{UsuarioResponse}` | 201, 400, 403, 404, 409 |
 | GET | `/instituicoes/{id}/usuarios/{uid}` | Retorna dados do `Usuario` especificado. | Dono, `ADMIN_INSTITUICAO`, `ADMIN_SISTEMA` | — | `{UsuarioResponse}` | 200, 403, 404 |
 | PATCH | `/instituicoes/{id}/usuarios/{uid}` | Altera papel ou ativa/desativa `Usuario`. `409` ao rebaixar o último `ADMIN_INSTITUICAO`. | `ADMIN_INSTITUICAO` | `{papel, ativo}` | `{UsuarioResponse}` | 200, 400, 403, 404, 409 |
