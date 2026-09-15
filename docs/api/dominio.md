@@ -45,8 +45,6 @@ ABERTA → ACEITA → ALOCADA → EM_TRANSITO → ATENDIDA
 | `RECUSADA` | terminal; exige `motivoRecusa` | Recusada | `PATCH /requisicoes/{id}/recusar` |
 | `CANCELADA` | terminal; só antes de `EM_TRANSITO` | — | `PATCH /requisicoes/{id}/cancelar` |
 
-Os cinco rótulos do HU04 agora existem no enum — não há mais status "de fora".
-
 ### `StatusHemocomponente` — máquina de estados
 
 ```
@@ -83,8 +81,6 @@ Nasce `PENDENTE_APROVACAO`. Enquanto estiver assim, seus usuários autenticam ma
 
 CNPJ duplicado responde `409` — precisa de `unique = true` **e** `findByCnpj` no repository (decisão nº 9).
 
-✗ No código hoje: faltam `status`, `endereco`, `municipio`, `telefone`, o `unique` no CNPJ e os getters (decisão nº 2).
-
 ---
 
 ## `Usuario`
@@ -104,8 +100,6 @@ Não existe `TipoUsuario`. O que o usuário pode fazer sai de duas coisas: `pape
 O primeiro usuário de uma instituição nasce `ADMIN_INSTITUICAO`, criado na mesma transação do `POST /instituicoes`. Uma instituição nunca fica sem `ADMIN_INSTITUICAO`: rebaixar ou remover o último responde `409`.
 
 `senha` nunca sai na resposta — toda saída é `UsuarioResponse`.
-
-⚠ No código hoje: campos chamam-se `nomeCompleto`, `password`, `idInstituicao`, `tipo`; existe `cpf` (não está no contrato); senha em texto puro; `/usuarios` é MVC Thymeleaf.
 
 ---
 
