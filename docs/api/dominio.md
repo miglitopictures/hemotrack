@@ -1,104 +1,66 @@
-# HemoTrack — Modelo de domínio
-
-Entidades, campos e enums **como estão no código**, em `backend/src/main/java/com/hemotrack/backend/model/`.
+# HemoTrack — Modelo de domínio v1.0
 
 ```
-Coleta ────► Hemocentro ────► Hospital
-                 │
-                 └─ processamento (bolsa → hemocomponentes)
+Instituicao (HOSPITAL | HEMOCENTRO)
+     │
+     ├── Usuario            (papel: ADMIN_SISTEMA | ADMIN_INSTITUICAO | OPERADOR)
+     ├── Hemocomponente     ("estoque" = os hemocomponentes com instituicaoId = X)
+     └── Requisicao         (hospitalId ─► hemocentroId)
+
+HEMOCENTRO.estoque ──alocar──► Requisicao ──receber──► HOSPITAL.estoque
 ```
-
----
-
-## Agregados
-
-| Pacote `model/` | Conteúdo | Repository | Service | Controller |
-|---|---|---|---|---|
-| `requisicao/` | `Requisicao`, `StatusRequisicao`, `Prioridade`, `dto/RecusaRequest` | ✓ | ✓ | ✓ REST |
-| `usuario/` | `Usuario`, `TipoUsuario` | ✓ | ✓ | ⚠ MVC |
-| `instituicao/` | `Instituicao`, `TipoInstituicao` | ✓ | ✗ | ✗ |
-| `sangue/` | `Bolsa`, `Hemocomponente`, `StatusHemocomponente`, `TipoHemocomponente` | ✓ | ✗ | ✗ |
-| `shared/` | `TipoABO`, `FatorRh` | — | — | — |
-
-As camadas ficam em `model/<agregado>/`, `repositories/`, `service/` e `cotrollers/`.
-
-Nenhuma entidade usa `@ManyToOne`: todos os vínculos são `Long` soltos — `hospitalId`, `idInstituicao`, `instituicaoAtualId`, `bolsaOrigemId`, `requisicaoAlocadaId`.
-
 ---
 
 ## Enums
 
-| Enum | Valores | Onde |
-|---|---|---|
-| `TipoABO` | `A`, `B`, `AB`, `O` | `shared/` |
-| `FatorRh` | `POSITIVO`, `NEGATIVO` | `shared/` |
-| `TipoHemocomponente` | `HEMACIAS`, `PLASMA`, `PLAQUETAS`, `CRIOPRECIPITADO` | `sangue/` |
-| `StatusHemocomponente` | `EM_ANALISE`, `APTO`, `DESCARTADO` | `sangue/` |
-| `Prioridade` | `NORMAL`, `EMERGENCIA`, `URGENCIA` | `requisicao/` |
-| `StatusRequisicao` | `ABERTA`, `ACEITA`, `ALOCADA`, `ATENDIDA`, `RECUSADA`, `CANCELADA` | `requisicao/` |
-| `TipoInstituicao` | `PONTO_COLETA`, `HEMOCENTRO`, `HOSPITAL` | `instituicao/` |
-| `TipoUsuario` | `PADRAO`, `ADMIN` | `usuario/` |
-
-`PLASMA` é o nome curto de Plasma Fresco Congelado.
-
-`TipoInstituicao` é papel de negócio: `PONTO_COLETA` gera bolsas, `HEMOCENTRO` processa e aloca, `HOSPITAL` requisita e recebe. `TipoUsuario` é nível de acesso — `ADMIN` é operação do próprio HemoTrack, e continua vinculado a uma instituição.
+| Enum | Valores |
+|---|---|
+| `TipoInstituicao` | `HOSPITAL`, `HEMOCENTRO` |
+| `StatusInstituicao` | `PENDENTE_APROVACAO`, `APROVADA` |
+| `Papel` | `ADMIN_SISTEMA`, `ADMIN_INSTITUICAO`, `OPERADOR` |
+| `TipoABO` | `A`, `B`, `AB`, `O` |
+| `FatorRh` | `POSITIVO`, `NEGATIVO` |
+| `TipoHemocomponente` | `HEMACIAS`, `PLASMA`, `PLAQUETAS`, `CRIOPRECIPITADO` |
+| `StatusHemocomponente` | `DISPONIVEL`, `RESERVADO`, `TRANSFUNDIDO`, `DESCARTADO` |
+| `Prioridade` | `NORMAL`, `URGENCIA`, `EMERGENCIA` |
+| `StatusRequisicao` | `ABERTA`, `ACEITA`, `ALOCADA`, `EM_TRANSITO`, `ATENDIDA`, `RECUSADA`, `CANCELADA` |
 
 ### `StatusRequisicao` — máquina de estados
 
 ```
-ABERTA → ACEITA → ALOCADA → ATENDIDA
-ABERTA → RECUSADA
-ABERTA / ACEITA → CANCELADA
+ABERTA → ACEITA → ALOCADA → EM_TRANSITO → ATENDIDA
+   │        │
+   │        └─────────► CANCELADA (hospital)
+   ├──────────────────► CANCELADA (hospital)
+   └──────────────────► RECUSADA  (hemocentro)
 ```
 
-| Valor | Significado | HU | Rota |
+| Valor | Significado | Rótulo no HU04 | Rota que produz |
 |---|---|---|---|
-| `ABERTA` | criada, aguardando o hemocentro ("Pendente" no HU04) | HU03 | ✓ default |
-| `ACEITA` | hemocentro atende, sem hemocomponente reservado ainda | HU05 | ✓ `/aceitar` |
-| `ALOCADA` | hemocomponentes reservados por compatibilidade + FEFO | HU06 | ✗ |
-| `ATENDIDA` | entregue ao hospital | HU08 | ✗ |
-| `RECUSADA` | não atende; exige `motivoRecusa` | HU05 | ✓ `/recusar` |
-| `CANCELADA` | cancelada pelo hospital antes do atendimento | — | ✗ |
+| `ABERTA` | criada pelo hospital, aguardando hemocentro | Pendente | `POST /requisicoes` |
+| `ACEITA` | hemocentro assumiu; `hemocentroId` definido | Aceita | `PATCH /requisicoes/{id}/aceitar` |
+| `ALOCADA` | hemocomponentes reservados no estoque do hemocentro | Em separação | `PATCH /requisicoes/{id}/alocar` |
+| `EM_TRANSITO` | lote despachado | Em transporte | `PATCH /requisicoes/{id}/enviar` |
+| `ATENDIDA` | recebido pelo hospital; hemocomponentes transferidos | Entregue | `PATCH /requisicoes/{id}/receber` |
+| `RECUSADA` | terminal; exige `motivoRecusa` | Recusada | `PATCH /requisicoes/{id}/recusar` |
+| `CANCELADA` | terminal; só antes de `EM_TRANSITO` | — | `PATCH /requisicoes/{id}/cancelar` |
 
-O HU04 pede "Em separação" e "Em transporte" como status visíveis ao hospital. Não entram neste enum: separação é `ALOCADA`, transporte é estado do transporte (HU07/HU08), ainda não modelado.
+### `StatusHemocomponente` — máquina de estados
 
----
+```
+DISPONIVEL ⇄ RESERVADO → TRANSFUNDIDO
+     │            │
+     └────────────┴────► DESCARTADO
+```
 
-## `Requisicao`
+| Transição | Quando |
+|---|---|
+| `DISPONIVEL → RESERVADO` | alocação da requisição (`/alocar`) |
+| `RESERVADO → DISPONIVEL` | requisição cancelada depois de alocada |
+| `RESERVADO → TRANSFUNDIDO` | uso no hospital, depois do `/receber` |
+| qualquer → `DESCARTADO` | vencimento, quebra de cadeia de frio, descarte manual |
 
-| Campo | Tipo | Validação |
-|---|---|---|
-| `id` | `Long` | `@GeneratedValue(IDENTITY)` |
-| `dataCriacao` | `Instant` | `@CreationTimestamp`, `updatable = false` |
-| `hospitalId` | `Long` | `@NotNull` |
-| `tipo` | `TipoHemocomponente` | `@NotNull` |
-| `abo` | `TipoABO` | `@NotNull` |
-| `rh` | `FatorRh` | `@NotNull` |
-| `volumeMl` | `double` | `nullable = false` |
-| `prioridade` | `Prioridade` | `@NotNull` |
-| `observacoes` | `String` | `@Nullable` |
-| `status` | `StatusRequisicao` | `@Nullable`, default `ABERTA` |
-| `motivoRecusa` | `String` | `@Nullable` |
-
-A "quantidade" do HU03 é `volumeMl`, não contagem de bolsas.
-
-**DTOs:** só existe `dto/RecusaRequest` (`{ motivoRecusa }`).
-
----
-
-## `Usuario`
-
-| Campo | Tipo | Validação |
-|---|---|---|
-| `id` | `Long` | `@GeneratedValue(IDENTITY)` |
-| `nomeCompleto` | `String` | `@NotBlank`, `@Size(3..80)` |
-| `email` | `String` | `@NotBlank`, `@Email` |
-| `password` | `String` | `@NotBlank`, `@Size(min=6)` |
-| `cpf` | `String` | `@NotBlank` |
-| `idInstituicao` | `Long` | `@NotNull` |
-| `tipo` | `TipoUsuario` | `@Nullable`, default `PADRAO` |
-
-`password` está em texto puro e seria serializado pela entidade — é o que impede `/usuarios` de virar REST.
+Transição inválida responde `409`. "Vencida" **não** é status: é `dataValidade < hoje`, calculado — um hemocomponente vencido continua `DISPONIVEL` até alguém descartar, mas não pode ser alocado.
 
 ---
 
@@ -107,67 +69,145 @@ A "quantidade" do HU03 é `volumeMl`, não contagem de bolsas.
 | Campo | Tipo | Validação |
 |---|---|---|
 | `id` | `Long` | `@GeneratedValue(IDENTITY)` |
-| `tipo` | `TipoInstituicao` | `@NotNull` |
 | `razaoSocial` | `String` | `@NotBlank`, `@Size(3..80)` |
-| `cnpj` | `String` | `@NotBlank` |
+| `cnpj` | `String` | `@NotBlank`, `@Column(unique = true)` |
+| `tipo` | `TipoInstituicao` | `@NotNull` |
+| `status` | `StatusInstituicao` | `@NotNull`, default `PENDENTE_APROVACAO` |
+| `endereco` | `String` | `@NotBlank` |
+| `municipio` | `String` | `@NotBlank` — filtro de `/disponibilidade` e `GET /instituicoes` |
+| `telefone` | `String` | `@Nullable` |
 
-Não tem campo `estoque` — ver **Estoque** abaixo. O CNPJ único do HU01 ainda não está garantido no banco.
+Nasce `PENDENTE_APROVACAO`. Enquanto estiver assim, seus usuários autenticam mas recebem `403` nas rotas de negócio. Só `ADMIN_SISTEMA` aprova.
+
+CNPJ duplicado responde `409` — precisa de `unique = true` **e** `findByCnpj` no repository (decisão nº 9).
 
 ---
 
-## `Bolsa`
-
-Sangue total, como sai da coleta. Não tem tipo de hemocomponente: é o que ainda vai ser fracionado.
+## `Usuario`
 
 | Campo | Tipo | Validação |
 |---|---|---|
 | `id` | `Long` | `@GeneratedValue(IDENTITY)` |
-| `instituicaoAtualId` | `Long` | `@NotNull` |
-| `abo` | `TipoABO` | `@NotNull` |
-| `rh` | `FatorRh` | `@NotNull` |
-| `volumeMl` | `double` | `nullable = false` |
-| `dataColeta` | `Instant` | `@CreationTimestamp`, `updatable = false` |
-| `validade` | `int` | — |
-| `emTransito` | `boolean` | default `false` |
+| `nome` | `String` | `@NotBlank`, `@Size(3..80)` |
+| `email` | `String` | `@NotBlank`, `@Email`, `@Column(unique = true)` |
+| `senha` | `String` | `@NotBlank`, `@Size(min=6)`, hash BCrypt, `@JsonIgnore` |
+| `papel` | `Papel` | `@NotNull`, default `OPERADOR` |
+| `ativo` | `boolean` | default `true` |
+| `instituicaoId` | `Long` | `@NotNull` |
+
+Não existe `TipoUsuario`. O que o usuário pode fazer sai de duas coisas: `papel` (nível de acesso) e `instituicao.tipo` (hospital ou hemocentro). O JWT carrega `usuarioId`, `instituicaoId` e `papel`; `tipo` da instituição é resolvido no service.
+
+O primeiro usuário de uma instituição nasce `ADMIN_INSTITUICAO`, criado na mesma transação do `POST /instituicoes`. Uma instituição nunca fica sem `ADMIN_INSTITUICAO`: rebaixar ou remover o último responde `409`.
+
+`senha` nunca sai na resposta — toda saída é `UsuarioResponse`.
 
 ---
 
 ## `Hemocomponente`
 
-O que sai do fracionamento de uma bolsa. É a unidade que se aloca para uma requisição.
+Unidade de estoque. É a bolsa já pronta para uso — não há entidade de fracionamento.
 
 | Campo | Tipo | Validação |
 |---|---|---|
 | `id` | `Long` | `@GeneratedValue(IDENTITY)` |
-| `bolsaOrigemId` | `Long` | `@NotNull` |
-| `instituicaoAtualId` | `Long` | `@NotNull` |
-| `requisicaoAlocadaId` | `Long` | `@Nullable` — só quando alocado |
+| `codigoBolsa` | `String` | `@NotBlank`, `@Column(unique = true)` — identificação do HU02 |
 | `tipo` | `TipoHemocomponente` | `@NotNull` |
-| `abo` | `TipoABO` | `@NotNull` — herdado da bolsa |
-| `rh` | `FatorRh` | `@NotNull` — herdado da bolsa |
-| `volumeMl` | `double` | `nullable = false` |
-| `dataProcessamento` | `Instant` | `@CreationTimestamp`, `updatable = false` |
-| `validade` | `int` | — |
-| `status` | `StatusHemocomponente` | `@NotNull` |
-| `emTransito` | `boolean` | default `false` |
+| `abo` | `TipoABO` | `@NotNull` |
+| `rh` | `FatorRh` | `@NotNull` |
+| `dataColeta` | `LocalDate` | `@NotNull`, `@PastOrPresent` |
+| `dataValidade` | `LocalDate` | `@NotNull`, posterior a `dataColeta` |
+| `status` | `StatusHemocomponente` | `@NotNull`, default `DISPONIVEL` |
+| `instituicaoId` | `Long` | `@NotNull` — onde a bolsa está agora |
+| `requisicaoId` | `Long` | `@Nullable` — preenchido enquanto `RESERVADO` |
+
+`codigoBolsa` duplicado responde `409`.
+
+`instituicaoId` muda uma vez: no `PATCH /requisicoes/{id}/receber`, do hemocentro para o hospital.
+
+---
+
+## `HistoricoHemocomponente`
+
+Trilha de rastreio do HU08/HU09, exposta em `GET /hemocomponentes/{id}/historico`. Uma linha por mudança de `status` ou de `instituicaoId`.
+
+| Campo | Tipo |
+|---|---|
+| `id` | `Long` |
+| `hemocomponenteId` | `Long` |
+| `data` | `Instant` (`@CreationTimestamp`) |
+| `status` | `StatusHemocomponente` |
+| `instituicaoId` | `Long` |
+| `usuarioId` | `Long` — quem causou |
+
+Append-only: nunca sofre `UPDATE` nem `DELETE`. É o que permite o delete lógico das outras entidades não perder rastreabilidade.
+
+✗ Entidade nova — não existe no código.
+
+---
+
+## `Requisicao`
+
+| Campo | Tipo | Validação |
+|---|---|---|
+| `id` | `Long` | `@GeneratedValue(IDENTITY)` |
+| `hospitalId` | `Long` | `@NotNull` — do JWT, nunca do body |
+| `hemocentroId` | `Long` | `@Nullable` — definido no `/aceitar` |
+| `itens` | `List<ItemRequisicao>` | `@NotEmpty`, `@Valid` |
+| `prioridade` | `Prioridade` | `@NotNull` |
+| `status` | `StatusRequisicao` | `@NotNull`, default `ABERTA` |
+| `observacoes` | `String` | `@Nullable`, `@Size(max=500)` |
+| `motivoRecusa` | `String` | `@Nullable` — obrigatório quando `RECUSADA` |
+| `hemocomponenteIds` | `List<Long>` | preenchido no `/alocar` |
+| `criadaEm` | `Instant` | `@CreationTimestamp`, `updatable = false` |
+| `atualizadaEm` | `Instant` | `@UpdateTimestamp` |
+
+Só é editável (`PATCH /requisicoes/{id}`) enquanto `ABERTA`, e só `prioridade` e `observacoes`. `status` nunca vem do body — muda pelas rotas de ação.
+
+### `ItemRequisicao`
+
+| Campo | Tipo | Validação |
+|---|---|---|
+| `tipo` | `TipoHemocomponente` | `@NotNull` |
+| `abo` | `TipoABO` | `@NotNull` |
+| `rh` | `FatorRh` | `@NotNull` |
+| `quantidade` | `int` | `@Min(1)` — número de bolsas |
+
+A alocação fecha o pedido **contando bolsas**, não somando volume.
 
 ---
 
 ## Estoque
 
-Não é entidade nem coleção dentro de `Instituicao`. É **visão calculada** sobre `Hemocomponente.instituicaoAtualId`.
+Continua sem ser entidade: é **visão calculada** sobre `Hemocomponente.instituicaoId`.
 
-Só `HEMOCENTRO` tem estoque alocável.
+Diferença em relação ao modelo antigo: hospital também tem estoque — o `/receber` transfere as bolsas para ele. O que é exclusivo do hemocentro é *cadastrar* (`POST /instituicoes/{id}/estoque`) e *alocar*.
 
-Os quatro rótulos do HU02 também são calculados:
+Rótulos do HU02:
 
-| Status exibido (HU02) | Regra |
+| Rótulo (HU02) | Regra |
 |---|---|
-| Disponível | `status = APTO` e não vencido e `requisicaoAlocadaId = null` |
-| Reservada | `requisicaoAlocadaId != null` |
-| Vencida | validade já passou |
-| Utilizada | fora de escopo — depende do HU08 |
+| Disponível | `status = DISPONIVEL` e `dataValidade >= hoje` |
+| Reservada | `status = RESERVADO` |
+| Utilizada | `status = TRANSFUNDIDO` |
+| Vencida | `dataValidade < hoje`, independente do status |
 
-`StatusHemocomponente` responde só à primeira condição — por isso não existe nem deve existir um enum `StatusEstoque`.
+Elegível para alocação = `status = DISPONIVEL` **e** `dataValidade >= hoje` **e** `instituicaoId` = hemocentro dono da requisição.
 
-O índice por hash + fila FEFO (entrega do time de Algoritmos) é interno ao serviço de alocação. Não é exposto na API — só o resultado.
+FEFO = `ORDER BY dataValidade ASC` sobre esse filtro. O índice por hash + fila de prioridade (entrega do time de Algoritmos) é interno ao serviço de alocação — não aparece na API, só o resultado.
+
+`/disponibilidade` é a mesma visão agregada entre instituições: contagem de `DISPONIVEL` não vencidos, agrupada por instituição, com filtro de `tipo`, `abo`, `rh` e `municipio`.
+
+---
+
+## Compatibilidade ABO/Rh
+
+Didática, conforme o escopo (HU06). Regra aplicada na alocação:
+
+| Receptor | Doadores aceitos (hemácias) |
+|---|---|
+| `O` | `O` |
+| `A` | `A`, `O` |
+| `B` | `B`, `O` |
+| `AB` | `A`, `B`, `AB`, `O` |
+
+Rh: receptor `NEGATIVO` só aceita `NEGATIVO`; `POSITIVO` aceita ambos.
