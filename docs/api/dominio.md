@@ -1,3 +1,5 @@
+!! DEPRECATED - ATUALIZAR A PARTIR de contrato-api.ods (nova api simplificada)
+
 # HemoTrack — Modelo de domínio
 
 Entidades, campos e enums **como estão no código**, em `backend/src/main/java/com/hemotrack/backend/model/`.

@@ -1,3 +1,5 @@
+!! DEPRECATED -- atualizar para novo contrato definifo em .ods (nova api simplificada)
+
 # HemoTrack — Contrato API
 
 ---
@@ -32,9 +34,6 @@ Essa rota implementa metodos CRUD para usuários do sistema (aka cadastro).
 
 ### **GET** `/usuários`
 Lista todos os usuários cadastrados no sistema.
-| Método | Rota | Body | Quem chama |
-|---|---|---|---|
-| GET | `/usuarios` | ... | `ADMIN` |
 
 #### `200` - HttpStatus.OK
 **@retorna** array com usuários cadastrados
