@@ -1,8 +1,98 @@
 # HemoTrack — Contrato API
 
-Fonte: `docs/api/contrato-api.ods`. Entidades e enums em [`dominio.md`](./dominio.md).
+Fonte: Entidades e enums em [`dominio.md`](./dominio.md).
 
 **Prefixo de todas as rotas:** `/api/v1`
+
+---
+
+## Visão macro
+
+Todos os endpoints do nossa API. O detalhamento de cada rota (body, exemplos, cada código de resposta) está nas seções seguintes.
+
+### `/auth`
+
+| Método | Rota | Descrição | Auth | Body | Response | Status |
+|---|---|---|---|---|---|---|
+| POST | `/auth/login` | Autentica `Usuario` e devolve token JWT. Claims: `usuarioId`, `instituicaoId`, `papel`. | Não | `{email, senha}` | `{token, expiraEm}` | 200, 400, 401 |
+| GET | `/auth/me` | Retorna o `Usuario` autenticado, sua `Instituicao` e seu papel. | Autenticado | — | `{UsuarioResponse}` | 200 |
+
+### `/instituicoes`
+
+| Método | Rota | Descrição | Auth | Body | Response | Status |
+|---|---|---|---|---|---|---|
+| POST | `/instituicoes` | Cadastra `Instituicao` e `Usuario` administrador inicial em uma única transação. A `Instituicao` nasce `PENDENTE_APROVACAO`; o `Usuario` nasce com papel `ADMIN_INSTITUICAO`. | Não | `{instituicao, administrador}` | `{instituicao, administrador}` | 201, 400, 409 |
+| GET | `/instituicoes` | Listar `Instituicoes` **aprovadas**. Aceita `?tipo&municipio&page&size`. | Autenticado | — | `[{Instituicao}]` | 200, 403 |
+| GET | `/instituicoes/{id}` | Retorna dados da `Instituicao` especificada. | Autenticado | — | `{Instituicao}` | 200, 403, 404 |
+| PATCH | `/instituicoes/{id}` | Atualizar dados cadastrais da `Instituicao`. | `ADMIN_INSTITUICAO`, `ADMIN_SISTEMA` | `{razaoSocial, endereco, telefone, …}` | `{Instituicao}` | 200, 400, 403, 404 |
+| PATCH | `/instituicoes/{id}/aprovar` | Aprova o cadastro. `status = APROVADA`. Libera as demais rotas para os `Usuarios` dela. | `ADMIN_SISTEMA` | — | `{Instituicao}` | 200, 403, 404, 409 |
+| DELETE | `/instituicoes/{id}` | Remove `Instituicao`. `409` se houver `Requisicao` em aberto ou estoque não vazio. | `ADMIN_SISTEMA` | — | — | 204, 403, 404, 409 |
+
+### `/instituicoes/{id}/usuarios`
+
+| Método | Rota | Descrição | Auth | Body | Response | Status |
+|---|---|---|---|---|---|---|
+| GET | `/instituicoes/{id}/usuarios` | Lista `Usuarios` da `Instituicao`. Aceita `?papel&ativo&page&size`. | Membro, `ADMIN_SISTEMA` | — | `[{UsuarioResponse}]` | 200, 403, 404 |
+| POST | `/instituicoes/{id}/usuarios` | Cadastra novo `Usuario` na `Instituicao`. `409` se o e-mail já existir. | `ADMIN_INSTITUICAO` | `{UsuarioRequest}` | `{UsuarioResponse}` | 201, 400, 403, 404, 409 |
+| GET | `/instituicoes/{id}/usuarios/{uid}` | Retorna dados do `Usuario` especificado. | Dono, `ADMIN_INSTITUICAO`, `ADMIN_SISTEMA` | — | `{UsuarioResponse}` | 200, 403, 404 |
+| PATCH | `/instituicoes/{id}/usuarios/{uid}` | Altera papel ou ativa/desativa `Usuario`. `409` ao rebaixar o último `ADMIN_INSTITUICAO`. | `ADMIN_INSTITUICAO` | `{papel, ativo}` | `{UsuarioResponse}` | 200, 400, 403, 404, 409 |
+| DELETE | `/instituicoes/{id}/usuarios/{uid}` | Remove `Usuario` da `Instituicao`. `409` ao remover o último `ADMIN_INSTITUICAO`. | `ADMIN_INSTITUICAO`, `ADMIN_SISTEMA` | — | — | 204, 403, 404, 409 |
+
+### `/usuarios`
+
+| Método | Rota | Descrição | Auth | Body | Response | Status |
+|---|---|---|---|---|---|---|
+| PATCH | `/usuarios/{id}` | Atualiza os próprios dados. Não altera papel nem `instituicaoId`. | Dono | `{nome, email, senha}` | `{UsuarioResponse}` | 200, 400, 403, 404 |
+
+### `/instituicoes/{id}/estoque`
+
+| Método | Rota | Descrição | Auth | Body | Response | Status |
+|---|---|---|---|---|---|---|
+| GET | `/instituicoes/{id}/estoque` | Retorna estoque de `Hemocomponentes`. Aceita `?tipo&abo&rh&status&page&size`. | Membro | — | `[{Hemocomponente}]` | 200, 403, 404 |
+| POST | `/instituicoes/{id}/estoque` | Registrar novo `Hemocomponente` no estoque. `409` se o código da bolsa já existir. | Membro de `HEMOCENTRO` | `{HemocomponenteRequest}` | `{Hemocomponente}` | 201, 400, 403, 404, 409 |
+| GET | `/instituicoes/{id}/estoque/{idHemoc}` | Retorna dados do `Hemocomponente` especificado. | Membro | — | `{Hemocomponente}` | 200, 403, 404 |
+| PATCH | `/instituicoes/{id}/estoque/{idHemoc}` | Atualiza status do `Hemocomponente` (`DISPONIVEL`, `RESERVADO`, `DESCARTADO`, `TRANSFUNDIDO`). Transições validadas; `409` em transição inválida. | Membro | `{status}` | `{Hemocomponente}` | 200, 400, 403, 404, 409 |
+| DELETE | `/instituicoes/{id}/estoque/{idHemoc}` | Remove `Hemocomponente` cadastrado por engano. Descarte usa `PATCH status=DESCARTADO`. | `ADMIN_SISTEMA` | — | — | 204, 403, 404, 409 |
+
+### `/disponibilidade`
+
+| Método | Rota | Descrição | Auth | Body | Response | Status |
+|---|---|---|---|---|---|---|
+| GET | `/disponibilidade` | Contagem agregada de `Hemocomponentes` disponíveis por `Instituicao`. `?tipo&abo&rh&municipio`. | Autenticado | — | `[{instituicaoId, nome, municipio, quantidade}]` | 200, 403 |
+
+### `/hemocomponentes`
+
+| Método | Rota | Descrição | Auth | Body | Response | Status |
+|---|---|---|---|---|---|---|
+| GET | `/hemocomponentes/{id}/historico` | Rastreio do `Hemocomponente`: mudanças de status e de `Instituicao`. | Autenticado | — | `[{data, status, instituicaoId, usuarioId}]` | 200, 403, 404 |
+
+### `/requisicoes`
+
+| Método | Rota | Descrição | Auth | Body | Response | Status |
+|---|---|---|---|---|---|---|
+| GET | `/requisicoes` | Listar `Requisicoes`. `HOSPITAL` vê as próprias; `HEMOCENTRO` vê as pendentes e as que aceitou. Aceita `?status&prioridade&page&size`. | Membro de `HOSPITAL`, Membro de `HEMOCENTRO` | — | `[{Requisicao}]` | 200, 403 |
+| POST | `/requisicoes` | Criar nova `Requisicao`. `status = ABERTA`. | Membro de `HOSPITAL` | `{RequisicaoRequest}` | `{Requisicao}` | 201, 400, 403 |
+| GET | `/requisicoes/{id}` | Retorna dados da `Requisicao` especificada. | Membro do `HOSPITAL` dono, Membro de `HEMOCENTRO` | — | `{Requisicao}` | 200, 403, 404 |
+| PATCH | `/requisicoes/{id}` | Atualizar dados da `Requisicao`. `409` se `status != ABERTA`. | Membro do `HOSPITAL` dono | `{prioridade, observacoes}` | `{Requisicao}` | 200, 400, 403, 404, 409 |
+| DELETE | `/requisicoes/{id}` | Deletar uma `Requisicao` do sistema. | `ADMIN_SISTEMA` | — | — | 204, 403, 404, 409 |
+| PATCH | `/requisicoes/{id}/cancelar` | Cancela a requisição. `status = CANCELADA`. `409` se já `EM_TRANSITO` ou `ATENDIDA`. | Membro do `HOSPITAL` dono | — | `{Requisicao}` | 200, 403, 404, 409 |
+| PATCH | `/requisicoes/{id}/aceitar` | Aceita a requisição. `status = ACEITA` e define `hemocentroId`. `409` se já aceita por outro. | Membro de `HEMOCENTRO` | — | `{Requisicao}` | 200, 403, 404, 409 |
+| PATCH | `/requisicoes/{id}/recusar` | Recusa a requisição. `status = RECUSADA`. | Membro de `HEMOCENTRO` | `{motivoRecusa}` | `{Requisicao}` | 200, 400, 403, 404, 409 |
+| PATCH | `/requisicoes/{id}/alocar` | Aloca `Hemocomponentes` do próprio estoque. `status = ALOCADA`; hemocomponentes vão para `RESERVADO`. | Membro do `HEMOCENTRO` dono | `{hemocomponenteIds}` | `{Requisicao}` | 200, 400, 403, 404, 409 |
+| PATCH | `/requisicoes/{id}/enviar` | Despacha o lote. `status = EM_TRANSITO`. | Membro do `HEMOCENTRO` dono | — | `{Requisicao}` | 200, 403, 404, 409 |
+| PATCH | `/requisicoes/{id}/receber` | Confirma recebimento. `status = ATENDIDA` e transfere os `Hemocomponentes` para o estoque do `HOSPITAL`. | Membro do `HOSPITAL` dono | — | `{Requisicao}` | 200, 403, 404, 409 |
+
+### Shapes citados
+
+| Nome | Formato |
+|---|---|
+| `UsuarioRequest` | `{nome, email, senha, papel}` — `papel` só é aceito em `POST /instituicoes/{id}/usuarios` |
+| `UsuarioResponse` | `{id, nome, email, papel, ativo, instituicaoId}` — nunca inclui `senha` |
+| `Instituicao` | `{id, razaoSocial, cnpj, tipo, status, endereco, municipio, telefone}` · `tipo`: `HOSPITAL` \| `HEMOCENTRO` · `status`: `PENDENTE_APROVACAO` \| `APROVADA` |
+| `HemocomponenteRequest` | `{codigoBolsa, tipo, abo, rh, dataColeta, dataValidade}` |
+| `Hemocomponente` | `{id, codigoBolsa, tipo, abo, rh, dataColeta, dataValidade, status, instituicaoId}` |
+| `RequisicaoRequest` | `{itens: [{tipo, abo, rh, quantidade}], prioridade, observacoes}` |
+| `Requisicao` | `{id, hospitalId, hemocentroId, itens, prioridade, status, observacoes, motivoRecusa, hemocomponenteIds, criadaEm, atualizadaEm}` |
 
 ---
 
@@ -727,18 +817,20 @@ há hemocomponente ainda `RESERVADO` para ela
 
 ## Resumo
 
+**31 rotas** em 8 recursos — ver a [visão macro](#visão-macro) no topo.
+
 | Recurso | Rotas |
 |---|---|
-| `/auth` | `POST /login` · `GET /me` |
-| `/instituicoes` | `POST` · `GET` · `GET /{id}` · `PATCH /{id}` · `PATCH /{id}/aprovar` · `DELETE /{id}` |
-| `/instituicoes/{id}/usuarios` | `GET` · `POST` · `GET /{uid}` · `PATCH /{uid}` · `DELETE /{uid}` |
-| `/usuarios` | `PATCH /{id}` |
-| `/instituicoes/{id}/estoque` | `GET` · `POST` · `GET /{idHemoc}` · `PATCH /{idHemoc}` · `DELETE /{idHemoc}` |
-| `/disponibilidade` | `GET` |
-| `/hemocomponentes` | `GET /{id}/historico` |
-| `/requisicoes` | `GET` · `POST` · `GET /{id}` · `PATCH /{id}` · `DELETE /{id}` · `PATCH /{id}/aceitar` · `PATCH /{id}/recusar` · `PATCH /{id}/alocar` · `PATCH /{id}/enviar` · `PATCH /{id}/receber` · `PATCH /{id}/cancelar` |
+| `/auth` | 2 |
+| `/instituicoes` | 6 |
+| `/instituicoes/{id}/usuarios` | 5 |
+| `/usuarios` | 1 |
+| `/instituicoes/{id}/estoque` | 5 |
+| `/disponibilidade` | 1 |
+| `/hemocomponentes` | 1 |
+| `/requisicoes` | 11 |
 
-**31 rotas.** Delete físico só para `ADMIN_SISTEMA`, e sempre com `409` quando quebraria rastreabilidade — o histórico de hemocomponente é append-only e nunca é apagado.
+Delete físico só para `ADMIN_SISTEMA`, e sempre com `409` quando quebraria rastreabilidade — o histórico de hemocomponente é append-only e nunca é apagado.
 
 ### Cobertura das HUs
 

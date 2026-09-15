@@ -1,7 +1,5 @@
 # HemoTrack — Modelo de domínio
 
-Modelo-alvo, derivado de `docs/api/contrato-api.ods` (contrato simplificado). Onde o código em `backend/src/main/java/com/hemotrack/backend/model/` diverge, está marcado com ⚠ ou ✗.
-
 ```
 Instituicao (HOSPITAL | HEMOCENTRO)
      │
@@ -219,24 +217,3 @@ Didática, conforme o escopo (HU06). Regra aplicada na alocação:
 | `AB` | `A`, `B`, `AB`, `O` |
 
 Rh: receptor `NEGATIVO` só aceita `NEGATIVO`; `POSITIVO` aceita ambos.
-
-> Decisão em aberto: aplicar essa tabela para todos os `TipoHemocomponente` ou só para `HEMACIAS` (plasma é o inverso). Enquanto não fechar, o `/alocar` valida por igualdade exata de `abo` + `rh`, que é sempre compatível.
-
----
-
-## Delta código ↔ contrato
-
-| # | Item | Estado |
-|---|---|---|
-| 1 | Remover `Bolsa`, `BolsaRepository` e `dto/RecusaRequest` genérico | ✗ |
-| 2 | `Instituicao`: `status`, `endereco`, `municipio`, `telefone`, CNPJ único | ✗ |
-| 3 | `Usuario`: renomear campos, trocar `TipoUsuario` por `Papel`, `ativo`, hash de senha, remover `cpf` | ✗ |
-| 4 | `Hemocomponente`: `codigoBolsa`, `dataValidade` (`LocalDate`), novos status, `requisicaoId`; remover `bolsaOrigemId`, `emTransito`, `volumeMl` | ✗ |
-| 5 | `HistoricoHemocomponente` (entidade + repository) | ✗ |
-| 6 | `Requisicao`: `itens`, `hemocentroId`, `hemocomponenteIds`, `atualizadaEm`, `EM_TRANSITO`; remover `volumeMl`/`tipo`/`abo`/`rh` do topo | ✗ |
-| 7 | Getters/setters em todas as entidades (decisão nº 2) | ✗ |
-| 8 | `@Enumerated(EnumType.STRING)` em todos os enums (decisão nº 3) | ✗ |
-| 9 | Prefixo `/api/v1` e `@RestControllerAdvice` com `problem+json` | ✗ |
-| 10 | JWT + `SecurityFilterChain` | ✗ |
-
-Fora do contrato atual, ainda sem rota: rota/grafo do HU07, telemetria de transporte (GPS/temperatura) do HU08 e painel de indicadores do HU09. `EM_TRANSITO` é o gancho previsto para os dois primeiros.
