@@ -24,6 +24,7 @@ HEMOCENTRO.estoque ──alocar──► Requisicao ──receber──► HOSPI
 | `StatusHemocomponente` | `DISPONIVEL`, `RESERVADO`, `TRANSFUNDIDO`, `DESCARTADO` |
 | `Prioridade` | `NORMAL`, `URGENCIA`, `EMERGENCIA` |
 | `StatusRequisicao` | `ABERTA`, `ACEITA`, `ALOCADA`, `EM_TRANSITO`, `ATENDIDA`, `RECUSADA`, `CANCELADA` |
+| `StatusTransporte` | `AGUARDANDO_SAIDA`, `EM_DESLOCAMENTO`, `ENTREGUE`, `ALERTA_TEMPERATURA |
 
 ### `StatusRequisicao` — máquina de estados
 
@@ -211,3 +212,32 @@ Didática, conforme o escopo (HU06). Regra aplicada na alocação:
 | `AB` | `A`, `B`, `AB`, `O` |
 
 Rh: receptor `NEGATIVO` só aceita `NEGATIVO`; `POSITIVO` aceita ambos.
+
+---
+
+## Distribuicao / Transporte (HU07 e HU08)
+
+| Campo | Tipo | Validação |
+| ------ | ------ | ------ |
+| `id` | `Long` | `@GeneratedValue(IDENTITY)` |
+| `requisicaoId` | `Long` | `@NotNull`, `@Column`(`unique = true`) |
+| `origemId` | `Long` | `@NotNull` (`hemocentroId`) |
+| `destinoId` | `Long` | `@NotNull` (`hospitalId`) |
+| `rotaCalculada` | `String` / `JSON` | `@NotBlank` — sequencia de nós/coordenadas do Grafo (Dijkstra) |
+| `dataSaida` | `Instant` | `@Nullable` |
+| `dataChegada` | `Instant` | `@Nullable` |
+| `status` | `StatusTransporte` | `@NotNull`, default `AGUARDANDO_SAIDA` |
+
+---
+
+## RegistroTelemetria (HU08, SO e RSD)
+
+| Campo | Tipo | Validação |
+| ------ | ------ | ------ |
+| `id` | `Long` | `@GeneratedValue`(`IDENTITY`) |
+| `distribuicaoId` | `Long` | `@NotNull` — vinculo com o transporte |
+| `dataHora` | `Instant` | `@CreationTimestamp` |
+| `latitude` | `Double` | `@NotNull` |
+| `longitude` | `Double` | `@NotNull` |
+| `temperaturaAtual` | `Double` | `@NotNull` |
+| `alertaTemperatura` | `boolean` | default `false` (`true` se fora da faixa de segurança) |
