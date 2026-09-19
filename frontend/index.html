@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>HemoTrack — Gestão e distribuição de hemocomponentes</title>
+    <meta
+      name="description"
+      content="Plataforma que conecta hospitais e hemocentros para solicitar, liberar e rastrear hemocomponentes."
+    />
+    <meta name="theme-color" content="#b3261e" />
+    <meta property="og:site_name" content="HemoTrack" />
+    <meta property="og:title" content="HemoTrack" />
+    <meta property="og:description" content="Gestão e distribuição de hemocomponentes." />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap"
+    />
+
+    <script>
+      // Aplica o tema antes da primeira pintura — sem isso a tela pisca
+      // branca para quem usa o tema escuro (mesmo script que existia no
+      // shellComponent do TanStack Start, só que agora direto no HTML).
+      (function () {
+        try {
+          var salvo = localStorage.getItem('hemotrack-theme');
+          var escuro =
+            salvo === 'dark' ||
+            (!salvo && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.classList.toggle('dark', escuro);
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

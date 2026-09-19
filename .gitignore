@@ -1,0 +1,158 @@
+# ============================================================================
+# Sistema operacional
+# ============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.AppleDouble
+.LSOverride
+
+# ============================================================================
+# Frontend (Node.js / npm / Vite)
+# ============================================================================
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+frontend/.vite/
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.pnp
+frontend/.pnp.js
+frontend/coverage/
+frontend/build/
+
+# ============================================================================
+# Backend (Java / Maven)
+# ============================================================================
+backend/target/
+backend/.classpath
+backend/.project
+backend/.settings/
+backend/.factorypath
+backend/*.jar
+backend/data/
+backend/.vscode/
+backend/.idea/
+backend/*.iml
+backend/*.iws
+backend/*.ipr
+backend/.gradle/
+backend/build/
+
+# ============================================================================
+# IDE / Editor
+# ============================================================================
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+*.swp
+*.swo
+*~
+.#*
+#*#
+*.iml
+*.iws
+*.ipr
+*.jks
+.DS_Store
+
+# ============================================================================
+# Git
+# ============================================================================
+.git/
+.gitmodules
+
+# ============================================================================
+# Lockfiles (deixe apenas npm/yarn, remova bun/pnpm se não usar)
+# ============================================================================
+# Mantém: package-lock.json (npm)
+# Remove: bun.lock, yarn.lock (se não usar)
+# Remove: pnpm-lock.yaml (se não usar)
+
+# ============================================================================
+# Ambiente local / variáveis sensíveis
+# ============================================================================
+.env
+.env.local
+.env.*.local
+.env.*.vault
+secrets/
+*.key
+*.pem
+
+# ============================================================================
+# Logs
+# ============================================================================
+*.log
+logs/
+*.log.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ============================================================================
+# Dependências compiladas / cache
+# ============================================================================
+backend/.m2/
+node_modules/
+dist/
+build/
+out/
+target/
+
+# ============================================================================
+# Arquivos de teste / cobertura
+# ============================================================================
+coverage/
+*.coverage
+htmlcov/
+.nyc_output/
+.pytest_cache/
+.junit/
+
+# ============================================================================
+# OS Específicos
+# ============================================================================
+[Dd]esktop.ini
+[Dd]esktop.ini.lnk
+[Ss]ystem[Vv]olume[Ii]nformation/
+
+# ============================================================================
+# Banco de dados local (H2)
+# ============================================================================
+backend/data/hemotrack-db.mv.db
+backend/data/hemotrack-db.trace.db
+backend/*.db
+backend/*.mv.db
+backend/*.trace.db
+
+# ============================================================================
+# Compilados / Gerados
+# ============================================================================
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar
+*.tar.gz
+dist/
+build/
+out/
+
+# ============================================================================
+# Lovable / Geradores AI (não committar)
+# ============================================================================
+.lovable/
+**/.lovable/
+**/lovable-error-reporting.ts
+AGENTS.md
+MUDANCAS.md
