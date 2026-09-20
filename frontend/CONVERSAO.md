@@ -5,7 +5,7 @@
 TanStack Start é um framework full-stack (SSR, funções de servidor, um
 processo Node por trás rodando via Nitro/h3). Ele exigia configuração própria
 (`src/start.ts`, `src/server.ts`, um `app.config`/build da Nitro) que a
-Lovable provisionava automaticamente na plataforma dela — e que não vem junto
+plataforma anterior provisionava automaticamente — e que não vem junto
 quando você baixa o código e tenta rodar localmente. Foi esse conjunto de
 configuração "invisível" que estava causando os erros.
 
@@ -33,7 +33,7 @@ outra biblioteca de rotas.
 | `src/server.ts` | **Removido.** Era o entrypoint HTTP do Nitro/Start. Não existe mais "servidor" — o Vite serve estático/dev normalmente. |
 | `src/lib/error-capture.ts` | **Removido.** Só existia para capturar stack traces de erros SSR engolidos pelo h3 (parte do Nitro). |
 | `src/lib/error-page.ts` | **Removido.** Página de erro 500 renderizada pelo servidor Start. Sem servidor próprio, não se aplica. |
-| `src/lib/lovable-error-reporting` | **Nunca existiu no zip** — era injetado pela plataforma da Lovable. O `__root.tsx` importava esse módulo e por isso o build quebrava. Troquei por uma função local `reportarErro()` (só um `console.error` por enquanto). |
+| Módulo de report de erro (não incluído no zip) | **Nunca existiu no zip** — era injetado pela plataforma anterior. O `__root.tsx` importava esse módulo e por isso o build quebrava. Troquei por uma função local `reportarErro()` (só um `console.error` por enquanto). |
 | `src/routes/__root.tsx` | Removido `shellComponent`/`RootShell` (que renderizava `<html>/<head>/<body>` no servidor) e o `<Scripts />` (carrega o bundle JS do Start). O `<head>` da página agora é o `index.html` estático. Mantive `head()` + `<HeadContent />`, que **funcionam normalmente em SPA puro** (não são exclusivos do Start) e continuam trocando o `<title>` a cada rota. |
 | `src/routeTree.gen.ts` | Tirado o trecho final que registrava tipos do `@tanstack/react-start` (dependia do `start.ts`, que foi removido). Esse arquivo é gerado automaticamente pelo plugin do Router — ele será reescrito sozinho na primeira vez que você rodar `npm run dev`. |
 | `src/main.tsx` | **Novo.** É o entrypoint do cliente, no padrão oficial de "TanStack Router + Vite" (sem Start): cria o router e monta com `ReactDOM.createRoot` na div `#root`. |

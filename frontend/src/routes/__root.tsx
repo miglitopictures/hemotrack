@@ -14,10 +14,10 @@ import { Toaster } from "../components/ui/sonner";
 /**
  * Reporte simples de erro não tratado.
  *
- * No projeto original (TanStack Start) isso chamava um módulo
- * `lib/lovable-error-reporting`, que era injetado automaticamente pela
- * plataforma da Lovable e não existe fora dela. Aqui é só um console.error —
- * troque por Sentry/LogRocket/etc. quando tiver telemetria de verdade.
+ * No projeto original (TanStack Start) isso chamava um módulo de report de
+ * erro que era injetado automaticamente pela plataforma anterior e não
+ * existe fora dela. Aqui é só um console.error — troque por
+ * Sentry/LogRocket/etc. quando tiver telemetria de verdade.
  */
 function reportarErro(error: unknown, contexto?: Record<string, unknown>) {
   console.error("[HemoTrack] erro não tratado:", error, contexto);

@@ -149,10 +149,8 @@ build/
 out/
 
 # ============================================================================
-# Lovable / Geradores AI (não committar)
+# Diretórios de geradores automáticos (não committar)
 # ============================================================================
-.lovable/
-**/.lovable/
-**/lovable-error-reporting.ts
+
 AGENTS.md
 MUDANCAS.md
