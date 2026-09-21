@@ -16,6 +16,31 @@ Uma aplicação web que gerencia e distribui hemocomponentes (bolsas de sangue) 
 | **Versionamento** | Git/GitHub |
 | **Docs** | Markdown |
 
+## Entregas
+
+### Entrega 01 — 31/08
+
+Histórias de usuário definidas, protótipo Lo-Fi no Figma e screencast publicados. **Concluída.**
+- [Protótipo Lo-Fi no Figma](https://www.figma.com/proto/o33X78ZoRifSqpQZyOuI2U/Hemotrack---Prototipo-LOFI?node-id=21-9&p=f&t=jxS6u0a4MgkJWZHt-1&scaling=min-zoom&content-scaling=fixed&page-id=0%3A1&starting-point-node-id=21%3A9)
+
+- [Screencast navegando o protótipo (YouTube)](https://www.youtube.com/watch?v=_Mo2xrN9wh8)
+
+### Entrega 02 — 21/09
+
+Ao menos 2 histórias implementadas, commits semanais, issue tracker atualizado e screencasts do sistema e do código. **Concluída.**
+
+- [Screencast atualizado do sistema (YouTube)](https://www.youtube.com/watch?v=_Mo2xrN9wh8)
+- [Screencast do codigo](https://www.youtube.com/watch?v=_Mo2xrN9wh8)
+
+### Entrega 03 — 19/10
+
+Mais 2 histórias implementadas, commits semanais, novos screencasts e issue tracker atualizado.
+
+### Entrega 04 — 09/11
+
+Histórias restantes implementadas, versionamento contínuo, novos screencasts e issue tracker atualizado.
+
+
 ## Como rodar na sua máquina
 
 ### Pré-requisitos (instale antes de começar)
@@ -233,13 +258,16 @@ Ver mais exemplos em [`docs/api/`](./docs/api/).
 
 ## Desenvolvido por
 
-| Nome | Email CESAR |
-|------|----------|
-| Gabriel Cavalcante Barros de Oliveira | gcbo@cesar.school |
-| Miguel Duarte de Barros | mdb@cesar.school |
-
-(+ outros integrantes da dupla/turma)
-
+| Nome completo | E-mail (CESAR School) | Papel |
+|---|---|---|
+| Lucas Bonfim Gomes | lbg2@cesar.school | Integrante |
+| Lucas Moreira de Carvalho | lmc4@cesar.school | Integrante |
+| Lucas Guilherme Pinheiro Valença Barbosa  | lgpvb@cesar.school | Integrante |
+| Raysa Costa Queiroz | rcq@cesar.school | Integrante |
+| Rodrigo Morais Silvestri de Castro Montenegro | rmscm@cesar.school | Integrante |
+| Pablo Tamborini Nogueira | ptn@cesar.school | Líder Técnico |
+| Miguel Duarte de Barros | mdb@cesar.school | Integrante |
+| Gabriel Cavalcante Barros de Oliveira  | gcbo@cesar.school | Integrante |
 ---
 
 ## Próximas etapas
