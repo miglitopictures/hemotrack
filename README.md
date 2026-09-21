@@ -29,8 +29,7 @@ Histórias de usuário definidas, protótipo Lo-Fi no Figma e screencast publica
 
 Ao menos 2 histórias implementadas, commits semanais, issue tracker atualizado e screencasts do sistema e do código. **Concluída.**
 
-- [Screencast atualizado do sistema (YouTube)](https://www.youtube.com/watch?v=_Mo2xrN9wh8)
-- [Screencast do codigo](https://www.youtube.com/watch?v=_Mo2xrN9wh8)
+- [Screencast atualizado do sistema (YouTube)](https://www.youtube.com/watch?v=2j6u5m1CH4g)
 
 ### Entrega 03 — 19/10
 
