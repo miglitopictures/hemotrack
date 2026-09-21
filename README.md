@@ -27,9 +27,18 @@ Histórias de usuário definidas, protótipo Lo-Fi no Figma e screencast publica
 
 ### Entrega 02 — 21/09
 
-Ao menos 2 histórias implementadas, commits semanais, issue tracker atualizado e screencasts do sistema e do código. **Concluída.**
+Nesta entrega foram desenvolvidas as funcionalidades e os screencasts de criação de requisições e acompanhamento de status pelo hospital, no projeto HemoTrack, incluindo:
+
+* HU03 — Criar requisição de hemocomponentes: o hospital informa componente, tipo sanguíneo, quantidade e prioridade, e o sistema registra a solicitação como "Pendente"
+* HU04 — Visualizar e acompanhar requisições: o hospital vê a lista de suas próprias requisições, os detalhes de cada uma, e acompanha a mudança de status (por exemplo, de "Pendente" para "Aceita" quando o hemocentro aprova)
+
+- 📄 [Documento com as histórias](https://github.com/miglitopictures/hemotrack/blob/main/docs/historias.md)
 
 - [Screencast atualizado do sistema (YouTube)](https://www.youtube.com/watch?v=2j6u5m1CH4g)
+
+- Issue / Bug tracker:
+  <img width="1212" height="401" alt="Captura de Tela 2026-09-21 às 11 51 16" src="https://github.com/user-attachments/assets/fec3d16d-8371-4d1d-8af8-9e89f02d6f46" />
+
 
 ### Entrega 03 — 19/10
 
