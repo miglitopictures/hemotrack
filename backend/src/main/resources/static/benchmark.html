@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Benchmark sequencial x paralelo</title>
+<style>body{font-family:sans-serif;max-width:860px;margin:2rem auto;padding:0 1rem}table{border-collapse:collapse;margin:1rem 0}
+td,th{border:1px solid #ccc;padding:.3rem .7rem;text-align:right}th:first-child,td:first-child{text-align:left}</style></head>
+<body><h1>Benchmark: sequencial x 2/4/8 threads</h1>
+<p>Registros: <input id="n" value="1000000"> Estoque: <input id="e" value="1000"> <button onclick="run()">Rodar</button> <span id="st"></span></p>
+<div id="out"></div>
+<script>
+async function run(){
+  st.textContent='rodando...';
+  const r=await (await fetch(`/relatorio/benchmark?registros=${n.value}&estoque=${e.value}&repeticoes=5`)).json();
+  st.textContent='';
+  const m=r.medicoes, max=Math.max(...m.map(x=>x.tempoMs));
+  let h='<table><tr><th>Versão</th><th>Threads</th><th>Tempo (ms)</th><th>Speedup</th><th>Resultado igual</th></tr>';
+  m.forEach(x=>h+=`<tr><td>${x.versao}</td><td>${x.threads}</td><td>${x.tempoMs}</td><td>${x.speedup.toFixed(2)}x</td><td>${x.resultadoIgualAoSequencial?'sim':'NÃO'}</td></tr>`);
+  h+='</table><svg width="820" height="'+(m.length*28+10)+'">';
+  m.forEach((x,i)=>{const w=x.tempoMs/max*560;
+    h+=`<text x="0" y="${i*28+18}" font-size="13">${x.versao} ${x.threads}</text><rect x="150" y="${i*28+4}" width="${w}" height="20" fill="${x.virtual?'#e67e22':x.threads==1?'#7f8c8d':'#2980b9'}"/><text x="${155+w}" y="${i*28+18}" font-size="12">${x.tempoMs} ms (${x.speedup.toFixed(2)}x)</text>`});
+  out.innerHTML=h+'</svg>';
+}
+</script></body></html>
