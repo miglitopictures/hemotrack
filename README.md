@@ -31,8 +31,8 @@ Histórias de usuário definidas, protótipo Lo-Fi no Figma e screencast publica
 
 Nesta entrega foram desenvolvidas as funcionalidades e os screencasts de criação de requisições e acompanhamento de status pelo hospital, no projeto HemoTrack, incluindo:
 
-#### [Screencast atualizado do sistema (YouTube)](https://www.youtube.com/watch?v=2j6u5m1CH4g)
-[![Print Hemotrack](./assets/Image_Hemotrack.png)](https://www.youtube.com/watch?v=2j6u5m1CH4g)
+#### [Screencast atualizado do sistema (YouTube)](https://www.youtube.com/watch?v=YCow7kq3mf8)
+[![Print Hemotrack](./assets/Image_Hemotrack.png)](https://www.youtube.com/watch?v=YCow7kq3mf8)
 
 * HU03 — Criar requisição de hemocomponentes: o hospital informa componente, tipo sanguíneo, quantidade e prioridade, e o sistema registra a solicitação como "Pendente"
 * HU04 — Visualizar e acompanhar requisições: o hospital vê a lista de suas próprias requisições, os detalhes de cada uma, e acompanha a mudança de status (por exemplo, de "Pendente" para "Aceita" quando o hemocentro aprova)
