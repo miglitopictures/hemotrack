@@ -9,11 +9,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.hemotrack.backend.model.requisicao.Requisicao;
 import com.hemotrack.backend.model.requisicao.dto.RecusaRequest;
 import com.hemotrack.backend.service.RequisicaoService;
+
+import jakarta.validation.Valid;
 
 @RestController  
 @RequestMapping("/requisicoes")
@@ -31,13 +34,13 @@ public class RequisicaoController {
 
     // listar todas as requisicoes de trasfusao
     @GetMapping("")
-    List<Requisicao> mostrarTodas() {
-        return service.listarTodos();
-    }
+    List<Requisicao> mostrarTodas(@RequestParam(required = false) Long hospitalId) {
+        return service.listarTodos(hospitalId);
+}
 
     // criar nova requisicao
     @PostMapping("")
-    Requisicao criarRequisicao(@RequestBody Requisicao novaRequisicao) {
+    Requisicao criarRequisicao(@Valid @RequestBody Requisicao novaRequisicao) {
         return service.salvar(novaRequisicao);
     }
 
@@ -54,10 +57,10 @@ public class RequisicaoController {
     }
 
     // aceitar uma requisicao {id}
-    @PostMapping ("/{id}/aceitar")
-    Requisicao aceitarRequisicao(@PathVariable Long id) {
-        return service.aceitar(id);
-    }
+    @PostMapping("/{id}/aceitar")
+    Requisicao aceitarRequisicao(@PathVariable Long id, @RequestParam Long hemocentroId) {
+    return service.aceitar(id, hemocentroId);
+}
 
     // recusar uma requisicao {id}
     @PostMapping ("/{id}/recusar")

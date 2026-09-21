@@ -329,8 +329,7 @@ function AnaliseSolicitacao() {
               <div className="mt-5 flex flex-col gap-2">
                 <motion.button
                   type="button"
-                  whileHover={completa ? { y: -2 } : undefined}
-                  whileTap={completa ? { scale: 0.96 } : undefined}
+                  {...(completa ? { whileHover: { y: -2 }, whileTap: { scale: 0.96 } } : {})}
                   onClick={aceitar}
                   disabled={!completa || processando || decisao !== null}
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-card disabled:cursor-not-allowed disabled:opacity-50"

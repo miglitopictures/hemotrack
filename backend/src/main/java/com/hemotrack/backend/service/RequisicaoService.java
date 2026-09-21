@@ -37,15 +37,15 @@ public class RequisicaoService {
         return repository.save(requisicao);
     }
 
-    public Requisicao aceitar(Long id) {
-        Requisicao requisicao = buscarPorId(id);
-        // apenas aceitamos requisições que estão atualmente abertas, para evitar conflitos.
-        if (requisicao.getStatus() != StatusRequisicao.ABERTA) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Requisição não está aberta");
-        }
-        requisicao.setStatus(StatusRequisicao.ACEITA);
-        return repository.save(requisicao);
+    public Requisicao aceitar(Long id, Long hemocentroId) {
+    Requisicao requisicao = buscarPorId(id);
+    if (requisicao.getStatus() != StatusRequisicao.ABERTA) {
+        throw new ResponseStatusException(HttpStatus.CONFLICT, "Requisição não está aberta");
     }
+    requisicao.setStatus(StatusRequisicao.ACEITA);
+    requisicao.setHemocentroId(hemocentroId);
+    return repository.save(requisicao);
+}
     
     public Requisicao recusar(String motivoRecusa, Long id) {
         Requisicao requisicao = buscarPorId(id);
@@ -66,9 +66,12 @@ public class RequisicaoService {
     }
 
 
-    public List<Requisicao> listarTodos() {
-        return repository.findAll();
+    public List<Requisicao> listarTodos(Long hospitalId) {
+    if (hospitalId != null) {
+        return repository.findByHospitalId(hospitalId);
     }
+    return repository.findAll();
+}
 
     public  void remover(Long id) {
         Requisicao requisicao = buscarPorId(id);

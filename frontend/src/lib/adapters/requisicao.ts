@@ -31,6 +31,7 @@ export type RequisicaoBack = {
   id: number;
   dataCriacao: string; // Instant do Java, ISO 8601
   hospitalId: number;
+  hemocentroId?: number | null; // preenchido quando um hemocentro aceita a requisição
   tipo: TipoHemocomponenteBack;
   abo: TipoABOBack;
   rh: FatorRhBack;
@@ -126,11 +127,21 @@ function nomeDoHospital(hospitalId: number): string {
   return NOME_DO_HOSPITAL[hospitalId] ?? `Hospital #${hospitalId}`;
 }
 
+// TODO(back): mesma situação do hospital — quando existir /instituicoes,
+// o nome do hemocentro deve vir de lá. Por enquanto só devolvemos um nome
+// genérico com o id, já que ainda não temos nenhum hemocentro de teste
+// mapeado à mão como fizemos com NOME_DO_HOSPITAL.
+const NOME_DO_HEMOCENTRO: Record<number, string> = {};
+
+function nomeDoHemocentro(hemocentroId: number): string {
+  return NOME_DO_HEMOCENTRO[hemocentroId] ?? `Hemocentro #${hemocentroId}`;
+}
+
 export function requisicaoParaSolicitacao(r: RequisicaoBack): Solicitacao {
   return {
     id: `REQ-${r.id}`,
     hospital: nomeDoHospital(r.hospitalId),
-    hemocentro: "", // TODO(back): a Requisicao não guarda hemocentroId hoje
+    hemocentro: r.hemocentroId != null ? nomeDoHemocentro(r.hemocentroId) : "",
     componente: COMPONENTE_DO_BACK[r.tipo],
     tipoSanguineo: tipoSanguineoDoBack(r.abo, r.rh),
     quantidade: r.volumeMl, // aproximação: back mede em mL, front mostra "quantidade"

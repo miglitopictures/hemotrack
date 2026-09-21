@@ -72,18 +72,21 @@ function paraErroDeApi(erro: unknown): ErroDeApi {
 // que HU01 (login) estiver de pé.
 const HOSPITAL_ID_TEMP = 1;
 
+// TODO(back): mesma situação do hospital — não existe /auth nem
+// /instituicoes ainda, então fixamos um hemocentro só para o front
+// conseguir aceitar/recusar requisições de teste; troque isso assim que
+// HU01 (login) estiver de pé.
+const HEMOCENTRO_ID_TEMP = 1;
+
 // ---------------------------------------------------------------------------
 // Solicitações — ligado ao back real (/requisicoes)
 // ---------------------------------------------------------------------------
 
 export async function listarSolicitacoes(filtros?: { hospital?: string }): Promise<Solicitacao[]> {
   try {
-    const dados = await httpGet<RequisicaoBack[]>("/requisicoes");
-    const lista = dados.map(requisicaoParaSolicitacao);
-    // TODO(back): filtro por hospital deveria ser feito no servidor
-    // (?hospitalId=), como já é em contrato-api.md. Por enquanto filtramos
-    // aqui porque a rota real ainda não aceita esse query param.
-    return filtros?.hospital ? lista.filter((s) => s.hospital === filtros.hospital) : lista;
+    const query = filtros?.hospital ? `?hospitalId=${HOSPITAL_ID_TEMP}` : "";
+    const dados = await httpGet<RequisicaoBack[]>(`/requisicoes${query}`);
+    return dados.map(requisicaoParaSolicitacao);
   } catch (erro) {
     throw paraErroDeApi(erro);
   }
@@ -126,11 +129,13 @@ export async function criarSolicitacao(dados: NovaSolicitacao): Promise<Solicita
 }
 
 // TODO(back): a rota real de aceitar (`POST /requisicoes/{id}/aceitar`) não
-// recebe bolsas no corpo — ela só muda o status para ACEITA. A seleção de
-// bolsas compatíveis (HU06, `/alocar` em contrato-api.md) ainda não foi
-// implementada em código nenhum. Por isso a assinatura desta função muda:
-// ela aceita a requisição no back, mas a escolha de bolsas continua só
-// visual, com os mocks de `data.ts`, até o Miguel implementar `/alocar`.
+// recebe bolsas no corpo — ela só muda o status para ACEITA e agora também
+// grava o hemocentroId (via query param, enquanto não existe login pra
+// descobrir isso sozinho). A seleção de bolsas compatíveis (HU06, `/alocar`
+// em contrato-api.md) ainda não foi implementada em código nenhum. Por isso
+// a assinatura desta função muda: ela aceita a requisição no back, mas a
+// escolha de bolsas continua só visual, com os mocks de `data.ts`, até o
+// Miguel implementar `/alocar`.
 export async function aceitarSolicitacao(id: string, codigosBolsas: string[]): Promise<Solicitacao> {
   const sol = solicitacaoPorId(id);
   if (sol && codigosBolsas.length !== sol.quantidade) {
@@ -138,7 +143,9 @@ export async function aceitarSolicitacao(id: string, codigosBolsas: string[]): P
   }
   const idBack = id.replace(/^REQ-/, "");
   try {
-    const atualizada = await httpPost<RequisicaoBack>(`/requisicoes/${idBack}/aceitar`);
+    const atualizada = await httpPost<RequisicaoBack>(
+      `/requisicoes/${idBack}/aceitar?hemocentroId=${HEMOCENTRO_ID_TEMP}`,
+    );
     return requisicaoParaSolicitacao(atualizada);
   } catch (erro) {
     throw paraErroDeApi(erro);
