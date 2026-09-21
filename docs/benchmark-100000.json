@@ -1,0 +1,88 @@
+﻿{
+    "registros":  100000,
+    "estoque":  1000,
+    "repeticoes":  5,
+    "medicoes":  [
+                     {
+                         "versao":  "Sequencial",
+                         "threads":  1,
+                         "virtual":  false,
+                         "tempoMs":  88,
+                         "speedup":  1.0,
+                         "resultadoIgualAoSequencial":  true
+                     },
+                     {
+                         "versao":  "Threads",
+                         "threads":  2,
+                         "virtual":  false,
+                         "tempoMs":  50,
+                         "speedup":  1.76,
+                         "resultadoIgualAoSequencial":  true
+                     },
+                     {
+                         "versao":  "Threads",
+                         "threads":  4,
+                         "virtual":  false,
+                         "tempoMs":  23,
+                         "speedup":  3.83,
+                         "resultadoIgualAoSequencial":  true
+                     },
+                     {
+                         "versao":  "Threads",
+                         "threads":  8,
+                         "virtual":  false,
+                         "tempoMs":  12,
+                         "speedup":  7.33,
+                         "resultadoIgualAoSequencial":  true
+                     },
+                     {
+                         "versao":  "Virtual threads",
+                         "threads":  2,
+                         "virtual":  true,
+                         "tempoMs":  44,
+                         "speedup":  2.0,
+                         "resultadoIgualAoSequencial":  true
+                     },
+                     {
+                         "versao":  "Virtual threads",
+                         "threads":  4,
+                         "virtual":  true,
+                         "tempoMs":  23,
+                         "speedup":  3.83,
+                         "resultadoIgualAoSequencial":  true
+                     },
+                     {
+                         "versao":  "Virtual threads",
+                         "threads":  8,
+                         "virtual":  true,
+                         "tempoMs":  12,
+                         "speedup":  7.33,
+                         "resultadoIgualAoSequencial":  true
+                     }
+                 ],
+    "resultado":  {
+                      "totalRequisicoes":  100000,
+                      "atendiveis":  100000,
+                      "semCompatibilidade":  0,
+                      "unidadesCompativeisTotal":  10704490,
+                      "volumeCompativelTotalMl":  3154601145,
+                      "checksum":  539900478459,
+                      "porPrioridade":  {
+                                            "NORMAL":  {
+                                                           "requisicoes":  33485,
+                                                           "atendiveis":  33485,
+                                                           "unidadesCompativeis":  3587199
+                                                       },
+                                            "EMERGENCIA":  {
+                                                               "requisicoes":  33182,
+                                                               "atendiveis":  33182,
+                                                               "unidadesCompativeis":  3549921
+                                                           },
+                                            "URGENCIA":  {
+                                                             "requisicoes":  33333,
+                                                             "atendiveis":  33333,
+                                                             "unidadesCompativeis":  3567370
+                                                         }
+                                        }
+                  }
+}

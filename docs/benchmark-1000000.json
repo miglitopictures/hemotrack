@@ -1,0 +1,88 @@
+﻿{
+    "registros":  1000000,
+    "estoque":  1000,
+    "repeticoes":  5,
+    "medicoes":  [
+                     {
+                         "versao":  "Sequencial",
+                         "threads":  1,
+                         "virtual":  false,
+                         "tempoMs":  898,
+                         "speedup":  1.0,
+                         "resultadoIgualAoSequencial":  true
+                     },
+                     {
+                         "versao":  "Threads",
+                         "threads":  2,
+                         "virtual":  false,
+                         "tempoMs":  468,
+                         "speedup":  1.92,
+                         "resultadoIgualAoSequencial":  true
+                     },
+                     {
+                         "versao":  "Threads",
+                         "threads":  4,
+                         "virtual":  false,
+                         "tempoMs":  251,
+                         "speedup":  3.58,
+                         "resultadoIgualAoSequencial":  true
+                     },
+                     {
+                         "versao":  "Threads",
+                         "threads":  8,
+                         "virtual":  false,
+                         "tempoMs":  127,
+                         "speedup":  7.07,
+                         "resultadoIgualAoSequencial":  true
+                     },
+                     {
+                         "versao":  "Virtual threads",
+                         "threads":  2,
+                         "virtual":  true,
+                         "tempoMs":  470,
+                         "speedup":  1.91,
+                         "resultadoIgualAoSequencial":  true
+                     },
+                     {
+                         "versao":  "Virtual threads",
+                         "threads":  4,
+                         "virtual":  true,
+                         "tempoMs":  232,
+                         "speedup":  3.87,
+                         "resultadoIgualAoSequencial":  true
+                     },
+                     {
+                         "versao":  "Virtual threads",
+                         "threads":  8,
+                         "virtual":  true,
+                         "tempoMs":  132,
+                         "speedup":  6.8,
+                         "resultadoIgualAoSequencial":  true
+                     }
+                 ],
+    "resultado":  {
+                      "totalRequisicoes":  1000000,
+                      "atendiveis":  1000000,
+                      "semCompatibilidade":  0,
+                      "unidadesCompativeisTotal":  107099205,
+                      "volumeCompativelTotalMl":  31562043203,
+                      "checksum":  54050965257933,
+                      "porPrioridade":  {
+                                            "NORMAL":  {
+                                                           "requisicoes":  333130,
+                                                           "atendiveis":  333130,
+                                                           "unidadesCompativeis":  35705446
+                                                       },
+                                            "EMERGENCIA":  {
+                                                               "requisicoes":  334043,
+                                                               "atendiveis":  334043,
+                                                               "unidadesCompativeis":  35760166
+                                                           },
+                                            "URGENCIA":  {
+                                                             "requisicoes":  332827,
+                                                             "atendiveis":  332827,
+                                                             "unidadesCompativeis":  35633593
+                                                         }
+                                        }
+                  }
+}
