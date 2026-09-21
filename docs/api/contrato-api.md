@@ -66,7 +66,7 @@ Todos os endpoints do nossa API. O detalhamento de cada rota (body, exemplos, ca
 |---|---|---|---|---|---|---|
 | GET | `/hemocomponentes/{id}/historico` | Rastreio do `Hemocomponente`: mudanças de status e de `Instituicao`. | Autenticado | — | `[{data, status, instituicaoId, usuarioId}]` | 200, 403, 404 |
 
-#### `/requisicoes`
+### `/requisicoes`
 
 | Método | Rota | Descrição | Auth | Body | Response | Status |
 |---|---|---|---|---|---|---|
@@ -81,26 +81,6 @@ Todos os endpoints do nossa API. O detalhamento de cada rota (body, exemplos, ca
 | PATCH | `/requisicoes/{id}/alocar` | Aloca `Hemocomponentes` do próprio estoque. `status = ALOCADA`; hemocomponentes vão para `RESERVADO`. | Membro do `HEMOCENTRO` dono | `{hemocomponenteIds}` | `{Requisicao}` | 200, 400, 403, 404, 409 |
 | PATCH | `/requisicoes/{id}/enviar` | Despacha o lote. `status = EM_TRANSITO`. | Membro do `HEMOCENTRO` dono | — | `{Requisicao}` | 200, 403, 404, 409 |
 | PATCH | `/requisicoes/{id}/receber` | Confirma recebimento. `status = ATENDIDA` e transfere os `Hemocomponentes` para o estoque do `HOSPITAL`. | Membro do `HOSPITAL` dono | — | `{Requisicao}` | 200, 403, 404, 409 |
-
-### `/distribuicoes e /telemetria (HU07, HU08, AED, SO e RSD)`
-
-| Método | Rota | Descrição | Auth | Body | Response | Status |
-| ------ | ------ | ------ | ------ | ------ | ------ | ------ |
-| GET | `/requisicoes/{id}/rota` | Retorna a rota mínima calculada pelo Grafo (Dijkstra) entre Hemocentro e Hospital. | Membro | — | `{origemId, destinoId, nosRota: [], distanciaKm, tempoMinutos}` | 200, 403, 404 |
-| POST | `/telemetria/ingestao` | Ingestão concorrente de coordenadas GPS e temperatura sintéticas do transporte. | Sistema / Veículo | `{distribuicaoId, latitude, longitude, temperaturaAtual}` | `{status, alertaTemperatura}` | 201, 400 |
-| GET | `/distribuicoes/{id}/telemetria` | Consulta última localização, gráfico de temperatura e status de alertas térmicos. | Autenticado | — | `{distribuicaoId, ultimaLocalizacao, historicoTemperatura: [], alertaAtivo}` | 200, 403, 404 |
-
-### /indicadores (Atende HU09 e EST)
-
-| Método | Rota | Descrição | Auth | Body | Response | Status |
-| ------ | ------ | ------ | ------ | ------ | ------ | ------ |
-| GET | `/indicadores/painel` | Retorna os dados agregados para o Dashboard (estoque por tipo, requisições por status, vencimentos e médias). | Autenticado | — | `{estoqueDisponivel, bolsasProximasVencimento, requisicoesPendentes, requisicoesEmTransporte, componentesMaisSolicitados, tempoMedioAtendimento}` | 200, 403 |
-
-### /rede (Atende RSD U2)
-
-| Método | Rota | Descrição | Auth | Body | Response | Status |
-| ------ | ------ | ------ | ------ | ------ | ------ | ------ |
-| GET | `/rede/metricas` | Retorna métricas de benchmarking de rede (latência, vazão, taxa de erros 4xx/5xx). | ADMIN_SISTEMA | — | `{latenciaMediaMs, taxaErros, vazaoKbps}` | 200, 403 |
 
 ### Shapes citados
 
@@ -862,8 +842,8 @@ Delete físico só para `ADMIN_SISTEMA`, e sempre com `409` quando quebraria ras
 | HU04 | `GET /requisicoes`, `GET /requisicoes/{id}` |
 | HU05 | `GET /requisicoes?status=ABERTA`, `/aceitar`, `/recusar` |
 | HU06 | `GET /instituicoes/{id}/estoque` (filtro + FEFO), `/alocar` |
-| HU07 | `GET /requisicoes/{id}/rota` (cálculo de rota em Grafo) |
-| HU08 | `POST /telemetria/ingestao` e `GET /distribuicoes/{id}/telemetria` |
-| HU09 | `GET /indicadores/painel` |
+| HU07 | ✗ sem rota — falta `/requisicoes/{id}/rota` (grafo) |
+| HU08 | parcial: `/enviar` e `/receber` cobrem o status; falta telemetria (GPS/temperatura simulados) |
+| HU09 | ✗ sem rota — falta `/indicadores` |
 
 Nenhuma rota do contrato atual foi retirada para cobrir as três lacunas: elas entram como acréscimo, provavelmente na Entrega 04.

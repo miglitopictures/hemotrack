@@ -51,6 +51,9 @@ public class Requisicao {
     @Nullable 
     private String motivoRecusa; // preenchido no quando status == RECUSADA
 
+    @Nullable
+    private Long hemocentroId; // preenchido quando um hemocentro aceita a requisição
+
 
     // Construtores
     public Requisicao() {  }
@@ -155,5 +158,13 @@ public class Requisicao {
     }
     public void setMotivoRecusa(String motivoRecusa){
         this.motivoRecusa = motivoRecusa;
+    }
+
+    // hemocentroId
+    public Long getHemocentroId(){
+        return this.hemocentroId;
+    }
+    public void setHemocentroId(Long hemocentroId){
+        this.hemocentroId = hemocentroId;
     }
 }
