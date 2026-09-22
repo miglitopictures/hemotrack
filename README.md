@@ -13,7 +13,7 @@ Uma aplicação web que gerencia e distribui hemocomponentes (bolsas de sangue) 
 
 | Camada | Stack |
 |--------|-------|
-| **Backend (API)** | Java 21, Spring Boot 3, H2 Database |
+| **Backend (API)** | Java 21, Spring Boot 4, H2 Database, OpenTelemetry (OTLP), Grafana Cloud |
 | **Frontend (Interface)** | TypeScript, React 18, TanStack Start, Vite, Tailwind CSS |
 | **Versionamento** | Git/GitHub |
 | **Docs** | Markdown |
@@ -183,6 +183,7 @@ hemotrack/
 ├── docs/                       ← Documentação
 │   ├── historias.md           ← histórias de usuário (HU01-HU09)
 │   ├── api/                   ← documentação da API
+│   ├── telemetria.md          ← métricas via OpenTelemetry + Grafana Cloud
 │   └── notas/                 ← notas de design
 └── README.md                   ← você está aqui
 ```

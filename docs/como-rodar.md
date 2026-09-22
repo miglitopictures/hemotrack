@@ -147,6 +147,12 @@ SELECT * FROM REQUISICOES;
 
 **Para começar do zero:** pare a aplicação e apague `backend/data/hemotrack-db.mv.db`. Com `ddl-auto=update` o schema é recriado no próximo start.
 
+## 7. Telemetria (opcional)
+
+O backend pode enviar métricas para o Grafana Cloud. Vem desligado: sem configurar nada, tudo acima funciona igual. Para ligar: `cp backend/.env.example backend/.env`, cole o token (peça ao Miguel) e rode normalmente. Passo a passo, queries e problemas comuns em [`telemetria.md`](./telemetria.md).
+
+Mesmo sem Grafana, dá pra ver as métricas localmente: `http://localhost:8080/actuator/metrics`.
+
 ## Observações importantes
 
 - **Backend sem hot-reload:** o projeto não tem `spring-boot-devtools`. Alterou código Java? Precisa parar (`Ctrl+C`) e rodar `./mvnw spring-boot:run` de novo — só salvar o arquivo não atualiza o servidor em execução.

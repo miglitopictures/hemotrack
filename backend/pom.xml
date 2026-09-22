@@ -76,6 +76,21 @@
 			<artifactId>spring-boot-starter-webmvc-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- Telemetria: expõe métricas via Actuator -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+		<!-- Telemetria: OpenTelemetry (exporta métricas via OTLP para o Grafana Cloud) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-opentelemetry</artifactId>
+		</dependency>
+		<!-- Telemetria: observabilidade das queries JPA/JDBC (tempo de execução por query) -->
+		<dependency>
+			<groupId>net.ttddyy.observation</groupId>
+			<artifactId>datasource-micrometer-spring-boot</artifactId>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -87,4 +102,16 @@
 		</plugins>
 	</build>
 
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>net.ttddyy.observation</groupId>
+				<artifactId>datasource-micrometer-bom</artifactId>
+				<version>2.3.0</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 </project>
