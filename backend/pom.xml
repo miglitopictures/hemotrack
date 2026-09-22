@@ -81,11 +81,10 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
-		<!-- Telemetria: exporta as métricas do Micrometer via OTLP para o Grafana Cloud -->
+		<!-- Telemetria: OpenTelemetry (exporta métricas via OTLP para o Grafana Cloud) -->
 		<dependency>
-			<groupId>io.micrometer</groupId>
-			<artifactId>micrometer-registry-otlp</artifactId>
-			<scope>runtime</scope>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-opentelemetry</artifactId>
 		</dependency>
 		<!-- Telemetria: observabilidade das queries JPA/JDBC (tempo de execução por query) -->
 		<dependency>
