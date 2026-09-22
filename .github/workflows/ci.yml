@@ -38,3 +38,16 @@ jobs:
         with:
           name: surefire-reports
           path: backend/target/surefire-reports/
+
+  ## roda so depois do build-and-test passar, e so quando o push foi na main
+  deploy:
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+        ## dispara o deploy no Render via Deploy Hook
+        ## RENDER_DEPLOY_HOOK_URL fica em Settings > Secrets and variables > Actions do repo no GitHub
+        ## (copia a URL em Render > o Web Service > Settings > Deploy Hook)
+      - name: Trigger Render deploy
+        run: curl -f -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
