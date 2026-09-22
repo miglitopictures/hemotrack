@@ -149,7 +149,7 @@ SELECT * FROM REQUISICOES;
 
 ## 7. Telemetria (opcional)
 
-O backend pode enviar métricas para o Grafana Cloud. Vem desligado: sem configurar nada, tudo acima funciona igual. Para ligar, exporte `GRAFANA_OTLP_ENABLED`, `GRAFANA_OTLP_ENDPOINT` e `GRAFANA_OTLP_TOKEN` **no mesmo terminal**, antes do `./mvnw spring-boot:run`. Passo a passo, queries e problemas comuns em [`telemetria.md`](./telemetria.md).
+O backend pode enviar métricas para o Grafana Cloud. Vem desligado: sem configurar nada, tudo acima funciona igual. Para ligar: `cp backend/.env.example backend/.env`, cole o token (peça ao Miguel) e rode normalmente. Passo a passo, queries e problemas comuns em [`telemetria.md`](./telemetria.md).
 
 Mesmo sem Grafana, dá pra ver as métricas localmente: `http://localhost:8080/actuator/metrics`.
 
