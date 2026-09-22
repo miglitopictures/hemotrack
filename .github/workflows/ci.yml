@@ -18,12 +18,12 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
-        ## instala jdk 17 no ambiente virtual
-      - name: Set up JDK 17
+        ## instala jdk 21 no ambiente virtual
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
           cache: maven
 
         ## roda o script de teste do Maven (ferramenta de build que usamos com spring)
