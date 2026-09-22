@@ -1,5 +1,7 @@
 # Telemetria
 
+![Dashboard Grafana do Hemotrack](../assets/grafana_funcional_hemotrack.png)
+
 O backend exporta métricas no padrão **OpenTelemetry (OTLP)** para o **Grafana Cloud**, onde são consultadas e visualizadas. É o primeiro passo da HU08 (monitorar transporte) e da HU09 (indicadores).
 
 ## O que está configurado
@@ -12,7 +14,7 @@ O backend exporta métricas no padrão **OpenTelemetry (OTLP)** para o **Grafana
 | `management.otlp.metrics.export.*` | `application.properties` | Endpoint, token e intervalo de envio (10s), lidos do `backend/.env` ou de variáveis de ambiente |
 | `management.metrics.tags.application` | `application.properties` | Marca toda métrica com `application="hemotrack-backend"` |
 
-O export vem **desligado por padrão**. Sem o `.env` o backend sobe normalmente, só não envia nada.
+> O export vem **desligado por padrão**. Sem o `.env` o backend sobe normalmente, só não envia nada.
 
 ## Como ligar
 
