@@ -13,7 +13,7 @@ Uma aplicação web que gerencia e distribui hemocomponentes (bolsas de sangue) 
 
 | Camada | Stack |
 |--------|-------|
-| **Backend (API)** | Java 17, Spring Boot 3, H2 Database |
+| **Backend (API)** | Java 21, Spring Boot 3, H2 Database |
 | **Frontend (Interface)** | TypeScript, React 18, TanStack Start, Vite, Tailwind CSS |
 | **Versionamento** | Git/GitHub |
 | **Docs** | Markdown |
