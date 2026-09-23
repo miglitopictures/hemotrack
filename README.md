@@ -70,17 +70,17 @@ Pra clonar o repositório.
 
 Confirme com: `git --version`
 
-#### 2. JDK 17 ou superior
+#### 2. JDK 21 ou superior
 Pra rodar o backend Java.
 
 | SO | Como instalar |
 |---|---|
-| **Linux (Debian/Ubuntu)** | `sudo apt install openjdk-17-jdk` |
-| **Linux (Fedora)** | `sudo dnf install java-17-openjdk-devel` |
-| **macOS** | `brew install openjdk@17` (depois `export PATH="/opt/homebrew/opt/openjdk@17/bin:$PATH"` no `~/.zshrc` ou `~/.bash_profile`) |
-| **Windows** | `winget install EclipseAdoptium.Temurin.17.JDK` ou [adoptium.net](https://adoptium.net) |
+| **Linux (Debian/Ubuntu)** | `sudo apt install openjdk-21-jdk` |
+| **Linux (Fedora)** | `sudo dnf install java-21-openjdk-devel` |
+| **macOS** | `brew install openjdk@21` (depois `export PATH="/opt/homebrew/opt/openjdk@21/bin:$PATH"` no `~/.zshrc` ou `~/.bash_profile`) |
+| **Windows** | `winget install EclipseAdoptium.Temurin.21.JDK` ou [adoptium.net](https://adoptium.net) |
 
-Confirme com: `java -version` (deve aparecer 17 ou maior)
+Confirme com: `java -version` (deve aparecer 21 ou maior)
 
 #### 3. Node.js 18+ e npm
 Pra rodar o frontend React.
