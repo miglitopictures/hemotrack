@@ -30,7 +30,7 @@ public class Usuario {
     private Long idInstituicao;
 
     @Nullable 
-    private TipoUsuario tipo = TipoUsuario.PADRAO;
+    private Papel papel = Papel.OPERADOR;
 
     // Construtores
     public Usuario() {  }
@@ -94,12 +94,12 @@ public class Usuario {
         this.idInstituicao = idInstituicao;
     }
 
-    // tipo
-    public TipoUsuario getTipoUsuario(){
-        return this.tipo;
+    // papel
+    public Papel getPapel(){
+        return this.papel;
     }
-    public void setTipoUsuario(TipoUsuario tipo){
-        this.tipo = tipo;
+    public void setPapel(Papel papel){
+        this.papel = papel;
     }
 
 }
