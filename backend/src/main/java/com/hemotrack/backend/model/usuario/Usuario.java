@@ -40,7 +40,7 @@ public class Usuario {
     private Long instituicaoId;
 
     // Construtores
-    protected  Usuario() {  }
+    public  Usuario() {  }
 
     public Usuario(Long id, String nome, String email, Papel papel, Long instituicaoId) {
         this.id = id;
