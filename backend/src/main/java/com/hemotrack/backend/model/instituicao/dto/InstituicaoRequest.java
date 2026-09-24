@@ -3,6 +3,7 @@ package com.hemotrack.backend.model.instituicao.dto;
 import com.hemotrack.backend.model.instituicao.TipoInstituicao;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record InstituicaoRequest(
@@ -13,7 +14,7 @@ public record InstituicaoRequest(
     @NotBlank (message = "CNPJ é obrigatoria")
     String cnpj,
 
-    @NotBlank (message = "Tipo da instituição é obrigatoria")
+    @NotNull  (message = "Tipo da instituição é obrigatoria")
     TipoInstituicao tipo,
 
     @NotBlank (message = "Endereço é obrigatório")
