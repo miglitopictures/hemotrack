@@ -65,6 +65,11 @@ public class Instituicao {
         this.cnpj = cnpj;
     }
 
+    public TipoInstituicao getTipo() { return this.tipo; }
+    public void setTipo(TipoInstituicao tipo) {
+        this.tipo = tipo;
+    }
+
     public StatusInstituicao getStatus() { return this.status; }
     public void setStatus(StatusInstituicao status) {
         this.status = status;
