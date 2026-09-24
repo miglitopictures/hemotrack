@@ -1,5 +1,6 @@
 package com.hemotrack.backend.service;
 
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.hemotrack.backend.exception.ConflitoException;
@@ -15,6 +16,7 @@ import com.hemotrack.backend.model.usuario.dto.UsuarioResponse;
 import com.hemotrack.backend.repositories.InstituicaoRepository;
 import com.hemotrack.backend.repositories.UsuarioRepository;
 
+@Service 
 public class CadastroService {
     
 
