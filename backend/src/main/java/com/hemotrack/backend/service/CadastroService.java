@@ -49,7 +49,7 @@ public class CadastroService {
         }
 
         Instituicao instituicao = instituicoes.save(new Instituicao(dadosInstituicao.razaoSocial().trim(), cnpj, dadosInstituicao.tipo(), dadosInstituicao.endereco(), dadosInstituicao.municipio(), dadosInstituicao.telefone()));
-        Usuario administrador = usuarios.save(new Usuario(dadosAdministrador.nome().trim(), email, Papel.ADMIN_INSTITUICAO, instituicao.getId()));
+        Usuario administrador = usuarios.save(new Usuario(dadosAdministrador.nome().trim(), email, dadosAdministrador.senha(), Papel.ADMIN_INSTITUICAO, instituicao.getId()));
     
     
         return new CadastroResponse(

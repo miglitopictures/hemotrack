@@ -42,9 +42,10 @@ public class Usuario {
     // Construtores
     public  Usuario() {  }
 
-    public Usuario(String nome, String email, Papel papel, Long instituicaoId) {
+    public Usuario(String nome, String email, String senha, Papel papel, Long instituicaoId) {
         this.nome = nome;
         this.email = email;
+        this.senha = senha;
         this.papel = papel;
         this.instituicaoId = instituicaoId;
         this.ativo = true;
