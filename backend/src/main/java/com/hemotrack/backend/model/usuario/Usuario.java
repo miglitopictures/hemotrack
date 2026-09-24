@@ -42,8 +42,7 @@ public class Usuario {
     // Construtores
     public  Usuario() {  }
 
-    public Usuario(Long id, String nome, String email, Papel papel, Long instituicaoId) {
-        this.id = id;
+    public Usuario(String nome, String email, Papel papel, Long instituicaoId) {
         this.nome = nome;
         this.email = email;
         this.papel = papel;
@@ -56,9 +55,6 @@ public class Usuario {
     // id
     public Long getId(){
         return this.id;
-    }
-    public void setId(Long id){
-        this.id = id;
     }
     
     // nome completo
