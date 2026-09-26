@@ -1,10 +1,13 @@
 package com.hemotrack.backend.exception;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.ProblemDetail;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -12,14 +15,41 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // Captura falhas de @Valid e devolve um mapa "campo -> mensagem",
-    // em vez do erro genérico que o Spring manda por padrão.
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, String>> tratarCamposInvalidos(MethodArgumentNotValidException ex) {
-        Map<String, String> erros = new HashMap<>();
-        ex.getBindingResult().getFieldErrors().forEach(erro ->
-            erros.put(erro.getField(), erro.getDefaultMessage())
-        );
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(erros);
+    private static final String BASE_TIPO = "https://hemotrack.dev/erros/";
+
+    public record ErroDeCampo(String campo, String mensagem) { }
+
+
+    @ExceptionHandler (ConflitoException.class)
+    public ProblemDetail tratarConflito(ConflitoException ex) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problema.setType(URI.create(BASE_TIPO + ex.getCodigo()));
+        problema.setTitle(ex.getTitulo());
+        return problema;
     }
+
+    @ExceptionHandler (MethodArgumentNotValidException.class)
+    public ProblemDetail tratarCamposInvalidos(MethodArgumentNotValidException ex) {
+        List<ErroDeCampo> erros = new ArrayList<>();
+
+        for (FieldError erro : ex.getBindingResult().getFieldErrors()) {
+            erros.add(new ErroDeCampo(erro.getField(), erro.getDefaultMessage()));
+        }
+
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Um ou mais campos estão inválidos.");
+        problema.setType(URI.create(BASE_TIPO + "validacao"));
+        problema.setTitle("Dados inválidos");
+        problema.setProperty("errors", erros);
+        return problema;
+    
+    }
+
+    @ExceptionHandler (DataIntegrityViolationException.class)
+    public ProblemDetail tratarViolacaoDeIntegridade(DataIntegrityViolationException ex) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "O registro conflita com um já existente (CNPJ ou email duplicado).");
+        problema.setType(URI.create(BASE_TIPO + "conflito-de-dados"));
+        problema.setTitle("Conflito de dados");
+        return problema;    
+    }
+
 }
