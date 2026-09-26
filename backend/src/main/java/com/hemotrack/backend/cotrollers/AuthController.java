@@ -8,6 +8,9 @@ import com.hemotrack.backend.model.usuario.dto.LoginRequest;
 import com.hemotrack.backend.model.usuario.dto.LoginResponse;
 import com.hemotrack.backend.model.usuario.dto.MeResponse;
 import com.hemotrack.backend.service.AuthService;
+
+import jakarta.validation.Valid;
+
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -27,7 +30,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public LoginResponse login(@RequestBody LoginRequest requisicao) {
+    public LoginResponse login(@Valid @RequestBody LoginRequest requisicao) {
         return this.authService.autenticar(requisicao);
     }
 
