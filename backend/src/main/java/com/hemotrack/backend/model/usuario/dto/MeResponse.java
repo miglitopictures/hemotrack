@@ -4,7 +4,7 @@ import com.hemotrack.backend.model.instituicao.dto.InstituicaoResponse;
 import com.hemotrack.backend.model.usuario.Papel;
 
 public record MeResponse(
-    Long ig,
+    Long id,
     String nome,
     String email,
     Papel papel,
