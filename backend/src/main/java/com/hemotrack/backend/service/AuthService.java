@@ -15,21 +15,19 @@ import com.hemotrack.backend.repositories.UsuarioRepository;
 @Service 
 public class AuthService {
 
-    private final UsuarioService usuarioService;
     private final UsuarioRepository usuarios;
     private final PasswordEncoder encoder;
 
     public AuthService(UsuarioRepository usuarios, PasswordEncoder encoder, UsuarioService usuarioService) {
         this.usuarios = usuarios;
         this.encoder = encoder;
-        this.usuarioService = usuarioService;
     }
 
     public LoginResponse autenticar(LoginRequest requisicao) {
         String email = requisicao.email().trim().toLowerCase();
         Usuario usuario = usuarios.findByEmail(email).orElse(null);
 
-        boolean usuarioNaoExiste = (usuarioService == null);
+        boolean usuarioNaoExiste = (usuario == null);
         boolean senhaIncorreta = !usuarioNaoExiste && !encoder.matches(requisicao.senha(), usuario.getSenha());
         boolean contaDesativada = !usuarioNaoExiste && !usuario.isAtivo();
 
