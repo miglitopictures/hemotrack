@@ -19,7 +19,7 @@ public class GlobalExceptionHandler {
 
     public record ErroDeCampo(String campo, String mensagem) { }
 
-
+    
     @ExceptionHandler (ConflitoException.class)
     public ProblemDetail tratarConflito(ConflitoException ex) {
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
@@ -50,6 +50,14 @@ public class GlobalExceptionHandler {
         problema.setType(URI.create(BASE_TIPO + "conflito-de-dados"));
         problema.setTitle("Conflito de dados");
         return problema;    
+    }
+
+    @ExceptionHandler  (CredenciaisInvalidasException.class)
+    public ProblemDetail tratarCredenciaisInvalidas(CredenciaisInvalidasException ex) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, ex.getMessage());
+        problema.setType(URI.create(BASE_TIPO + "credenciais-invalidas"));
+        problema.setTitle(("Credenciais inválidas"));
+        return problema;
     }
 
 }

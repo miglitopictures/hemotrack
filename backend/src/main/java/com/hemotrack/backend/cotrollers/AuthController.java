@@ -26,7 +26,6 @@ public class AuthController {
     public LoginResponse login(@RequestBody LoginRequest requisicao) {
         return this.authService.autenticar(requisicao);
     }
-    
 
 
 }
