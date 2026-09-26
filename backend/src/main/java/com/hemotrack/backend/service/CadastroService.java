@@ -1,5 +1,6 @@
 package com.hemotrack.backend.service;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,10 +23,12 @@ public class CadastroService {
 
     private final InstituicaoRepository instituicoes;
     private final UsuarioRepository usuarios;
+    private  final PasswordEncoder encoder;
 
-    public CadastroService(InstituicaoRepository instituicoes, UsuarioRepository usuarios) {
+    public CadastroService(InstituicaoRepository instituicoes, UsuarioRepository usuarios, PasswordEncoder encoder) {
         this.instituicoes = instituicoes;
         this.usuarios = usuarios;
+        this.encoder = encoder;
     }
 
 
@@ -49,7 +52,7 @@ public class CadastroService {
         }
 
         Instituicao instituicao = instituicoes.save(new Instituicao(dadosInstituicao.razaoSocial().trim(), cnpj, dadosInstituicao.tipo(), dadosInstituicao.endereco(), dadosInstituicao.municipio(), dadosInstituicao.telefone()));
-        Usuario administrador = usuarios.save(new Usuario(dadosAdministrador.nome().trim(), email, dadosAdministrador.senha(), Papel.ADMIN_INSTITUICAO, instituicao.getId()));
+        Usuario administrador = usuarios.save(new Usuario(dadosAdministrador.nome().trim(), email, encoder.encode(dadosAdministrador.senha()), Papel.ADMIN_INSTITUICAO, instituicao.getId()));
     
     
         return new CadastroResponse(
