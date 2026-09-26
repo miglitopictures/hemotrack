@@ -57,12 +57,26 @@ code --install-extension humao.rest-client
 
 No IntelliJ IDEA não precisa de nada — o formato é nativo. E se você já usa Postman, Insomnia, `curl` ou HTTPie, siga com o que você tem.
 
-## 1. Clonar o repositório
+## 1.1 Clonar o repositório
 
 ```bash
 git clone https://github.com/miglitopictures/hemotrack.git
 cd hemotrack
 ```
+
+## 1.2 Configurar o `.env` do backend (obrigatório)
+
+O backend precisa de um segredo para assinar os tokens de login. Sem ele a
+aplicação não sobe.
+
+    cp backend/.env.example backend/.env
+
+Gere um valor para `JWT_SECRET` (mínimo de 32 caracteres) e cole no arquivo:
+
+    openssl rand -base64 48
+
+O `.env` está no `.gitignore` — cada pessoa gera o seu. As variáveis
+`GRAFANA_*` continuam opcionais: deixe como estão se não for usar telemetria.
 
 ## 2. Rodar o backend (terminal 1)
 
@@ -149,7 +163,7 @@ SELECT * FROM REQUISICOES;
 
 ## 7. Telemetria (opcional)
 
-O backend pode enviar métricas para o Grafana Cloud. Vem desligado: sem configurar nada, tudo acima funciona igual. Para ligar: `cp backend/.env.example backend/.env`, cole o token (peça ao Miguel) e rode normalmente. Passo a passo, queries e problemas comuns em [`telemetria.md`](./telemetria.md).
+O backend pode enviar métricas para o Grafana Cloud. Vem desligado: sem configurar nada, tudo acima funciona igual. Para ligar: no `backend/.env` que você já criou no passo 1.1, cole o token (peça ao Miguel) e rode normalmente. Passo a passo, queries e problemas comuns em [`telemetria.md`](./telemetria.md).
 
 Mesmo sem Grafana, dá pra ver as métricas localmente: `http://localhost:8080/actuator/metrics`.
 

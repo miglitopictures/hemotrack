@@ -1,47 +1,54 @@
 package com.hemotrack.backend.model.usuario;
 
-import jakarta.annotation.Nullable;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 
 @Entity
 @Table(name = "usuarios")
 public class Usuario {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @NotBlank(message = "Nome Completo é obrigatório")
+    @NotBlank(message = "Nome é obrigatório")
     @Size(min = 3, max = 80, message = "Nome deve ter entre 3 e 80 caracteres")
-    private String nomeCompleto;
-        
+    @Column(nullable = false)
+    private String nome;
+    
     @NotBlank(message = "E-mail é obrigatório")
     @Email(message = "E-mail inválido")
+    @Column(nullable = false, unique = true)
     private String email;
 
     @NotBlank(message = "Senha é obrigatória")
-    @Size(min = 6, message = "A senha deve ter no mínimo 6 caracteres")
-    private String password;
+    @JsonIgnore
+    @Column(nullable = false)
+    private String senha;
 
-    @NotBlank(message = "CPF é obrigatório")
-    private String cpf;
+    @NotNull 
+    @Enumerated (EnumType.STRING)
+    @Column (nullable = false)
+    private  Papel papel = Papel.OPERADOR;
 
-    @NotNull(message = "Id da Instituição é obrigatório")
-    private Long idInstituicao;
+    @Column (nullable = false)
+    private  boolean ativo = true;
 
-    @Nullable 
-    private TipoUsuario tipo = TipoUsuario.PADRAO;
+    @NotNull (message = "Id da instituição é obrigatório")
+    @Column (nullable = false)
+    private Long instituicaoId;
 
     // Construtores
-    public Usuario() {  }
+    public  Usuario() {  }
 
-    public Usuario(Long id, String nomeCompleto, String email, String password, String cpf, Long idInstituicao) {
-        this.id = id;
-        this.nomeCompleto = nomeCompleto;
+    public Usuario(String nome, String email, String senha, Papel papel, Long instituicaoId) {
+        this.nome = nome;
         this.email = email;
-        this.password = password;
-        this.cpf = cpf;
-        this.idInstituicao = idInstituicao;
+        this.senha = senha;
+        this.papel = papel;
+        this.instituicaoId = instituicaoId;
+        this.ativo = true;
     }
     
     // Getters e Setters
@@ -50,16 +57,13 @@ public class Usuario {
     public Long getId(){
         return this.id;
     }
-    public void setId(Long id){
-        this.id = id;
-    }
     
     // nome completo
-    public String getNomeCompleto(){
-        return this.nomeCompleto;
+    public String getNome(){
+        return this.nome;
     }
-    public void setNomeCompleto(String nomeCompleto){
-        this.nomeCompleto = nomeCompleto;
+    public void setNome(String nome){
+        this.nome = nome;
     }
 
     // email
@@ -70,36 +74,34 @@ public class Usuario {
         this.email = email;
     }
 
-    // password
-    public String getPassword(){
-        return this.password;
+    // senha
+    public String getSenha(){
+        return this.senha;
     }
-    public void setPassword(String password){
-        this.password = password;
-    }
-
-    // cpf
-    public String getCpf(){
-        return this.cpf;
-    }
-    public void setCpf(String cpf){
-        this.cpf = cpf;
+    public void setSenha(String senha){
+        this.senha = senha;
     }
 
-    // id instituicao
-    public Long getIdInstituicao(){
-        return this.idInstituicao;
+    // papel
+    public Papel getPapel(){
+        return this.papel;
     }
-    public void setIdInstituicao(Long idInstituicao){
-        this.idInstituicao = idInstituicao;
+    public void setPapel(Papel papel){
+        this.papel = papel;
     }
 
-    // tipo
-    public TipoUsuario getTipoUsuario(){
-        return this.tipo;
+    // ativo
+    public boolean isAtivo() {return this.ativo;}
+    public void setAtivo(boolean ativo) {
+        this.ativo = ativo;
     }
-    public void setTipoUsuario(TipoUsuario tipo){
-        this.tipo = tipo;
+
+    // instituicao id
+    public Long getInstituicaoId(){
+        return this.instituicaoId;
+    }
+    public void setInstituicaoId(Long instituicaoId){
+        this.instituicaoId = instituicaoId;
     }
 
 }
