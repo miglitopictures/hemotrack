@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 
-import { CHAVE_USUARIO_LOGADO, buscarUsuarioLogado, login } from "@/lib/api-auth";
+import { autenticarEGuardarSessao, destinoDoUsuario } from "@/lib/sessao-login";
 import { ErroDeApiHttp } from "@/lib/httpClient";
 import { apagarToken, guardarToken } from "@/lib/sessao";
 
@@ -57,17 +57,8 @@ function LoginPage() {
     setErro(null);
     setEnviando(true);
 
-    try {
-      const resposta = await login(email.trim(), senha);
-      guardarToken(resposta.token);
-
-      // Com o token guardado, esta chamada já sai autenticada. É ela que
-      // diz se a instituição é hospital ou hemocentro.
-      const usuario = await buscarUsuarioLogado();
-
-      // Adianta o resultado para o cache do React Query: o app-shell (passo 7)
-      // vai ler a mesma chave e não precisa buscar de novo.
-      queryClient.setQueryData(CHAVE_USUARIO_LOGADO, usuario);
+        try {
+      const usuario = await autenticarEGuardarSessao(queryClient, email.trim(), senha);
 
       if (usuario.instituicao === null) {
         apagarToken();
@@ -75,14 +66,10 @@ function LoginPage() {
         return;
       }
 
-      // TODO(passo 8): se instituicao.status for PENDENTE_APROVACAO, o destino
-      // é a tela de espera, não o painel.
-      const destino = usuario.instituicao.tipo === "HEMOCENTRO" ? "/hemocentro" : "/hospital";
-
       const primeiroNome = usuario.nome.split(" ")[0] ?? usuario.nome;
       toast.success(`Bem-vindo, ${primeiroNome}!`);
 
-      await navigate({ to: destino });
+      await navigate({ to: destinoDoUsuario(usuario) });
     } catch (falha) {
       if (falha instanceof ErroDeApiHttp) {
         // Mensagem vinda do "detail" do problem+json — para 401 é

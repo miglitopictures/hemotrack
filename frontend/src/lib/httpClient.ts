@@ -17,12 +17,18 @@ import { apagarToken, lerToken } from "./sessao";
 // de ambiente do Vite.
 const BASE_URL = import.meta.env["VITE_API_URL"] ?? "http://localhost:8080";
 
+/** Um item do array "errors" do problem+json, quando o back manda 400. */
+export type ErroDeCampo = { campo: string; mensagem: string };
+
 export class ErroDeApiHttp extends Error {
   readonly status: number;
-  constructor(mensagem: string, status: number) {
+  readonly erros: ErroDeCampo[];
+
+  constructor(mensagem: string, status: number, erros: ErroDeCampo[] = []) {
     super(mensagem);
     this.name = "ErroDeApiHttp";
     this.status = status;
+    this.erros = erros;
   }
 }
 
@@ -33,13 +39,21 @@ async function tratarResposta<T>(resp: Response): Promise<T> {
   // "Erros" em contrato-api.md.
   if (!resp.ok) {
     let mensagem = `Erro ${resp.status} ao chamar ${resp.url}`;
+    let erros: ErroDeCampo[] = [];
+
     try {
       const corpo = await resp.json();
       mensagem = corpo.detail ?? corpo.title ?? mensagem;
+
+      // O 400 de validação traz [{campo, mensagem}] — ver GlobalExceptionHandler.
+      if (Array.isArray(corpo.errors)) {
+        erros = corpo.errors as ErroDeCampo[];
+      }
     } catch {
       // corpo não era JSON — mantém a mensagem genérica.
     }
-    throw new ErroDeApiHttp(mensagem, resp.status);
+
+    throw new ErroDeApiHttp(mensagem, resp.status, erros);
   }
 
   // Algumas rotas (ex.: DELETE) não devolvem corpo.
