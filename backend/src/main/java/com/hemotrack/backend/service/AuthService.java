@@ -1,8 +1,5 @@
 package com.hemotrack.backend.service;
 
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -17,10 +14,12 @@ public class AuthService {
 
     private final UsuarioRepository usuarios;
     private final PasswordEncoder encoder;
+    private  final JwtService jwtService;
 
-    public AuthService(UsuarioRepository usuarios, PasswordEncoder encoder, UsuarioService usuarioService) {
+    public AuthService(UsuarioRepository usuarios, PasswordEncoder encoder, UsuarioService usuarioService, JwtService jwtService) {
         this.usuarios = usuarios;
         this.encoder = encoder;
+        this.jwtService = jwtService;
     }
 
     public LoginResponse autenticar(LoginRequest requisicao) {
@@ -35,12 +34,9 @@ public class AuthService {
             throw new CredenciaisInvalidasException();
         }
 
-        // todo(mig): trocar por um JWT de verdade
-        String token = "provisorio-" + usuario.getId();
-        // 8 horas de validade
-        Instant expiraEm = Instant.now().plus(8, ChronoUnit.HOURS);
+        JwtService.TokenGerado token = jwtService.gerar(usuario);
 
-        return new LoginResponse(token, expiraEm);
+        return new LoginResponse(token.valor(), token.expiraEm());
     }
     
 }
