@@ -31,7 +31,8 @@ type NavItem = {
   label: string;
   to: string;
   icon: typeof Droplet;
-  somenteAdmin?: boolean};
+  somenteAdmin?: boolean;
+};
 
 const hospitalNav: NavItem[] = [
   { label: "Painel", to: "/hospital", icon: LayoutDashboard },
@@ -268,11 +269,10 @@ function iniciaisDe(nome: string): string {
   return (primeira + ultima).toUpperCase();
 }
 
-
 export function AppShell({ role, children }: { role: Papel; children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  
+
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: usuario } = useUsuarioLogado();
@@ -304,8 +304,6 @@ export function AppShell({ role, children }: { role: Papel; children: ReactNode 
     encerrarSessao(queryClient);
     void navigate({ to: "/login" });
   }
-
-
 
   const navList = (
     <nav aria-label="Navegação principal" className="flex flex-col gap-1">
@@ -341,7 +339,7 @@ export function AppShell({ role, children }: { role: Papel; children: ReactNode 
     </nav>
   );
 
-    const sidebarBody = (
+  const sidebarBody = (
     <div className="flex h-full flex-col gap-6 p-4">
       <Logo className="px-2 pt-1" />
       <div className="rounded-2xl border border-border bg-secondary/60 p-3">

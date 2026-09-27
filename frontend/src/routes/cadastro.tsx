@@ -241,7 +241,7 @@ function CadastroPage() {
           </div>
 
           <form className="mt-7 grid gap-4 sm:grid-cols-2" onSubmit={concluir} noValidate>
-                        <Field
+            <Field
               label="Nome da instituição"
               name="nome"
               autoComplete="organization"

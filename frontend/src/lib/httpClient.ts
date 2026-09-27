@@ -90,7 +90,7 @@ async function requisitar<T>(metodo: string, caminho: string, corpo?: unknown): 
 
   const resposta = await fetch(`${BASE_URL}${caminho}`, opcoes);
 
-    // 401 COM token enviado = a sessão morreu. Duas causas possíveis, e o
+  // 401 COM token enviado = a sessão morreu. Duas causas possíveis, e o
   // back responde igual nas duas — mas se o token ainda não passou do
   // exp, ele não venceu: foi revogado, o que hoje significa usuário
   // desativado pelo administrador.
@@ -104,9 +104,7 @@ async function requisitar<T>(metodo: string, caminho: string, corpo?: unknown): 
     window.location.assign(`/login?sessao=${motivo}`);
 
     throw new ErroDeApiHttp(
-      motivo === "expirada"
-        ? "Sua sessão expirou. Entre novamente."
-        : "Seu acesso foi encerrado.",
+      motivo === "expirada" ? "Sua sessão expirou. Entre novamente." : "Seu acesso foi encerrado.",
       401,
     );
   }

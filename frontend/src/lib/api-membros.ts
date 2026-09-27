@@ -39,8 +39,7 @@ export function alterarAtivoMembro(
   usuarioId: number,
   ativo: boolean,
 ): Promise<UsuarioDoBack> {
-  return httpPatch<UsuarioDoBack>(
-    `/instituicoes/${instituicaoId}/usuarios/${usuarioId}`,
-    { ativo },
-  );
+  return httpPatch<UsuarioDoBack>(`/instituicoes/${instituicaoId}/usuarios/${usuarioId}`, {
+    ativo,
+  });
 }

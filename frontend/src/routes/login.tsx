@@ -42,7 +42,6 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
-  
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { sessao } = Route.useSearch();
@@ -53,7 +52,7 @@ function LoginPage() {
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
-    async function entrar(e: React.FormEvent<HTMLFormElement>) {
+  async function entrar(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     if (!email.trim() || !senha.trim()) {
