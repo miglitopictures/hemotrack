@@ -15,6 +15,7 @@ import {
   Search,
   Sun,
   Truck,
+  Users,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -26,13 +27,19 @@ import { useUsuarioLogado } from "@/lib/useUsuarioLogado";
 import { encerrarSessao } from "@/lib/sessao-login";
 
 type Papel = "hospital" | "hemocentro";
-type NavItem = { label: string; to: string; icon: typeof Droplet };
+type NavItem = {
+  label: string;
+  to: string;
+  icon: typeof Droplet;
+  somenteAdmin?: boolean;
+};
 
 const hospitalNav: NavItem[] = [
   { label: "Painel", to: "/hospital", icon: LayoutDashboard },
   { label: "Nova solicitação", to: "/hospital/nova-solicitacao", icon: PlusCircle },
   { label: "Minhas solicitações", to: "/hospital/solicitacoes", icon: ClipboardList },
   { label: "Transportes", to: "/hospital/transportes", icon: Truck },
+  { label: "Membros", to: "/hospital/membros", icon: Users, somenteAdmin: true },
 ];
 
 const hemocentroNav: NavItem[] = [
@@ -41,6 +48,7 @@ const hemocentroNav: NavItem[] = [
   { label: "Estoque", to: "/hemocentro/estoque", icon: Boxes },
   { label: "Distribuição", to: "/hemocentro/distribuicoes", icon: Truck },
   { label: "Indicadores", to: "/hemocentro/indicadores", icon: BarChart3 },
+  { label: "Membros", to: "/hemocentro/membros", icon: Users, somenteAdmin: true },
 ];
 
 export function Logo({ className }: { className?: string }) {
@@ -261,16 +269,25 @@ function iniciaisDe(nome: string): string {
   return (primeira + ultima).toUpperCase();
 }
 
-
 export function AppShell({ role, children }: { role: Papel; children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const nav = role === "hospital" ? hospitalNav : hemocentroNav;
 
-
-    const navigate = useNavigate();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: usuario } = useUsuarioLogado();
+
+  // Depois do useUsuarioLogado, nao antes: o callback do useMemo roda durante
+  // a renderizacao e leria "usuario" antes da declaracao.
+  const nav = useMemo(() => {
+    const itens = role === "hospital" ? hospitalNav : hemocentroNav;
+
+    if (usuario?.papel === "ADMIN_INSTITUICAO") {
+      return itens;
+    }
+
+    return itens.filter((item) => item.somenteAdmin !== true);
+  }, [role, usuario?.papel]);
 
   const instituicao = usuario?.instituicao ?? null;
 
@@ -287,8 +304,6 @@ export function AppShell({ role, children }: { role: Papel; children: ReactNode 
     encerrarSessao(queryClient);
     void navigate({ to: "/login" });
   }
-
-
 
   const navList = (
     <nav aria-label="Navegação principal" className="flex flex-col gap-1">
@@ -324,7 +339,7 @@ export function AppShell({ role, children }: { role: Papel; children: ReactNode 
     </nav>
   );
 
-    const sidebarBody = (
+  const sidebarBody = (
     <div className="flex h-full flex-col gap-6 p-4">
       <Logo className="px-2 pt-1" />
       <div className="rounded-2xl border border-border bg-secondary/60 p-3">

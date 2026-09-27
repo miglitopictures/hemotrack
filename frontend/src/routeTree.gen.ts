@@ -18,7 +18,9 @@ import { Route as HospitalRouteImport } from './routes/hospital'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as HemocentroIndexRouteImport } from './routes/hemocentro.index'
 import { Route as HemocentroIndicadoresRouteImport } from './routes/hemocentro.indicadores'
+import { Route as HemocentroMembrosRouteImport } from './routes/hemocentro.membros'
 import { Route as HospitalIndexRouteImport } from './routes/hospital.index'
+import { Route as HospitalMembrosRouteImport } from './routes/hospital.membros'
 import { Route as HospitalNovaSolicitacaoRouteImport } from './routes/hospital.nova-solicitacao'
 import { Route as HemocentroDistribuicoesIndexRouteImport } from './routes/hemocentro.distribuicoes.index'
 import { Route as HemocentroDistribuicoesIdRouteImport } from './routes/hemocentro.distribuicoes.$id'
@@ -77,9 +79,19 @@ const HemocentroIndicadoresRoute = HemocentroIndicadoresRouteImport.update({
   path: '/indicadores',
   getParentRoute: () => HemocentroRoute,
 } as any)
+const HemocentroMembrosRoute = HemocentroMembrosRouteImport.update({
+  id: '/membros',
+  path: '/membros',
+  getParentRoute: () => HemocentroRoute,
+} as any)
 const HospitalIndexRoute = HospitalIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => HospitalRoute,
+} as any)
+const HospitalMembrosRoute = HospitalMembrosRouteImport.update({
+  id: '/membros',
+  path: '/membros',
   getParentRoute: () => HospitalRoute,
 } as any)
 const HospitalNovaSolicitacaoRoute = HospitalNovaSolicitacaoRouteImport.update({
@@ -159,6 +171,8 @@ export interface FileRoutesByFullPath {
   '/hospital': typeof HospitalRouteWithChildren
   '/login': typeof LoginRoute
   '/hemocentro/indicadores': typeof HemocentroIndicadoresRoute
+  '/hemocentro/membros': typeof HemocentroMembrosRoute
+  '/hospital/membros': typeof HospitalMembrosRoute
   '/hospital/nova-solicitacao': typeof HospitalNovaSolicitacaoRoute
   '/hemocentro/': typeof HemocentroIndexRoute
   '/hospital/': typeof HospitalIndexRoute
@@ -181,6 +195,8 @@ export interface FileRoutesByTo {
   '/cadastro': typeof CadastroRoute
   '/login': typeof LoginRoute
   '/hemocentro/indicadores': typeof HemocentroIndicadoresRoute
+  '/hemocentro/membros': typeof HemocentroMembrosRoute
+  '/hospital/membros': typeof HospitalMembrosRoute
   '/hospital/nova-solicitacao': typeof HospitalNovaSolicitacaoRoute
   '/hemocentro': typeof HemocentroIndexRoute
   '/hospital': typeof HospitalIndexRoute
@@ -206,6 +222,8 @@ export interface FileRoutesById {
   '/hospital': typeof HospitalRouteWithChildren
   '/login': typeof LoginRoute
   '/hemocentro/indicadores': typeof HemocentroIndicadoresRoute
+  '/hemocentro/membros': typeof HemocentroMembrosRoute
+  '/hospital/membros': typeof HospitalMembrosRoute
   '/hospital/nova-solicitacao': typeof HospitalNovaSolicitacaoRoute
   '/hemocentro/': typeof HemocentroIndexRoute
   '/hospital/': typeof HospitalIndexRoute
@@ -232,6 +250,8 @@ export interface FileRouteTypes {
     | '/hospital'
     | '/login'
     | '/hemocentro/indicadores'
+    | '/hemocentro/membros'
+    | '/hospital/membros'
     | '/hospital/nova-solicitacao'
     | '/hemocentro/'
     | '/hospital/'
@@ -254,6 +274,8 @@ export interface FileRouteTypes {
     | '/cadastro'
     | '/login'
     | '/hemocentro/indicadores'
+    | '/hemocentro/membros'
+    | '/hospital/membros'
     | '/hospital/nova-solicitacao'
     | '/hemocentro'
     | '/hospital'
@@ -278,6 +300,8 @@ export interface FileRouteTypes {
     | '/hospital'
     | '/login'
     | '/hemocentro/indicadores'
+    | '/hemocentro/membros'
+    | '/hospital/membros'
     | '/hospital/nova-solicitacao'
     | '/hemocentro/'
     | '/hospital/'
@@ -369,11 +393,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HemocentroIndicadoresRouteImport
       parentRoute: typeof HemocentroRoute
     }
+    '/hemocentro/membros': {
+      id: '/hemocentro/membros'
+      path: '/membros'
+      fullPath: '/hemocentro/membros'
+      preLoaderRoute: typeof HemocentroMembrosRouteImport
+      parentRoute: typeof HemocentroRoute
+    }
     '/hospital/': {
       id: '/hospital/'
       path: '/'
       fullPath: '/hospital/'
       preLoaderRoute: typeof HospitalIndexRouteImport
+      parentRoute: typeof HospitalRoute
+    }
+    '/hospital/membros': {
+      id: '/hospital/membros'
+      path: '/membros'
+      fullPath: '/hospital/membros'
+      preLoaderRoute: typeof HospitalMembrosRouteImport
       parentRoute: typeof HospitalRoute
     }
     '/hospital/nova-solicitacao': {
@@ -465,6 +503,7 @@ declare module '@tanstack/react-router' {
 
 interface HemocentroRouteChildren {
   HemocentroIndicadoresRoute: typeof HemocentroIndicadoresRoute
+  HemocentroMembrosRoute: typeof HemocentroMembrosRoute
   HemocentroIndexRoute: typeof HemocentroIndexRoute
   HemocentroDistribuicoesIdRoute: typeof HemocentroDistribuicoesIdRoute
   HemocentroDistribuicoesPlanejarRoute: typeof HemocentroDistribuicoesPlanejarRoute
@@ -477,6 +516,7 @@ interface HemocentroRouteChildren {
 
 const HemocentroRouteChildren: HemocentroRouteChildren = {
   HemocentroIndicadoresRoute: HemocentroIndicadoresRoute,
+  HemocentroMembrosRoute: HemocentroMembrosRoute,
   HemocentroIndexRoute: HemocentroIndexRoute,
   HemocentroDistribuicoesIdRoute: HemocentroDistribuicoesIdRoute,
   HemocentroDistribuicoesPlanejarRoute: HemocentroDistribuicoesPlanejarRoute,
@@ -492,6 +532,7 @@ const HemocentroRouteWithChildren = HemocentroRoute._addFileChildren(
 )
 
 interface HospitalRouteChildren {
+  HospitalMembrosRoute: typeof HospitalMembrosRoute
   HospitalNovaSolicitacaoRoute: typeof HospitalNovaSolicitacaoRoute
   HospitalIndexRoute: typeof HospitalIndexRoute
   HospitalSolicitacoesIdRoute: typeof HospitalSolicitacoesIdRoute
@@ -501,6 +542,7 @@ interface HospitalRouteChildren {
 }
 
 const HospitalRouteChildren: HospitalRouteChildren = {
+  HospitalMembrosRoute: HospitalMembrosRoute,
   HospitalNovaSolicitacaoRoute: HospitalNovaSolicitacaoRoute,
   HospitalIndexRoute: HospitalIndexRoute,
   HospitalSolicitacoesIdRoute: HospitalSolicitacoesIdRoute,

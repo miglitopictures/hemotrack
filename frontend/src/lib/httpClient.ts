@@ -10,7 +10,7 @@
  * ponto do front que monta o header Authorization.
  */
 
-import { apagarToken, lerToken } from "./sessao";
+import { apagarToken, lerToken, tokenExpirado } from "./sessao";
 
 // Acesso com ['...'] porque o tsconfig deste projeto usa uma configuração
 // (noPropertyAccessFromIndexSignature) que exige essa forma para variáveis
@@ -90,15 +90,23 @@ async function requisitar<T>(metodo: string, caminho: string, corpo?: unknown): 
 
   const resposta = await fetch(`${BASE_URL}${caminho}`, opcoes);
 
-  // 401 COM token enviado = a sessão morreu (expirou, ou o usuário foi
-  // desativado). Derruba e manda pro login.
+  // 401 COM token enviado = a sessão morreu. Duas causas possíveis, e o
+  // back responde igual nas duas — mas se o token ainda não passou do
+  // exp, ele não venceu: foi revogado, o que hoje significa usuário
+  // desativado pelo administrador.
   //
   // 401 SEM token é outra coisa: é o /auth/login recusando a senha. Esse
   // segue como erro normal, para a tela exibir a mensagem.
   if (resposta.status === 401 && token !== null) {
+    const motivo = tokenExpirado(token) ? "expirada" : "encerrada";
+
     apagarToken();
-    window.location.assign("/login?sessao=expirada");
-    throw new ErroDeApiHttp("Sua sessão expirou. Entre novamente.", 401);
+    window.location.assign(`/login?sessao=${motivo}`);
+
+    throw new ErroDeApiHttp(
+      motivo === "expirada" ? "Sua sessão expirou. Entre novamente." : "Seu acesso foi encerrado.",
+      401,
+    );
   }
 
   return tratarResposta<T>(resposta);
