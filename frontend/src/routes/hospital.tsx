@@ -1,18 +1,23 @@
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 
+import { CHAVE_USUARIO_LOGADO, buscarUsuarioLogado } from "@/lib/api-auth";
 import { temSessaoValida } from "@/lib/sessao";
 
-/**
- * Rota de layout do /hospital. No roteamento por arquivos do TanStack,
- * "hospital.tsx" é o pai de todos os "hospital.*.tsx" — então este
- * beforeLoad protege /hospital e tudo que está abaixo dele.
- *
- * Não desenha nada: só deixa passar, ou redireciona.
- */
 export const Route = createFileRoute("/hospital")({
-  beforeLoad: () => {
+  beforeLoad: async ({ context }) => {
     if (!temSessaoValida()) {
       throw redirect({ to: "/login" });
+    }
+
+    // O status da instituição NÃO está no token — só em /auth/me. O
+    // ensureQueryData usa o cache quando já há dado e busca quando não há.
+    const usuario = await context.queryClient.ensureQueryData({
+      queryKey: CHAVE_USUARIO_LOGADO,
+      queryFn: buscarUsuarioLogado,
+    });
+
+    if (usuario.instituicao?.status === "PENDENTE_APROVACAO") {
+      throw redirect({ to: "/aguardando-aprovacao" });
     }
   },
   component: () => <Outlet />,

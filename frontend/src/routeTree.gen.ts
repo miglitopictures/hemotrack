@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AguardandoAprovacaoRouteImport } from './routes/aguardando-aprovacao'
 import { Route as CadastroRouteImport } from './routes/cadastro'
 import { Route as HemocentroRouteImport } from './routes/hemocentro'
 import { Route as HospitalRouteImport } from './routes/hospital'
@@ -33,6 +34,11 @@ import { Route as HospitalTransportesIdRouteImport } from './routes/hospital.tra
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AguardandoAprovacaoRoute = AguardandoAprovacaoRouteImport.update({
+  id: '/aguardando-aprovacao',
+  path: '/aguardando-aprovacao',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CadastroRoute = CadastroRouteImport.update({
@@ -140,6 +146,7 @@ const HospitalTransportesIdRoute = HospitalTransportesIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/aguardando-aprovacao': typeof AguardandoAprovacaoRoute
   '/cadastro': typeof CadastroRoute
   '/hemocentro': typeof HemocentroRouteWithChildren
   '/hospital': typeof HospitalRouteWithChildren
@@ -162,6 +169,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/aguardando-aprovacao': typeof AguardandoAprovacaoRoute
   '/cadastro': typeof CadastroRoute
   '/login': typeof LoginRoute
   '/hemocentro/indicadores': typeof HemocentroIndicadoresRoute
@@ -183,6 +191,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/aguardando-aprovacao': typeof AguardandoAprovacaoRoute
   '/cadastro': typeof CadastroRoute
   '/hemocentro': typeof HemocentroRouteWithChildren
   '/hospital': typeof HospitalRouteWithChildren
@@ -207,6 +216,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/aguardando-aprovacao'
     | '/cadastro'
     | '/hemocentro'
     | '/hospital'
@@ -229,6 +239,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/aguardando-aprovacao'
     | '/cadastro'
     | '/login'
     | '/hemocentro/indicadores'
@@ -249,6 +260,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/aguardando-aprovacao'
     | '/cadastro'
     | '/hemocentro'
     | '/hospital'
@@ -272,6 +284,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AguardandoAprovacaoRoute: typeof AguardandoAprovacaoRoute
   CadastroRoute: typeof CadastroRoute
   HemocentroRoute: typeof HemocentroRouteWithChildren
   HospitalRoute: typeof HospitalRouteWithChildren
@@ -285,6 +298,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/aguardando-aprovacao': {
+      id: '/aguardando-aprovacao'
+      path: '/aguardando-aprovacao'
+      fullPath: '/aguardando-aprovacao'
+      preLoaderRoute: typeof AguardandoAprovacaoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cadastro': {
@@ -475,6 +495,7 @@ const HospitalRouteWithChildren = HospitalRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AguardandoAprovacaoRoute: AguardandoAprovacaoRoute,
   CadastroRoute: CadastroRoute,
   HemocentroRoute: HemocentroRouteWithChildren,
   HospitalRoute: HospitalRouteWithChildren,

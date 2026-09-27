@@ -34,8 +34,16 @@ export async function autenticarEGuardarSessao(
   return usuario;
 }
 
-export function destinoDoUsuario(usuario: UsuarioLogado): "/hospital" | "/hemocentro" {
-  return usuario.instituicao?.tipo === "HEMOCENTRO" ? "/hemocentro" : "/hospital";
+export function destinoDoUsuario(
+  usuario: UsuarioLogado,
+): "/hospital" | "/hemocentro" | "/aguardando-aprovacao" {
+  // Instituição ainda não aprovada não opera: o backend vai negar as rotas
+  // de negócio, então mandar para o painel só produziria telas com erro.
+  if (usuario.instituicao === null || usuario.instituicao.status === "PENDENTE_APROVACAO") {
+    return "/aguardando-aprovacao";
+  }
+
+  return usuario.instituicao.tipo === "HEMOCENTRO" ? "/hemocentro" : "/hospital";
 }
 
 export function encerrarSessao(queryClient: QueryClient): void {
