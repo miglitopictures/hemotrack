@@ -4,6 +4,8 @@ import { Clock, LogOut, RefreshCw } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect } from "react";
 
+import { formatarCnpj } from "@/lib/formato";
+
 import { Logo } from "@/components/app-shell";
 import { fadeUp } from "@/components/ui-kit";
 import { temSessaoValida } from "@/lib/sessao";
@@ -78,6 +80,12 @@ function AguardandoAprovacaoPage() {
               <p className="text-xs text-muted-foreground">Conectado como</p>
               <p className="mt-0.5 text-sm font-semibold">{usuario.nome}</p>
               <p className="text-xs text-muted-foreground">{usuario.email}</p>
+
+              {instituicao ? (
+                <p className="mt-2 border-t border-border pt-2 text-xs text-muted-foreground">
+                  CNPJ {formatarCnpj(instituicao.cnpj)}
+                </p>
+              ) : null}
             </div>
           ) : null}
 
