@@ -55,6 +55,8 @@ public class SecurityConfig {
             .requestMatchers("/actuator/**").permitAll()
             .requestMatchers("/error").permitAll()
             .requestMatchers(HttpMethod.PATCH, "/instituicoes/*/aprovar").hasRole("ADMIN_SISTEMA")
+            .requestMatchers(HttpMethod.POST, "/instituicoes/*/usuarios").hasRole("ADMIN_INSTITUICAO")
+            .requestMatchers(HttpMethod.PATCH, "/instituicoes/*/usuarios/*").hasRole("ADMIN_INSTITUICAO")
             .requestMatchers("/requisicoes/**").access(instituicaoAprovada)
             .anyRequest().authenticated());
         
