@@ -36,10 +36,10 @@ export const Route = createFileRoute("/hemocentro/membros")({
     ],
   }),
 
-  component: MembrosHospitalPage,
+  component: MembrosHemocentroPage,
 });
 
-function MembrosHospitalPage() {
+function MembrosHemocentroPage() {
   const { instituicaoId } = Route.useRouteContext();
 
   return (
