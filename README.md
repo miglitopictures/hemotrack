@@ -13,8 +13,9 @@ Uma aplicação web que gerencia e distribui hemocomponentes (bolsas de sangue) 
 
 | Camada | Stack |
 |--------|-------|
-| **Backend (API)** | Java 21, Spring Boot 4, H2 Database, OpenTelemetry (OTLP), Grafana Cloud |
-| **Frontend (Interface)** | TypeScript, React 18, TanStack Start, Vite, Tailwind CSS |
+| **Backend (API)** | Java 21, Spring Boot 4, Spring Security + JWT, H2 (dev) / Postgres (prod), OpenTelemetry (OTLP), Grafana Cloud |
+| **Frontend (Interface)** | TypeScript, React 19, TanStack Router + TanStack Query, Vite, Tailwind CSS |
+| **CI/CD** | GitHub Actions (build e testes) + Render (deploy automático) |
 | **Versionamento** | Git/GitHub |
 | **Docs** | Markdown |
 
@@ -82,52 +83,52 @@ Pra rodar o backend Java.
 
 Confirme com: `java -version` (deve aparecer 21 ou maior)
 
-#### 3. Node.js 18+ e npm
-Pra rodar o frontend React.
+#### 3. Node.js 20.19+ e npm
+Pra rodar o frontend React (o Vite 8 não roda em versões anteriores).
 
 | SO | Como instalar |
 |---|---|
-| **Linux/macOS** | `curl -fsSL https://deb.nodesource.com/setup_20.x \| sudo -E bash - && sudo apt install -y nodejs` ou `brew install node` |
-| **Windows** | `winget install OpenJS.NodeJS` ou [nodejs.org](https://nodejs.org) |
+| **Linux/macOS** | [nvm](https://github.com/nvm-sh/nvm): `nvm install --lts`, ou `brew install node` |
+| **Windows** | `winget install OpenJS.NodeJS.LTS` ou [nodejs.org](https://nodejs.org) |
 
-Confirme com: `node --version` e `npm --version` (precisa de Node 18+)
+Confirme com: `node --version` e `npm --version`
 
 ---
 
 ### 1. Clone o repositório
 
 ```bash
-git clone https://github.com/seu-usuario/hemotrack.git
+git clone https://github.com/miglitopictures/hemotrack.git
 cd hemotrack
 ```
 
----
+### 2. Configure o `.env` do backend (obrigatório)
 
-### 2. Levante o Backend (terminal 1)
+A aplicação **não sobe** sem um segredo para assinar os tokens de login.
 
-O backend é o servidor Java que fornece a API para o frontend bater.
+```bash
+cp backend/.env.example backend/.env
+openssl rand -base64 48    # cole o resultado em JWT_SECRET
+```
+
+No mesmo arquivo, preencha também `ADMIN_EMAIL` e `ADMIN_SENHA`. São opcionais,
+mas é esse usuário que aprova os cadastros — sem ele, nenhuma instituição
+consegue operar.
+
+O `.env` está no `.gitignore`: cada pessoa gera o seu.
+
+### 3. Levante o Backend (terminal 1)
 
 ```bash
 cd backend
 ./mvnw spring-boot:run    # macOS/Linux
-# ou
 mvnw.cmd spring-boot:run  # Windows
 ```
 
-**Esperado:** depois de alguns segundos, você vê:
-```
-Started BackendApplication in X seconds (JVM running for Y.XXX s)
-```
+**Esperado:** `Started BackendApplication in X seconds`, e o backend em
+`http://localhost:8080`. Deixe o terminal aberto.
 
-O backend sobe em `http://localhost:8080`.
-
-**Deixe esse terminal aberto e rodando!** (não aperte Ctrl+C)
-
----
-
-### 3. Levante o Frontend (terminal 2)
-
-Abra **um segundo terminal** (não feche o primeiro) e rode:
+### 4. Levante o Frontend (terminal 2)
 
 ```bash
 cd frontend
@@ -135,36 +136,26 @@ npm install  # primeira vez só
 npm run dev
 ```
 
-**Esperado:** você vê uma linha parecida com:
-```
-VITE v8.X.X  ready in XXX ms
+**Esperado:** `Local: http://localhost:8081/`. Deixe o terminal aberto.
 
-➜  Local:   http://localhost:8081/
-```
+### 5. Crie uma conta e aprove
 
-Abra `http://localhost:8081/` no navegador. Pronto, a aplicação está no ar.
+O sistema exige login, e toda instituição nova nasce pendente de aprovação.
 
-**Deixe esse terminal aberto também!**
+1. Em `http://localhost:8081/cadastro`, cadastre um hospital ou hemocentro.
+   Você entra automaticamente e cai na tela **Cadastro em análise**.
+2. Numa janela anônima, entre em `/login` com o `ADMIN_EMAIL` e `ADMIN_SENHA`
+   do seu `.env`. Você cai em **/admin** — clique em **Aprovar**.
+3. Volte à primeira janela e clique em **Verificar novamente**. O painel abre.
 
----
+Cadastre **um hospital e um hemocentro** para ver os dois lados do sistema.
 
-### 4. Teste a integração
+### 6. Parar a aplicação
 
-Na tela do frontend:
+`Ctrl+C` em cada terminal.
 
-1. **Vá em "Hemocentro"** (menu do lado)
-2. **Clique em "Criar Requisição"**
-3. **Preencha o formulário** e envie
-4. **Vá em "Minha Instituição"** e veja a requisição aparecer na lista
-
-Se a requisição apareceu, front e back estão conversando. Sucesso!
-
----
-
-### 5. Parar a aplicação
-
-- **Backend:** no terminal 1, aperte `Ctrl+C`
-- **Frontend:** no terminal 2, aperte `Ctrl+C`
+> Guia detalhado, roteiro de testes da API e banco H2 em
+> [`docs/como-rodar.md`](./docs/como-rodar.md).
 
 ---
 
@@ -176,13 +167,15 @@ hemotrack/
 │   ├── src/main/java/         ← código-fonte
 │   ├── pom.xml                ← dependências Maven
 │   └── mvnw / mvnw.cmd        ← Maven (não instale, usa esse)
-├── frontend/                   ← Interface em React/TypeScript/TanStack Start
+├── frontend/                   ← Interface em React/TypeScript/Vite (SPA)
 │   ├── src/
 │   ├── package.json           ← dependências npm
 │   └── vite.config.ts         ← configuração do Vite
 ├── docs/                       ← Documentação
+│   ├── como-rodar.md          ← guia completo de execução e testes
 │   ├── historias.md           ← histórias de usuário (HU01-HU09)
-│   ├── api/                   ← documentação da API
+│   ├── api/                   ← contrato da API e modelo de domínio
+│   ├── deploy.md              ← CI/CD, Render e variáveis de ambiente
 │   ├── telemetria.md          ← métricas via OpenTelemetry + Grafana Cloud
 │   └── notas/                 ← notas de design
 └── README.md                   ← você está aqui
@@ -194,7 +187,7 @@ hemotrack/
 
 | # | Descrição | Status |
 |---|-----------|--------|
-| HU01 | Cadastro e login de instituição | ⏳ Em progresso |
+| HU01 | Cadastro e login de instituição | ✅ Pronto |
 | HU02 | Gerenciar estoque de hemocomponentes | ⏳ Em progresso |
 | HU03 | Criar requisição de sangue | ✅ Pronto |
 | HU04 | Visualizar e acompanhar requisições | ✅ Pronto |
@@ -220,9 +213,19 @@ Confirme que:
 ### Aparecem erros de CORS
 O CORS está configurado no backend (`config/WebConfig.java`) para aceitar chamadas de `localhost:8081`. Se o frontend rodou em outra porta, o CORS bloqueia.
 
+### Backend não sobe: `Could not resolve placeholder 'JWT_SECRET'`
+Falta o `backend/.env`, ou ele está sem a variável. Volte ao passo 2 — a
+aplicação não sobe sem um segredo para assinar os tokens.
+
+### Não consigo aprovar nenhuma instituição
+O usuário que aprova é criado na **primeira subida** em que `ADMIN_EMAIL` e
+`ADMIN_SENHA` existam no `.env`. Procure no log da subida por
+`ADMIN_SISTEMA criado para ...`. Se aparecer o aviso de que as variáveis não
+foram configuradas, preencha e reinicie.
+
 ### Backend não compila
 Confirme que:
-- `java -version` mostra 17 ou maior
+- `java -version` mostra 21 ou maior
 - Você está dentro da pasta `backend/` quando roda `./mvnw spring-boot:run`
 - Primeira execução demora (baixa dependências da internet)
 
@@ -241,32 +244,43 @@ npm install
 ```
 
 ### Frontend fica branco ou não carrega
-TanStack Start leva alguns segundos para fazer o build inicial. Aguarde 5-10 segundos e recarregue a página (F5). Se continuar branco, abra o DevTools (F12) e verifique a aba Console para erros JavaScript.
+O Vite leva alguns segundos no build inicial. Aguarde e recarregue (F5). Se continuar branco, abra o DevTools (F12) e veja a aba Console.
+
+### Caí no login e não consigo entrar em nenhum painel
+É o comportamento esperado: `/hospital` e `/hemocentro` exigem sessão, e a instituição precisa estar aprovada. Siga o passo 5 do guia acima.
 
 ---
 
-## Testando a API com Postman/Insomnia (opcional)
+## Testando a API
 
-Se quiser testar a API separadamente do frontend:
+Use **Insomnia** ou **Postman** (o processo é o mesmo) ou **`curl`**. Só
+`POST /auth/login` e `POST /instituicoes` são públicas; o resto responde `401`
+sem token.
 
-1. **Abra Postman ou Insomnia**
-2. **Crie um pedido POST para** `http://localhost:8080/requisicoes`
-3. **Headers:** `Content-Type: application/json`
-4. **Body (JSON):**
-```json
-{
-  "hospitalId": 1,
-  "tipo": "HEMACIAS",
-  "abo": "O",
-  "rh": "POSITIVO",
-  "volumeMl": 500,
-  "prioridade": "URGENCIA",
-  "observacoes": "Teste"
-}
+**1. Obtenha um token:**
+
+```bash
+curl -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "seu@email.com", "senha": "suasenha"}'
 ```
-5. **Clique Send** → deve responder com `201 Created` e a requisição criada
 
-Ver mais exemplos em [`docs/api/`](./docs/api/).
+Resposta: `{ "token": "eyJ...", "expiraEm": "..." }`.
+
+**2. Mande o token nas demais chamadas.** No Insomnia/Postman, aba
+**Auth**/**Authorization** → **Bearer Token**. No `curl`:
+
+```bash
+curl http://localhost:8080/auth/me -H "Authorization: Bearer eyJ..."
+```
+
+O token vale 8 horas. Os erros saem em `application/problem+json`, com `type`,
+`title` e `detail` — a lista completa está no
+[contrato da API](./docs/api/contrato-api.md).
+
+O roteiro completo (cadastro → login → bloqueio → aprovação, com o status
+esperado de cada chamada) e a configuração passo a passo do Insomnia/Postman
+estão em [`docs/como-rodar.md`](./docs/como-rodar.md#6-testar-a-api).
 
 ---
 
@@ -286,7 +300,6 @@ Ver mais exemplos em [`docs/api/`](./docs/api/).
 
 ## Próximas etapas
 
-- Implementar HU01 (login de instituição)
 - Implementar HU02 (estoque real)
 - Conectar HU06 (seleção de bolsas compatíveis)
 - Implementar algoritmo de rota (HU07)
