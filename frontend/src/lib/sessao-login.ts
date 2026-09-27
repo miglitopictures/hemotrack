@@ -14,7 +14,7 @@ import {
   login,
   type UsuarioLogado,
 } from "./api-auth";
-import { guardarToken } from "./sessao";
+import { apagarToken, guardarToken } from "./sessao";
 
 export async function autenticarEGuardarSessao(
   queryClient: QueryClient,
@@ -36,4 +36,13 @@ export async function autenticarEGuardarSessao(
 
 export function destinoDoUsuario(usuario: UsuarioLogado): "/hospital" | "/hemocentro" {
   return usuario.instituicao?.tipo === "HEMOCENTRO" ? "/hemocentro" : "/hospital";
+}
+
+export function encerrarSessao(queryClient: QueryClient): void {
+  apagarToken();
+
+  // Limpa TODO o cache, não só a chave do usuário: estoque, solicitações e
+  // transportes em memória são da instituição anterior e não podem vazar
+  // para quem entrar em seguida no mesmo navegador.
+  queryClient.clear();
 }
