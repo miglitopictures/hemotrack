@@ -17,11 +17,16 @@ public class SecurityConfig {
     private final JwtAuthFilter jwtAuthFilter;
     private final RespostaNaoAutenticado respostaNaoAutanticado;
     private final RespostaAcessoNegado respostaAcessoNegado;
+    private final InstituicaoAprovada instituicaoAprovada;
 
-    public SecurityConfig(JwtAuthFilter jwtAuthFilter, RespostaNaoAutenticado respostaNaoAutanticado, RespostaAcessoNegado respostaAcessoNegado) {
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter,
+                          RespostaNaoAutenticado respostaNaoAutanticado,
+                          RespostaAcessoNegado respostaAcessoNegado,
+                          InstituicaoAprovada instituicaoAprovada) {
         this.jwtAuthFilter = jwtAuthFilter;
         this.respostaNaoAutanticado = respostaNaoAutanticado;
         this.respostaAcessoNegado = respostaAcessoNegado;
+        this.instituicaoAprovada = instituicaoAprovada;
     }
     
     @Bean 
@@ -50,6 +55,7 @@ public class SecurityConfig {
             .requestMatchers("/actuator/**").permitAll()
             .requestMatchers("/error").permitAll()
             .requestMatchers(HttpMethod.PATCH, "/instituicoes/*/aprovar").hasRole("ADMIN_SISTEMA")
+            .requestMatchers("/requisicoes/**").access(instituicaoAprovada)
             .anyRequest().authenticated());
         
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
