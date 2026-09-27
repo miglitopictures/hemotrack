@@ -27,10 +27,17 @@ public class ConflitoException extends RuntimeException{
         return emailEexception;
     }
 
-    public static ConflitoException InstituicaoJaAprovada(Long id) {
+    public static ConflitoException instituicaoJaAprovada(Long id) {
         ConflitoException instituicaJaAprovadaException = new ConflitoException("instituicao-ja-aprovada",
                                                             "Instituição já aprovada",
                                                             "A instituição " + id + " já está aprovada.");
         return instituicaJaAprovadaException;
+    }
+
+    public static ConflitoException tentouDesativarAdmin (Long id) {
+        ConflitoException tentouDesativarAdminException = new ConflitoException("tentou-desativar-admin",
+                                                                                "Admin não pode ser desativado.",
+                                                                                "Usuario " + id + " é administrador da instituição e não pode ser desativado.");
+        return  tentouDesativarAdminException;
     }
 }

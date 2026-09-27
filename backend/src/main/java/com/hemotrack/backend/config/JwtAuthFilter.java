@@ -10,8 +10,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import com.hemotrack.backend.model.usuario.Papel;
+import com.hemotrack.backend.model.usuario.Usuario;
 import com.hemotrack.backend.model.usuario.UsuarioAutenticado;
+import com.hemotrack.backend.repositories.UsuarioRepository;
 import com.hemotrack.backend.service.JwtService;
 
 import io.jsonwebtoken.Claims;
@@ -28,9 +29,11 @@ import jakarta.servlet.http.HttpServletResponse;
 @Component 
 public class JwtAuthFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
+    private final UsuarioRepository usuarios;
 
-    public  JwtAuthFilter(JwtService jwtService){
+    public  JwtAuthFilter(JwtService jwtService, UsuarioRepository usuarios){
         this.jwtService = jwtService;
+        this.usuarios = usuarios;
     }
 
     @Override 
@@ -46,23 +49,23 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             try {
                 Claims claims = jwtService.validarEExtrair(token);
 
+                Usuario usuario = usuarios.findById(Long.valueOf(claims.getSubject())).orElse(null);
 
+                if (usuario != null && usuario.isAtivo()) {
+                    UsuarioAutenticado autenticado = new UsuarioAutenticado(
+                        usuario.getId(),
+                        usuario.getInstituicaoId(),
+                        usuario.getPapel());
 
-                // O admin do sistema não tem instituição, então a claim pode
-                // não vir. O JSON também não distingue Integer de Long, entao o
-                // Number no meio do caminho.
-                Object valorInstituicao = claims.get("instituicaoId");
-                Long instituicaoId =
-                    valorInstituicao == null ? null : ((Number) valorInstituicao).longValue();
+                    var autoridades = List.of(new SimpleGrantedAuthority("ROLE_" + autenticado.papel().name()));
+                    var autenticacao = new UsernamePasswordAuthenticationToken(autenticado, null, autoridades);
 
-
-                UsuarioAutenticado usuario = new UsuarioAutenticado(Long.valueOf(claims.getSubject()), instituicaoId, Papel.valueOf(claims.get("papel", String.class)));
-
-                
-                var autoridades = List.of(new SimpleGrantedAuthority("ROLE_" + usuario.papel().name()));
-                var autentucacao = new UsernamePasswordAuthenticationToken(usuario, null, autoridades);
-
-                SecurityContextHolder.getContext().setAuthentication(autentucacao);
+                    SecurityContextHolder.getContext().setAuthentication(autenticacao);
+                } else {
+                    // Usuario sumiu ou foi desativado: o token continua com
+                    // assinatura valida, mas nao autentica mais ninguem.
+                    SecurityContextHolder.clearContext();
+                }
             } catch (JwtException | IllegalArgumentException erro) {
                 SecurityContextHolder.clearContext();
             }
