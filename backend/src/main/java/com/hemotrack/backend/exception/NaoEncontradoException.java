@@ -16,4 +16,8 @@ public class NaoEncontradoException extends RuntimeException{
     public static NaoEncontradoException instituicao(Long id) {
         return new NaoEncontradoException("instituicao-nao-encontrada", "Instituição não encontrada", "Não existe instituição com o id " + id + ".");
     }
+
+    public static NaoEncontradoException usuario(Long id) {
+        return new NaoEncontradoException("usuario-nao-encontrado", "Usuário não encontrado", "Não existe usuário com o id " + id + " nessa instituição.");
+    }
 }

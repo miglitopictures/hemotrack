@@ -48,7 +48,7 @@ public class InstituicaoService {
 
         if (instituicao == null) throw NaoEncontradoException.instituicao(id);
         
-        if (instituicao.getStatus() == StatusInstituicao.APROVADA) throw ConflitoException.InstituicaoJaAprovada(id);
+        if (instituicao.getStatus() == StatusInstituicao.APROVADA) throw ConflitoException.instituicaoJaAprovada(id);
 
         instituicao.setStatus(StatusInstituicao.APROVADA);
 
