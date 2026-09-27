@@ -12,11 +12,17 @@ import { toast } from "sonner";
 import { Logo } from "@/components/app-shell";
 import { fadeUp } from "@/components/ui-kit";
 
+const AVISO_DE_SESSAO: Record<string, string> = {
+  expirada: "Sua sessão expirou. Entre novamente para continuar.",
+  encerrada:
+    "Seu acesso foi encerrado. Se isso não era esperado, fale com o administrador da sua instituição.",
+};
+
 type BuscaDoLogin = { sessao?: string | undefined };
 
 export const Route = createFileRoute("/login")({
-  // Quem nos manda para cá com ?sessao=expirada é o httpClient, ao tomar
-  // 401 numa requisição autenticada.
+  // Quem nos manda para cá com ?sessao=expirada|encerrada é o httpClient,
+  // ao tomar 401 numa requisição autenticada.
   validateSearch: (busca: Record<string, unknown>): BuscaDoLogin => {
     const sessao = busca["sessao"];
     return typeof sessao === "string" ? { sessao } : {};
@@ -40,6 +46,7 @@ function LoginPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { sessao } = Route.useSearch();
+  const aviso = sessao === undefined ? undefined : AVISO_DE_SESSAO[sessao];
 
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
@@ -97,9 +104,12 @@ function LoginPage() {
             Use as credenciais da sua instituição.
           </p>
 
-          {sessao === "expirada" ? (
-            <p role="status" className="mt-4 rounded-xl border border-border bg-secondary px-3 py-2 text-sm text-muted-foreground">
-              Sua sessão expirou. Entre novamente para continuar.
+          {aviso !== undefined ? (
+            <p
+              role="status"
+              className="mt-4 rounded-xl border border-border bg-secondary px-3 py-2 text-sm text-muted-foreground"
+            >
+              {aviso}
             </p>
           ) : null}
 
