@@ -56,13 +56,37 @@ Esse desenho garante que nenhum deploy acontece se os testes falharem, e que o d
 ### Variáveis de ambiente
 Configuradas em Render → o serviço → **Environment**:
 
-| Variável | Descrição |
-|---|---|
-| `DB_URL` | URL JDBC do Postgres no Neon (`jdbc:postgresql://.../neondb?sslmode=require&channel_binding=require`) |
-| `DB_USERNAME` | Usuário do banco no Neon |
-| `DB_PASSWORD` | Senha do banco no Neon |
+| Variável | Obrigatória | Descrição |
+|---|---|---|
+| `DB_URL` | sim | URL JDBC do Postgres no Neon (`jdbc:postgresql://.../neondb?sslmode=require&channel_binding=require`) |
+| `DB_USERNAME` | sim | Usuário do banco no Neon |
+| `DB_PASSWORD` | sim | Senha do banco no Neon |
+| `JWT_SECRET` | sim | Chave que assina os tokens de login (HS256). Mínimo de 32 caracteres |
+| `ADMIN_EMAIL` | não | E-mail do `ADMIN_SISTEMA` criado na primeira subida |
+| `ADMIN_SENHA` | não | Senha desse admin |
+| `GRAFANA_OTLP_ENABLED` | não | `true` para exportar métricas. Ver [`telemetria.md`](./telemetria.md) |
+| `GRAFANA_OTLP_ENDPOINT` | não | Endpoint OTLP do Grafana Cloud |
+| `GRAFANA_OTLP_TOKEN` | não | Token do Grafana Cloud, no formato `Basic <base64>` |
 
-O `backend/src/main/resources/application-prod.properties` lê essas três variáveis (`${DB_URL}`, `${DB_USERNAME}`, `${DB_PASSWORD}`) e ativa o driver do Postgres (`org.postgresql.Driver`) no lugar do H2 usado em desenvolvimento.
+O `backend/src/main/resources/application-prod.properties` lê as três variáveis do banco (`${DB_URL}`, `${DB_USERNAME}`, `${DB_PASSWORD}`) e ativa o driver do Postgres (`org.postgresql.Driver`) no lugar do H2 usado em desenvolvimento.
+
+### `JWT_SECRET` — sem ela o serviço não sobe
+
+O `application.properties` declara `hemotrack.jwt.segredo=${JWT_SECRET}` **sem valor padrão**, de propósito: um segredo padrão esquecido em produção é uma falha de segurança clássica. Se a variável não existir, a aplicação falha na inicialização com `Could not resolve placeholder 'JWT_SECRET'` — em produção, o container reinicia em loop.
+
+Gere com:
+
+```bash
+openssl rand -base64 48
+```
+
+O valor precisa ser **diferente** do que está no `backend/.env` de cada desenvolvedor: se o de desenvolvimento vazar, os tokens de produção continuam íntegros.
+
+> **Trocar o `JWT_SECRET` invalida todos os tokens em circulação.** Todo mundo que estava logado recebe `401` e precisa entrar de novo. É o procedimento correto em caso de suspeita de vazamento, e uma boa razão para não mexer sem necessidade.
+
+### `ADMIN_EMAIL` e `ADMIN_SENHA` — quem aprova instituições
+
+Sem elas, a aplicação sobe e avisa no log, mas nenhum `ADMIN_SISTEMA` é criado e não há como aprovar cadastros pela API. O admin é criado uma única vez, na primeira subida em que as variáveis existam; depois disso o seed é ignorado, e **alterar `ADMIN_SENHA` não redefine a senha** de um admin já criado — isso evita que a variável de ambiente vire um mecanismo permanente de troca de senha para quem tiver acesso ao painel.
 
 ---
 
@@ -73,7 +97,7 @@ O `backend/src/main/resources/application-prod.properties` lê essas três vari�
 3. Criar um Web Service no [Render](https://render.com), apontando para este repositório, com:
    - Root Directory: `backend`
    - Environment: Docker
-4. Adicionar as três variáveis de ambiente (`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`) nas configurações do serviço.
+4. Adicionar as variáveis de ambiente obrigatórias (`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`) nas configurações do serviço. As `ADMIN_*` e `GRAFANA_*` são opcionais.
 5. Copiar o **Deploy Hook** (Render → o serviço → Settings) e salvá-lo como secret `RENDER_DEPLOY_HOOK_URL` no GitHub (Settings → Secrets and variables → Actions).
 6. A partir daí, todo merge na `main` dispara build, testes e deploy automaticamente.
 
@@ -85,6 +109,18 @@ O pipeline foi executado múltiplas vezes durante a configuração, sem falhas i
 
 Se o job `deploy` falhar, o motivo mais provável é o secret `RENDER_DEPLOY_HOOK_URL` estar ausente ou desatualizado (por exemplo, se o serviço no Render for recriado, o hook muda). Nesse caso, o `build-and-test` continua passando normalmente — só o gatilho de deploy fica pendente até o secret ser atualizado.
 
+### Falha que o pipeline não detecta
+
+O job `deploy` só dispara o hook: ele reporta sucesso assim que o Render aceita a chamada, **antes** de o container subir. Se faltar uma variável de ambiente obrigatória no Render, o GitHub Actions fica todo verde e o serviço morre na inicialização.
+
+Por isso, ao introduzir qualquer configuração obrigatória nova, a variável precisa existir no Render **antes** do merge na `main`. Depois de um deploy, a verificação rápida é:
+
+```bash
+curl https://hemotrack-8ecl.onrender.com/actuator/health
+```
+
+Esperado: `{"status":"UP"}`. Se não responder (descontado o cold start de 30–60s), veja os logs em Render → o serviço → **Logs**.
+
 ---
 
 ## Local vs. Produção
@@ -93,6 +129,7 @@ Se o job `deploy` falhar, o motivo mais provável é o secret `RENDER_DEPLOY_HOO
 |---|---|---|
 | Banco | H2 em arquivo (`./data/hemotrack-db`) | Postgres (Neon) |
 | Profile Spring | padrão (`application.properties`) | `prod` (`application-prod.properties`) |
+| `JWT_SECRET` | `backend/.env` (fora do Git) | variável de ambiente do Render |
 | Como rodar | `./mvnw spring-boot:run` | `--spring.profiles.active=prod`, automático via Docker |
 
 Instruções completas de execução local já estão na seção ["Como rodar na sua máquina"](../README.md#como-rodar-na-sua-máquina) do README principal.
