@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AguardandoAprovacaoRouteImport } from './routes/aguardando-aprovacao'
 import { Route as CadastroRouteImport } from './routes/cadastro'
 import { Route as HemocentroRouteImport } from './routes/hemocentro'
@@ -34,6 +35,11 @@ import { Route as HospitalTransportesIdRouteImport } from './routes/hospital.tra
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AguardandoAprovacaoRoute = AguardandoAprovacaoRouteImport.update({
@@ -146,6 +152,7 @@ const HospitalTransportesIdRoute = HospitalTransportesIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/aguardando-aprovacao': typeof AguardandoAprovacaoRoute
   '/cadastro': typeof CadastroRoute
   '/hemocentro': typeof HemocentroRouteWithChildren
@@ -169,6 +176,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/aguardando-aprovacao': typeof AguardandoAprovacaoRoute
   '/cadastro': typeof CadastroRoute
   '/login': typeof LoginRoute
@@ -191,6 +199,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
   '/aguardando-aprovacao': typeof AguardandoAprovacaoRoute
   '/cadastro': typeof CadastroRoute
   '/hemocentro': typeof HemocentroRouteWithChildren
@@ -216,6 +225,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/aguardando-aprovacao'
     | '/cadastro'
     | '/hemocentro'
@@ -239,6 +249,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin'
     | '/aguardando-aprovacao'
     | '/cadastro'
     | '/login'
@@ -260,6 +271,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/aguardando-aprovacao'
     | '/cadastro'
     | '/hemocentro'
@@ -284,6 +296,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
   AguardandoAprovacaoRoute: typeof AguardandoAprovacaoRoute
   CadastroRoute: typeof CadastroRoute
   HemocentroRoute: typeof HemocentroRouteWithChildren
@@ -298,6 +311,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/aguardando-aprovacao': {
@@ -495,6 +515,7 @@ const HospitalRouteWithChildren = HospitalRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
   AguardandoAprovacaoRoute: AguardandoAprovacaoRoute,
   CadastroRoute: CadastroRoute,
   HemocentroRoute: HemocentroRouteWithChildren,

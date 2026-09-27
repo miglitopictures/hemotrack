@@ -57,10 +57,11 @@ function LoginPage() {
     setErro(null);
     setEnviando(true);
 
-        try {
+    try {
       const usuario = await autenticarEGuardarSessao(queryClient, email.trim(), senha);
 
-      if (usuario.instituicao === null) {
+      // Usuário de instituição sem vínculo é problema; o ADMIN_SISTEMA não.
+      if (usuario.papel !== "ADMIN_SISTEMA" && usuario.instituicao === null) {
         apagarToken();
         setErro("Sua conta não está vinculada a uma instituição. Fale com o administrador.");
         return;

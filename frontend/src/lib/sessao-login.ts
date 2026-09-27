@@ -36,7 +36,15 @@ export async function autenticarEGuardarSessao(
 
 export function destinoDoUsuario(
   usuario: UsuarioLogado,
-): "/hospital" | "/hemocentro" | "/aguardando-aprovacao" {
+): "/hospital" | "/hemocentro" | "/aguardando-aprovacao" | "/admin" {
+
+  // O admin do sistema não tem instituição de propósito — ele é da operação
+  // do HemoTrack. Precisa vir antes da checagem de instituição nula, que o
+  // mandaria para a tela de espera.
+  if (usuario.papel === "ADMIN_SISTEMA") {
+    return "/admin";
+  }
+
   // Instituição ainda não aprovada não opera: o backend vai negar as rotas
   // de negócio, então mandar para o painel só produziria telas com erro.
   if (usuario.instituicao === null || usuario.instituicao.status === "PENDENTE_APROVACAO") {
