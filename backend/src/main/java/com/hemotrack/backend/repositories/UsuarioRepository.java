@@ -2,6 +2,8 @@ package com.hemotrack.backend.repositories;
 
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.hemotrack.backend.model.usuario.Papel;
 import com.hemotrack.backend.model.usuario.Usuario;
 
 
@@ -11,4 +13,5 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long>{
     Optional<Usuario> findByEmail(String email);
 
     boolean existsByEmail(String email);
+    boolean existsByPapel(Papel papel);
 }
