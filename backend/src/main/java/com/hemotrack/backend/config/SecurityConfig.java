@@ -16,10 +16,12 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final RespostaNaoAutenticado respostaNaoAutanticado;
+    private final RespostaAcessoNegado respostaAcessoNegado;
 
-    public SecurityConfig(JwtAuthFilter jwtAuthFilter, RespostaNaoAutenticado respostaNaoAutanticado) {
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter, RespostaNaoAutenticado respostaNaoAutanticado, RespostaAcessoNegado respostaAcessoNegado) {
         this.jwtAuthFilter = jwtAuthFilter;
         this.respostaNaoAutanticado = respostaNaoAutanticado;
+        this.respostaAcessoNegado = respostaAcessoNegado;
     }
     
     @Bean 
@@ -36,7 +38,10 @@ public class SecurityConfig {
 
         http.sessionManagement(sessao -> sessao.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
-        http.exceptionHandling(erros -> erros.authenticationEntryPoint(respostaNaoAutanticado));
+        http.exceptionHandling(erros -> {
+            erros.authenticationEntryPoint(respostaNaoAutanticado);
+            erros.accessDeniedHandler(respostaAcessoNegado);
+        });
 
         http.authorizeHttpRequests(regras -> regras
             .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
