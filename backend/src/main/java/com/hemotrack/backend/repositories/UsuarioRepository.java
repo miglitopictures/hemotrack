@@ -5,6 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.hemotrack.backend.model.usuario.Papel;
 import com.hemotrack.backend.model.usuario.Usuario;
+import java.util.List;
+
 
 
 // em todas essas classes que extendem JpaRepository, nos na temos que implementar "nada". A partir do nome do método (ex. findByEmail, findById), o Spring Data vai gerar o query SQL em tempo de execucao.
@@ -14,4 +16,6 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long>{
 
     boolean existsByEmail(String email);
     boolean existsByPapel(Papel papel);
+
+    List<Usuario>findByInstituicaoIdOrderByNomeAsc(Long instituicaoId);
 }
