@@ -241,6 +241,66 @@ export function Panel({
 }
 
 // ---------------------------------------------------------------------------
+// Formulários
+// ---------------------------------------------------------------------------
+
+/**
+ * Campo de texto com rótulo e erro embaixo.
+ *
+ * O `erro` vem do back (o array `errors` do problem+json) ou de uma
+ * validação local — para o campo tanto faz. Quando ele existe, a borda
+ * muda e o `aria-invalid` avisa quem usa leitor de tela.
+ */
+export function Field({
+  label,
+  placeholder,
+  type = "text",
+  className,
+  value,
+  onChange,
+  name,
+  autoComplete,
+  required = false,
+  erro,
+}: {
+  label: string;
+  placeholder: string;
+  type?: string;
+  className?: string;
+  value: string;
+  onChange: (v: string) => void;
+  name: string;
+  autoComplete?: string;
+  required?: boolean;
+  erro: string | null;
+}) {
+  return (
+    <label className={cn("block", className)}>
+      <span className="text-sm font-medium">
+        {label}
+        {required ? <span className="text-primary"> *</span> : null}
+      </span>
+      <input
+        type={type}
+        name={name}
+        autoComplete={autoComplete}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        aria-invalid={erro !== null}
+        className={cn(
+          "mt-1.5 w-full rounded-xl border bg-background px-3 py-2.5 text-sm outline-none transition-colors",
+          erro === null ? "border-input focus:border-primary" : "border-destructive",
+        )}
+      />
+      {erro !== null ? (
+        <span className="mt-1 block text-xs font-medium text-destructive">{erro}</span>
+      ) : null}
+    </label>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Grupos acessíveis (radiogroup / tablist)
 // ---------------------------------------------------------------------------
 
