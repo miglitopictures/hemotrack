@@ -20,6 +20,11 @@ import {
 import { cn } from "@/lib/utils";
 import { buscar, type ResultadoBusca } from "@/lib/data";
 
+import { useQueryClient } from "@tanstack/react-query";
+
+import { useUsuarioLogado } from "@/lib/useUsuarioLogado";
+import { encerrarSessao } from "@/lib/sessao-login";
+
 type Papel = "hospital" | "hemocentro";
 type NavItem = { label: string; to: string; icon: typeof Droplet };
 
@@ -249,14 +254,41 @@ function BuscaGlobal({ papel }: { papel: Papel }) {
 // Shell
 // ---------------------------------------------------------------------------
 
+function iniciaisDe(nome: string): string {
+  const partes = nome.trim().split(/\s+/);
+  const primeira = partes[0]?.charAt(0) ?? "";
+  const ultima = partes.length > 1 ? (partes[partes.length - 1]?.charAt(0) ?? "") : "";
+  return (primeira + ultima).toUpperCase();
+}
+
+
 export function AppShell({ role, children }: { role: Papel; children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const nav = role === "hospital" ? hospitalNav : hemocentroNav;
-  const perfil =
-    role === "hospital"
-      ? { nome: "Hospital Santa Clara", tag: "Hospital · Recife/PE", iniciais: "HS" }
-      : { nome: "Hemocentro Regional", tag: "Hemocentro · Recife/PE", iniciais: "HR" };
+
+
+    const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { data: usuario } = useUsuarioLogado();
+
+  const instituicao = usuario?.instituicao ?? null;
+
+  const perfil = {
+    nome: instituicao?.razaoSocial ?? "Carregando…",
+    tag:
+      instituicao === null
+        ? ""
+        : `${instituicao.tipo === "HEMOCENTRO" ? "Hemocentro" : "Hospital"} · ${instituicao.municipio}`,
+    iniciais: instituicao === null ? "··" : iniciaisDe(instituicao.razaoSocial),
+  };
+
+  function sair() {
+    encerrarSessao(queryClient);
+    void navigate({ to: "/login" });
+  }
+
+
 
   const navList = (
     <nav aria-label="Navegação principal" className="flex flex-col gap-1">
@@ -292,27 +324,27 @@ export function AppShell({ role, children }: { role: Papel; children: ReactNode 
     </nav>
   );
 
-  const sidebarBody = (
+    const sidebarBody = (
     <div className="flex h-full flex-col gap-6 p-4">
       <Logo className="px-2 pt-1" />
       <div className="rounded-2xl border border-border bg-secondary/60 p-3">
         <p className="text-sm font-semibold leading-tight">{perfil.nome}</p>
         <p className="mt-0.5 text-xs text-muted-foreground">{perfil.tag}</p>
+        {usuario ? (
+          <p className="mt-2 border-t border-border pt-2 text-xs text-muted-foreground">
+            {usuario.nome}
+          </p>
+        ) : null}
       </div>
       {navList}
-      <div className="mt-auto flex flex-col gap-2">
-        <Link
-          to={role === "hospital" ? "/hemocentro" : "/hospital"}
-          className="rounded-xl border border-dashed border-border px-3 py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
-        >
-          Ver visão do {role === "hospital" ? "hemocentro" : "hospital"}
-        </Link>
-        <Link
-          to="/login"
-          className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
+      <div className="mt-auto">
+        <button
+          type="button"
+          onClick={sair}
+          className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
         >
           <LogOut className="size-4" aria-hidden="true" /> Sair
-        </Link>
+        </button>
       </div>
     </div>
   );

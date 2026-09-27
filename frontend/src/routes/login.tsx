@@ -1,3 +1,9 @@
+import { useQueryClient } from "@tanstack/react-query";
+
+import { autenticarEGuardarSessao, destinoDoUsuario } from "@/lib/sessao-login";
+import { ErroDeApiHttp } from "@/lib/httpClient";
+import { apagarToken, guardarToken } from "@/lib/sessao";
+
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import { useState } from "react";
@@ -6,7 +12,15 @@ import { toast } from "sonner";
 import { Logo } from "@/components/app-shell";
 import { fadeUp } from "@/components/ui-kit";
 
+type BuscaDoLogin = { sessao?: string | undefined };
+
 export const Route = createFileRoute("/login")({
+  // Quem nos manda para cá com ?sessao=expirada é o httpClient, ao tomar
+  // 401 numa requisição autenticada.
+  validateSearch: (busca: Record<string, unknown>): BuscaDoLogin => {
+    const sessao = busca["sessao"];
+    return typeof sessao === "string" ? { sessao } : {};
+  },
   head: () => ({
     meta: [
       { title: "Entrar — HemoTrack" },
@@ -22,23 +36,51 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
+  
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { sessao } = Route.useSearch();
+
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
 
-  function entrar(e: React.FormEvent<HTMLFormElement>) {
-    // Botão de submit de verdade: agora o Enter no campo funciona e o leitor
-    // de tela anuncia um botão, não um link.
+    async function entrar(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+
     if (!email.trim() || !senha.trim()) {
       setErro("Informe e-mail e senha para continuar.");
       return;
     }
+
     setErro(null);
-    // TODO(back): POST /auth/login → guardar sessão e redirecionar pelo perfil.
-    toast.success("Bem-vindo de volta!", { description: "Sessão simulada do protótipo." });
-    void navigate({ to: "/hospital" });
+    setEnviando(true);
+
+        try {
+      const usuario = await autenticarEGuardarSessao(queryClient, email.trim(), senha);
+
+      if (usuario.instituicao === null) {
+        apagarToken();
+        setErro("Sua conta não está vinculada a uma instituição. Fale com o administrador.");
+        return;
+      }
+
+      const primeiroNome = usuario.nome.split(" ")[0] ?? usuario.nome;
+      toast.success(`Bem-vindo, ${primeiroNome}!`);
+
+      await navigate({ to: destinoDoUsuario(usuario) });
+    } catch (falha) {
+      if (falha instanceof ErroDeApiHttp) {
+        // Mensagem vinda do "detail" do problem+json — para 401 é
+        // "E-mail ou senha inválidos."
+        setErro(falha.message);
+      } else {
+        setErro("Não foi possível entrar. Verifique se o servidor está no ar.");
+      }
+    } finally {
+      setEnviando(false);
+    }
   }
 
   return (
@@ -53,6 +95,12 @@ function LoginPage() {
           <p className="mt-1.5 text-sm text-muted-foreground">
             Use as credenciais da sua instituição.
           </p>
+
+          {sessao === "expirada" ? (
+            <p role="status" className="mt-4 rounded-xl border border-border bg-secondary px-3 py-2 text-sm text-muted-foreground">
+              Sua sessão expirou. Entre novamente para continuar.
+            </p>
+          ) : null}
 
           <form className="mt-6 space-y-4" onSubmit={entrar} noValidate>
             <label className="block">
@@ -95,11 +143,13 @@ function LoginPage() {
 
             <motion.button
               type="submit"
-              whileHover={{ y: -2 }}
-              whileTap={{ scale: 0.97 }}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-card"
+              disabled={enviando}
+              whileHover={{ y: enviando ? 0 : -2 }}
+              whileTap={{ scale: enviando ? 1 : 0.97 }}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-card disabled:opacity-60"
             >
-              Entrar <ArrowRight className="size-4" aria-hidden="true" />
+              {enviando ? "Entrando…" : "Entrar"}
+              {enviando ? null : <ArrowRight className="size-4" aria-hidden="true" />}
             </motion.button>
           </form>
 

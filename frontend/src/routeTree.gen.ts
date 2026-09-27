@@ -10,7 +10,10 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AguardandoAprovacaoRouteImport } from './routes/aguardando-aprovacao'
 import { Route as CadastroRouteImport } from './routes/cadastro'
+import { Route as HemocentroRouteImport } from './routes/hemocentro'
+import { Route as HospitalRouteImport } from './routes/hospital'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as HemocentroIndexRouteImport } from './routes/hemocentro.index'
 import { Route as HemocentroIndicadoresRouteImport } from './routes/hemocentro.indicadores'
@@ -33,9 +36,24 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AguardandoAprovacaoRoute = AguardandoAprovacaoRouteImport.update({
+  id: '/aguardando-aprovacao',
+  path: '/aguardando-aprovacao',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CadastroRoute = CadastroRouteImport.update({
   id: '/cadastro',
   path: '/cadastro',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HemocentroRoute = HemocentroRouteImport.update({
+  id: '/hemocentro',
+  path: '/hemocentro',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HospitalRoute = HospitalRouteImport.update({
+  id: '/hospital',
+  path: '/hospital',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -44,91 +62,94 @@ const LoginRoute = LoginRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const HemocentroIndexRoute = HemocentroIndexRouteImport.update({
-  id: '/hemocentro/',
-  path: '/hemocentro/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => HemocentroRoute,
 } as any)
 const HemocentroIndicadoresRoute = HemocentroIndicadoresRouteImport.update({
-  id: '/hemocentro/indicadores',
-  path: '/hemocentro/indicadores',
-  getParentRoute: () => rootRouteImport,
+  id: '/indicadores',
+  path: '/indicadores',
+  getParentRoute: () => HemocentroRoute,
 } as any)
 const HospitalIndexRoute = HospitalIndexRouteImport.update({
-  id: '/hospital/',
-  path: '/hospital/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => HospitalRoute,
 } as any)
 const HospitalNovaSolicitacaoRoute = HospitalNovaSolicitacaoRouteImport.update({
-  id: '/hospital/nova-solicitacao',
-  path: '/hospital/nova-solicitacao',
-  getParentRoute: () => rootRouteImport,
+  id: '/nova-solicitacao',
+  path: '/nova-solicitacao',
+  getParentRoute: () => HospitalRoute,
 } as any)
 const HemocentroDistribuicoesIndexRoute =
   HemocentroDistribuicoesIndexRouteImport.update({
-    id: '/hemocentro/distribuicoes/',
-    path: '/hemocentro/distribuicoes/',
-    getParentRoute: () => rootRouteImport,
+    id: '/distribuicoes/',
+    path: '/distribuicoes/',
+    getParentRoute: () => HemocentroRoute,
   } as any)
 const HemocentroDistribuicoesIdRoute =
   HemocentroDistribuicoesIdRouteImport.update({
-    id: '/hemocentro/distribuicoes/$id',
-    path: '/hemocentro/distribuicoes/$id',
-    getParentRoute: () => rootRouteImport,
+    id: '/distribuicoes/$id',
+    path: '/distribuicoes/$id',
+    getParentRoute: () => HemocentroRoute,
   } as any)
 const HemocentroDistribuicoesPlanejarRoute =
   HemocentroDistribuicoesPlanejarRouteImport.update({
-    id: '/hemocentro/distribuicoes/planejar',
-    path: '/hemocentro/distribuicoes/planejar',
-    getParentRoute: () => rootRouteImport,
+    id: '/distribuicoes/planejar',
+    path: '/distribuicoes/planejar',
+    getParentRoute: () => HemocentroRoute,
   } as any)
 const HemocentroEstoqueIndexRoute = HemocentroEstoqueIndexRouteImport.update({
-  id: '/hemocentro/estoque/',
-  path: '/hemocentro/estoque/',
-  getParentRoute: () => rootRouteImport,
+  id: '/estoque/',
+  path: '/estoque/',
+  getParentRoute: () => HemocentroRoute,
 } as any)
 const HemocentroEstoqueNovoRoute = HemocentroEstoqueNovoRouteImport.update({
-  id: '/hemocentro/estoque/novo',
-  path: '/hemocentro/estoque/novo',
-  getParentRoute: () => rootRouteImport,
+  id: '/estoque/novo',
+  path: '/estoque/novo',
+  getParentRoute: () => HemocentroRoute,
 } as any)
 const HemocentroSolicitacoesIndexRoute =
   HemocentroSolicitacoesIndexRouteImport.update({
-    id: '/hemocentro/solicitacoes/',
-    path: '/hemocentro/solicitacoes/',
-    getParentRoute: () => rootRouteImport,
+    id: '/solicitacoes/',
+    path: '/solicitacoes/',
+    getParentRoute: () => HemocentroRoute,
   } as any)
 const HemocentroSolicitacoesIdRoute =
   HemocentroSolicitacoesIdRouteImport.update({
-    id: '/hemocentro/solicitacoes/$id',
-    path: '/hemocentro/solicitacoes/$id',
-    getParentRoute: () => rootRouteImport,
+    id: '/solicitacoes/$id',
+    path: '/solicitacoes/$id',
+    getParentRoute: () => HemocentroRoute,
   } as any)
 const HospitalSolicitacoesIndexRoute =
   HospitalSolicitacoesIndexRouteImport.update({
-    id: '/hospital/solicitacoes/',
-    path: '/hospital/solicitacoes/',
-    getParentRoute: () => rootRouteImport,
+    id: '/solicitacoes/',
+    path: '/solicitacoes/',
+    getParentRoute: () => HospitalRoute,
   } as any)
 const HospitalSolicitacoesIdRoute = HospitalSolicitacoesIdRouteImport.update({
-  id: '/hospital/solicitacoes/$id',
-  path: '/hospital/solicitacoes/$id',
-  getParentRoute: () => rootRouteImport,
+  id: '/solicitacoes/$id',
+  path: '/solicitacoes/$id',
+  getParentRoute: () => HospitalRoute,
 } as any)
 const HospitalTransportesIndexRoute =
   HospitalTransportesIndexRouteImport.update({
-    id: '/hospital/transportes/',
-    path: '/hospital/transportes/',
-    getParentRoute: () => rootRouteImport,
+    id: '/transportes/',
+    path: '/transportes/',
+    getParentRoute: () => HospitalRoute,
   } as any)
 const HospitalTransportesIdRoute = HospitalTransportesIdRouteImport.update({
-  id: '/hospital/transportes/$id',
-  path: '/hospital/transportes/$id',
-  getParentRoute: () => rootRouteImport,
+  id: '/transportes/$id',
+  path: '/transportes/$id',
+  getParentRoute: () => HospitalRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/aguardando-aprovacao': typeof AguardandoAprovacaoRoute
   '/cadastro': typeof CadastroRoute
+  '/hemocentro': typeof HemocentroRouteWithChildren
+  '/hospital': typeof HospitalRouteWithChildren
   '/login': typeof LoginRoute
   '/hemocentro/indicadores': typeof HemocentroIndicadoresRoute
   '/hospital/nova-solicitacao': typeof HospitalNovaSolicitacaoRoute
@@ -148,6 +169,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/aguardando-aprovacao': typeof AguardandoAprovacaoRoute
   '/cadastro': typeof CadastroRoute
   '/login': typeof LoginRoute
   '/hemocentro/indicadores': typeof HemocentroIndicadoresRoute
@@ -169,7 +191,10 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/aguardando-aprovacao': typeof AguardandoAprovacaoRoute
   '/cadastro': typeof CadastroRoute
+  '/hemocentro': typeof HemocentroRouteWithChildren
+  '/hospital': typeof HospitalRouteWithChildren
   '/login': typeof LoginRoute
   '/hemocentro/indicadores': typeof HemocentroIndicadoresRoute
   '/hospital/nova-solicitacao': typeof HospitalNovaSolicitacaoRoute
@@ -191,7 +216,10 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/aguardando-aprovacao'
     | '/cadastro'
+    | '/hemocentro'
+    | '/hospital'
     | '/login'
     | '/hemocentro/indicadores'
     | '/hospital/nova-solicitacao'
@@ -211,6 +239,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/aguardando-aprovacao'
     | '/cadastro'
     | '/login'
     | '/hemocentro/indicadores'
@@ -231,7 +260,10 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/aguardando-aprovacao'
     | '/cadastro'
+    | '/hemocentro'
+    | '/hospital'
     | '/login'
     | '/hemocentro/indicadores'
     | '/hospital/nova-solicitacao'
@@ -252,23 +284,11 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AguardandoAprovacaoRoute: typeof AguardandoAprovacaoRoute
   CadastroRoute: typeof CadastroRoute
+  HemocentroRoute: typeof HemocentroRouteWithChildren
+  HospitalRoute: typeof HospitalRouteWithChildren
   LoginRoute: typeof LoginRoute
-  HemocentroIndicadoresRoute: typeof HemocentroIndicadoresRoute
-  HospitalNovaSolicitacaoRoute: typeof HospitalNovaSolicitacaoRoute
-  HemocentroIndexRoute: typeof HemocentroIndexRoute
-  HospitalIndexRoute: typeof HospitalIndexRoute
-  HemocentroDistribuicoesIdRoute: typeof HemocentroDistribuicoesIdRoute
-  HemocentroDistribuicoesPlanejarRoute: typeof HemocentroDistribuicoesPlanejarRoute
-  HemocentroEstoqueNovoRoute: typeof HemocentroEstoqueNovoRoute
-  HemocentroSolicitacoesIdRoute: typeof HemocentroSolicitacoesIdRoute
-  HospitalSolicitacoesIdRoute: typeof HospitalSolicitacoesIdRoute
-  HospitalTransportesIdRoute: typeof HospitalTransportesIdRoute
-  HemocentroDistribuicoesIndexRoute: typeof HemocentroDistribuicoesIndexRoute
-  HemocentroEstoqueIndexRoute: typeof HemocentroEstoqueIndexRoute
-  HemocentroSolicitacoesIndexRoute: typeof HemocentroSolicitacoesIndexRoute
-  HospitalSolicitacoesIndexRoute: typeof HospitalSolicitacoesIndexRoute
-  HospitalTransportesIndexRoute: typeof HospitalTransportesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -280,11 +300,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/aguardando-aprovacao': {
+      id: '/aguardando-aprovacao'
+      path: '/aguardando-aprovacao'
+      fullPath: '/aguardando-aprovacao'
+      preLoaderRoute: typeof AguardandoAprovacaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cadastro': {
       id: '/cadastro'
       path: '/cadastro'
       fullPath: '/cadastro'
       preLoaderRoute: typeof CadastroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/hemocentro': {
+      id: '/hemocentro'
+      path: '/hemocentro'
+      fullPath: '/hemocentro'
+      preLoaderRoute: typeof HemocentroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/hospital': {
+      id: '/hospital'
+      path: '/hospital'
+      fullPath: '/hospital'
+      preLoaderRoute: typeof HospitalRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -296,131 +337,169 @@ declare module '@tanstack/react-router' {
     }
     '/hemocentro/': {
       id: '/hemocentro/'
-      path: '/hemocentro'
+      path: '/'
       fullPath: '/hemocentro/'
       preLoaderRoute: typeof HemocentroIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof HemocentroRoute
     }
     '/hemocentro/indicadores': {
       id: '/hemocentro/indicadores'
-      path: '/hemocentro/indicadores'
+      path: '/indicadores'
       fullPath: '/hemocentro/indicadores'
       preLoaderRoute: typeof HemocentroIndicadoresRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof HemocentroRoute
     }
     '/hospital/': {
       id: '/hospital/'
-      path: '/hospital'
+      path: '/'
       fullPath: '/hospital/'
       preLoaderRoute: typeof HospitalIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof HospitalRoute
     }
     '/hospital/nova-solicitacao': {
       id: '/hospital/nova-solicitacao'
-      path: '/hospital/nova-solicitacao'
+      path: '/nova-solicitacao'
       fullPath: '/hospital/nova-solicitacao'
       preLoaderRoute: typeof HospitalNovaSolicitacaoRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof HospitalRoute
     }
     '/hemocentro/distribuicoes/': {
       id: '/hemocentro/distribuicoes/'
-      path: '/hemocentro/distribuicoes'
+      path: '/distribuicoes'
       fullPath: '/hemocentro/distribuicoes/'
       preLoaderRoute: typeof HemocentroDistribuicoesIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof HemocentroRoute
     }
     '/hemocentro/distribuicoes/$id': {
       id: '/hemocentro/distribuicoes/$id'
-      path: '/hemocentro/distribuicoes/$id'
+      path: '/distribuicoes/$id'
       fullPath: '/hemocentro/distribuicoes/$id'
       preLoaderRoute: typeof HemocentroDistribuicoesIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof HemocentroRoute
     }
     '/hemocentro/distribuicoes/planejar': {
       id: '/hemocentro/distribuicoes/planejar'
-      path: '/hemocentro/distribuicoes/planejar'
+      path: '/distribuicoes/planejar'
       fullPath: '/hemocentro/distribuicoes/planejar'
       preLoaderRoute: typeof HemocentroDistribuicoesPlanejarRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof HemocentroRoute
     }
     '/hemocentro/estoque/': {
       id: '/hemocentro/estoque/'
-      path: '/hemocentro/estoque'
+      path: '/estoque'
       fullPath: '/hemocentro/estoque/'
       preLoaderRoute: typeof HemocentroEstoqueIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof HemocentroRoute
     }
     '/hemocentro/estoque/novo': {
       id: '/hemocentro/estoque/novo'
-      path: '/hemocentro/estoque/novo'
+      path: '/estoque/novo'
       fullPath: '/hemocentro/estoque/novo'
       preLoaderRoute: typeof HemocentroEstoqueNovoRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof HemocentroRoute
     }
     '/hemocentro/solicitacoes/': {
       id: '/hemocentro/solicitacoes/'
-      path: '/hemocentro/solicitacoes'
+      path: '/solicitacoes'
       fullPath: '/hemocentro/solicitacoes/'
       preLoaderRoute: typeof HemocentroSolicitacoesIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof HemocentroRoute
     }
     '/hemocentro/solicitacoes/$id': {
       id: '/hemocentro/solicitacoes/$id'
-      path: '/hemocentro/solicitacoes/$id'
+      path: '/solicitacoes/$id'
       fullPath: '/hemocentro/solicitacoes/$id'
       preLoaderRoute: typeof HemocentroSolicitacoesIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof HemocentroRoute
     }
     '/hospital/solicitacoes/': {
       id: '/hospital/solicitacoes/'
-      path: '/hospital/solicitacoes'
+      path: '/solicitacoes'
       fullPath: '/hospital/solicitacoes/'
       preLoaderRoute: typeof HospitalSolicitacoesIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof HospitalRoute
     }
     '/hospital/solicitacoes/$id': {
       id: '/hospital/solicitacoes/$id'
-      path: '/hospital/solicitacoes/$id'
+      path: '/solicitacoes/$id'
       fullPath: '/hospital/solicitacoes/$id'
       preLoaderRoute: typeof HospitalSolicitacoesIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof HospitalRoute
     }
     '/hospital/transportes/': {
       id: '/hospital/transportes/'
-      path: '/hospital/transportes'
+      path: '/transportes'
       fullPath: '/hospital/transportes/'
       preLoaderRoute: typeof HospitalTransportesIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof HospitalRoute
     }
     '/hospital/transportes/$id': {
       id: '/hospital/transportes/$id'
-      path: '/hospital/transportes/$id'
+      path: '/transportes/$id'
       fullPath: '/hospital/transportes/$id'
       preLoaderRoute: typeof HospitalTransportesIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof HospitalRoute
     }
   }
 }
 
-const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  CadastroRoute: CadastroRoute,
-  LoginRoute: LoginRoute,
+interface HemocentroRouteChildren {
+  HemocentroIndicadoresRoute: typeof HemocentroIndicadoresRoute
+  HemocentroIndexRoute: typeof HemocentroIndexRoute
+  HemocentroDistribuicoesIdRoute: typeof HemocentroDistribuicoesIdRoute
+  HemocentroDistribuicoesPlanejarRoute: typeof HemocentroDistribuicoesPlanejarRoute
+  HemocentroEstoqueNovoRoute: typeof HemocentroEstoqueNovoRoute
+  HemocentroSolicitacoesIdRoute: typeof HemocentroSolicitacoesIdRoute
+  HemocentroDistribuicoesIndexRoute: typeof HemocentroDistribuicoesIndexRoute
+  HemocentroEstoqueIndexRoute: typeof HemocentroEstoqueIndexRoute
+  HemocentroSolicitacoesIndexRoute: typeof HemocentroSolicitacoesIndexRoute
+}
+
+const HemocentroRouteChildren: HemocentroRouteChildren = {
   HemocentroIndicadoresRoute: HemocentroIndicadoresRoute,
-  HospitalNovaSolicitacaoRoute: HospitalNovaSolicitacaoRoute,
   HemocentroIndexRoute: HemocentroIndexRoute,
-  HospitalIndexRoute: HospitalIndexRoute,
   HemocentroDistribuicoesIdRoute: HemocentroDistribuicoesIdRoute,
   HemocentroDistribuicoesPlanejarRoute: HemocentroDistribuicoesPlanejarRoute,
   HemocentroEstoqueNovoRoute: HemocentroEstoqueNovoRoute,
   HemocentroSolicitacoesIdRoute: HemocentroSolicitacoesIdRoute,
-  HospitalSolicitacoesIdRoute: HospitalSolicitacoesIdRoute,
-  HospitalTransportesIdRoute: HospitalTransportesIdRoute,
   HemocentroDistribuicoesIndexRoute: HemocentroDistribuicoesIndexRoute,
   HemocentroEstoqueIndexRoute: HemocentroEstoqueIndexRoute,
   HemocentroSolicitacoesIndexRoute: HemocentroSolicitacoesIndexRoute,
+}
+
+const HemocentroRouteWithChildren = HemocentroRoute._addFileChildren(
+  HemocentroRouteChildren,
+)
+
+interface HospitalRouteChildren {
+  HospitalNovaSolicitacaoRoute: typeof HospitalNovaSolicitacaoRoute
+  HospitalIndexRoute: typeof HospitalIndexRoute
+  HospitalSolicitacoesIdRoute: typeof HospitalSolicitacoesIdRoute
+  HospitalTransportesIdRoute: typeof HospitalTransportesIdRoute
+  HospitalSolicitacoesIndexRoute: typeof HospitalSolicitacoesIndexRoute
+  HospitalTransportesIndexRoute: typeof HospitalTransportesIndexRoute
+}
+
+const HospitalRouteChildren: HospitalRouteChildren = {
+  HospitalNovaSolicitacaoRoute: HospitalNovaSolicitacaoRoute,
+  HospitalIndexRoute: HospitalIndexRoute,
+  HospitalSolicitacoesIdRoute: HospitalSolicitacoesIdRoute,
+  HospitalTransportesIdRoute: HospitalTransportesIdRoute,
   HospitalSolicitacoesIndexRoute: HospitalSolicitacoesIndexRoute,
   HospitalTransportesIndexRoute: HospitalTransportesIndexRoute,
+}
+
+const HospitalRouteWithChildren = HospitalRoute._addFileChildren(
+  HospitalRouteChildren,
+)
+
+const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
+  AguardandoAprovacaoRoute: AguardandoAprovacaoRoute,
+  CadastroRoute: CadastroRoute,
+  HemocentroRoute: HemocentroRouteWithChildren,
+  HospitalRoute: HospitalRouteWithChildren,
+  LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

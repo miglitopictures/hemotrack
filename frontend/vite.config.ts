@@ -29,6 +29,7 @@ export default defineConfig({
   },
   build: {
     target: "esnext",
-    minify: "esbuild",
-  },
+    // exclui abaixo pois deixar implícito no Vite 8, para o default, é melhor que escrever (o minificador nativo agora é o Oxc)
+    // minify: "esbuild"
+  }
 });

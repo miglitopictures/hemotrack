@@ -1,3 +1,9 @@
+import { useQueryClient } from "@tanstack/react-query";
+
+import { cadastrarInstituicao } from "@/lib/api-auth";
+import { ErroDeApiHttp } from "@/lib/httpClient";
+import { autenticarEGuardarSessao, destinoDoUsuario } from "@/lib/sessao-login";
+
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import { useState } from "react";
@@ -30,11 +36,38 @@ type Campos = {
   cnpj: string;
   telefone: string;
   endereco: string;
+  municipio: string;
+  responsavel: string;
   email: string;
   senha: string;
 };
 
-const vazio: Campos = { nome: "", cnpj: "", telefone: "", endereco: "", email: "", senha: "" };
+const vazio: Campos = {
+  nome: "",
+  cnpj: "",
+  telefone: "",
+  endereco: "",
+  municipio: "",
+  responsavel: "",
+  email: "",
+  senha: "",
+};
+
+/**
+ * O backend identifica o campo pelo caminho dentro do JSON
+ * ("instituicao.razaoSocial"); aqui os campos são planos. Este mapa liga
+ * os dois para que o erro apareça no input certo.
+ */
+const CAMPO_DO_BACK: Record<string, keyof Campos> = {
+  "instituicao.razaoSocial": "nome",
+  "instituicao.cnpj": "cnpj",
+  "instituicao.endereco": "endereco",
+  "instituicao.municipio": "municipio",
+  "instituicao.telefone": "telefone",
+  "administrador.nome": "responsavel",
+  "administrador.email": "email",
+  "administrador.senha": "senha",
+};
 
 function Field({
   label,
@@ -46,6 +79,7 @@ function Field({
   name,
   autoComplete,
   required = false,
+  erro,
 }: {
   label: string;
   placeholder: string;
@@ -56,6 +90,7 @@ function Field({
   name: string;
   autoComplete?: string;
   required?: boolean;
+  erro: string | null;
 }) {
   return (
     <label className={cn("block", className)}>
@@ -70,17 +105,28 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="mt-1.5 w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none transition-colors focus:border-primary"
+        aria-invalid={erro !== null}
+        className={cn(
+          "mt-1.5 w-full rounded-xl border bg-background px-3 py-2.5 text-sm outline-none transition-colors",
+          erro === null ? "border-input focus:border-primary" : "border-destructive",
+        )}
       />
+      {erro !== null ? (
+        <span className="mt-1 block text-xs font-medium text-destructive">{erro}</span>
+      ) : null}
     </label>
   );
 }
 
 function CadastroPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
   const [tipo, setTipo] = useState<"hospital" | "hemocentro">("hospital");
   const [campos, setCampos] = useState<Campos>(vazio);
   const [erro, setErro] = useState<string | null>(null);
+  const [errosPorCampo, setErrosPorCampo] = useState<Partial<Record<keyof Campos, string>>>({});
+  const [enviando, setEnviando] = useState(false);
 
   const definir = (chave: keyof Campos) => (valor: string) =>
     setCampos((c) => ({ ...c, [chave]: valor }));
@@ -100,17 +146,82 @@ function CadastroPage() {
     },
   ];
 
-  function concluir(e: React.FormEvent<HTMLFormElement>) {
+  async function concluir(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const faltando = (["nome", "cnpj", "email", "senha"] as const).filter((k) => !campos[k].trim());
+
+    const obrigatorios = [
+      "nome",
+      "cnpj",
+      "endereco",
+      "municipio",
+      "responsavel",
+      "email",
+      "senha",
+    ] as const;
+
+    const faltando = obrigatorios.filter((chave) => !campos[chave].trim());
+
     if (faltando.length > 0) {
-      setErro("Preencha nome, CNPJ, e-mail e senha para concluir o cadastro.");
+      setErro("Preencha todos os campos obrigatórios para concluir o cadastro.");
       return;
     }
+
     setErro(null);
-    // TODO(back): POST /instituicoes
-    toast.success("Instituição cadastrada", { description: "Cadastro simulado do protótipo." });
-    void navigate({ to: tipo === "hospital" ? "/hospital" : "/hemocentro" });
+    setErrosPorCampo({});
+    setEnviando(true);
+
+    try {
+      await cadastrarInstituicao({
+        instituicao: {
+          razaoSocial: campos.nome.trim(),
+          cnpj: campos.cnpj.trim(),
+          tipo: tipo === "hemocentro" ? "HEMOCENTRO" : "HOSPITAL",
+          endereco: campos.endereco.trim(),
+          municipio: campos.municipio.trim(),
+          telefone: campos.telefone.trim() || null,
+        },
+        administrador: {
+          nome: campos.responsavel.trim(),
+          email: campos.email.trim(),
+          senha: campos.senha,
+        },
+      });
+
+      // Entra direto com as credenciais que acabaram de ser criadas.
+      const usuario = await autenticarEGuardarSessao(
+        queryClient,
+        campos.email.trim(),
+        campos.senha,
+      );
+
+      toast.success("Instituição cadastrada", {
+        description: "Seu cadastro entrou em análise.",
+      });
+
+      // TODO(passo 8): com a instituição PENDENTE_APROVACAO, o destino
+      // correto é a tela de espera — hoje cai no painel.
+      await navigate({ to: destinoDoUsuario(usuario) });
+    } catch (falha) {
+      if (falha instanceof ErroDeApiHttp) {
+        setErro(falha.message);
+
+        const novosErros: Partial<Record<keyof Campos, string>> = {};
+
+        for (const erroDeCampo of falha.erros) {
+          const campo = CAMPO_DO_BACK[erroDeCampo.campo];
+
+          if (campo !== undefined) {
+            novosErros[campo] = erroDeCampo.mensagem;
+          }
+        }
+
+        setErrosPorCampo(novosErros);
+      } else {
+        setErro("Não foi possível concluir o cadastro. Verifique se o servidor está no ar.");
+      }
+    } finally {
+      setEnviando(false);
+    }
   }
 
   return (
@@ -127,7 +238,11 @@ function CadastroPage() {
             Escolha o perfil e complete os dados institucionais.
           </p>
 
-          <div role="radiogroup" aria-label="Tipo de instituição" className="mt-6 grid gap-3 sm:grid-cols-2">
+          <div
+            role="radiogroup"
+            aria-label="Tipo de instituição"
+            className="mt-6 grid gap-3 sm:grid-cols-2"
+          >
             {opcoes.map((o) => {
               const ativo = tipo === o.key;
               return (
@@ -175,13 +290,14 @@ function CadastroPage() {
           </div>
 
           <form className="mt-7 grid gap-4 sm:grid-cols-2" onSubmit={concluir} noValidate>
-            <Field
+                        <Field
               label="Nome da instituição"
               name="nome"
               autoComplete="organization"
               required
               value={campos.nome}
               onChange={definir("nome")}
+              erro={errosPorCampo.nome ?? null}
               placeholder={
                 tipo === "hospital" ? "Hospital Santa Clara" : "Hemocentro Regional Recife"
               }
@@ -193,6 +309,7 @@ function CadastroPage() {
               required
               value={campos.cnpj}
               onChange={definir("cnpj")}
+              erro={errosPorCampo.cnpj ?? null}
               placeholder="00.000.000/0001-00"
             />
             <Field
@@ -201,15 +318,46 @@ function CadastroPage() {
               autoComplete="tel"
               value={campos.telefone}
               onChange={definir("telefone")}
+              erro={errosPorCampo.telefone ?? null}
               placeholder="(81) 3000-0000"
             />
             <Field
               label="Endereço"
               name="endereco"
               autoComplete="street-address"
+              required
               value={campos.endereco}
               onChange={definir("endereco")}
-              placeholder="Av. Domingos Ferreira, 1240 — Recife/PE"
+              erro={errosPorCampo.endereco ?? null}
+              placeholder="Av. Domingos Ferreira, 1240"
+            />
+            <Field
+              label="Município"
+              name="municipio"
+              autoComplete="address-level2"
+              required
+              value={campos.municipio}
+              onChange={definir("municipio")}
+              erro={errosPorCampo.municipio ?? null}
+              placeholder="Recife"
+            />
+
+            <div className="mt-2 border-t border-border pt-4 sm:col-span-2">
+              <h2 className="text-sm font-semibold">Responsável pela conta</h2>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Esta pessoa será a administradora da instituição no HemoTrack.
+              </p>
+            </div>
+
+            <Field
+              label="Nome do responsável"
+              name="responsavel"
+              autoComplete="name"
+              required
+              value={campos.responsavel}
+              onChange={definir("responsavel")}
+              erro={errosPorCampo.responsavel ?? null}
+              placeholder="Maria Souza"
               className="sm:col-span-2"
             />
             <Field
@@ -220,6 +368,7 @@ function CadastroPage() {
               required
               value={campos.email}
               onChange={definir("email")}
+              erro={errosPorCampo.email ?? null}
               placeholder="contato@instituicao.org.br"
             />
             <Field
@@ -230,7 +379,8 @@ function CadastroPage() {
               required
               value={campos.senha}
               onChange={definir("senha")}
-              placeholder="••••••••"
+              erro={errosPorCampo.senha ?? null}
+              placeholder="Mínimo de 6 caracteres"
             />
 
             {erro ? (
@@ -242,11 +392,13 @@ function CadastroPage() {
             <div className="sm:col-span-2">
               <motion.button
                 type="submit"
-                whileHover={{ y: -2 }}
-                whileTap={{ scale: 0.97 }}
-                className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-card"
+                disabled={enviando}
+                whileHover={{ y: enviando ? 0 : -2 }}
+                whileTap={{ scale: enviando ? 1 : 0.97 }}
+                className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-card disabled:opacity-60"
               >
-                <Building2 className="size-4" aria-hidden="true" /> Concluir cadastro
+                <Building2 className="size-4" aria-hidden="true" />
+                {enviando ? "Cadastrando…" : "Concluir cadastro"}
               </motion.button>
             </div>
           </form>
