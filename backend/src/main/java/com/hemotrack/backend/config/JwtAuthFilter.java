@@ -46,10 +46,19 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             try {
                 Claims claims = jwtService.validarEExtrair(token);
 
-                Long instituicaoId = ((Number) claims.get("instituicaoId")).longValue();
+
+
+                // O admin do sistema não tem instituição, então a claim pode
+                // não vir. O JSON também não distingue Integer de Long, entao o
+                // Number no meio do caminho.
+                Object valorInstituicao = claims.get("instituicaoId");
+                Long instituicaoId =
+                    valorInstituicao == null ? null : ((Number) valorInstituicao).longValue();
+
 
                 UsuarioAutenticado usuario = new UsuarioAutenticado(Long.valueOf(claims.getSubject()), instituicaoId, Papel.valueOf(claims.get("papel", String.class)));
 
+                
                 var autoridades = List.of(new SimpleGrantedAuthority("ROLE_" + usuario.papel().name()));
                 var autentucacao = new UsernamePasswordAuthenticationToken(usuario, null, autoridades);
 

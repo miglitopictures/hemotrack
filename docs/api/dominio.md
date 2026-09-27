@@ -93,8 +93,12 @@ CNPJ duplicado responde `409` — precisa de `unique = true` **e** `findByCnpj` 
 | `senha` | `String` | `@NotBlank`, `@Size(min=6)`, hash BCrypt, `@JsonIgnore` |
 | `papel` | `Papel` | `@NotNull`, default `OPERADOR` |
 | `ativo` | `boolean` | default `true` |
-| `instituicaoId` | `Long` | `@NotNull` |
+| `instituicaoId` | `Long` | `@Nullable` apenas para `ADMIN_SISTEMA` |
 
+O `ADMIN_SISTEMA` é o único usuário sem `instituicaoId`: ele pertence à
+operação do HemoTrack, não a um hospital ou hemocentro. Por isso o token
+dele não carrega a claim `instituicaoId`, e `GET /auth/me` devolve
+`instituicao: null`.
 Não existe `TipoUsuario`. O que o usuário pode fazer sai de duas coisas: `papel` (nível de acesso) e `instituicao.tipo` (hospital ou hemocentro). O JWT carrega `usuarioId`, `instituicaoId` e `papel`; `tipo` da instituição é resolvido no service.
 
 O primeiro usuário de uma instituição nasce `ADMIN_INSTITUICAO`, criado na mesma transação do `POST /instituicoes`. Uma instituição nunca fica sem `ADMIN_INSTITUICAO`: rebaixar ou remover o último responde `409`.

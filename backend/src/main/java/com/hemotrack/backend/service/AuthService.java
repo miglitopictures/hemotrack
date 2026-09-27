@@ -53,7 +53,12 @@ public class AuthService {
             throw new CredenciaisInvalidasException();
         }
 
-        Instituicao instituicao = instituicoes.findById(usuario.getInstituicaoId()).orElse(null);
+        // Instituicao instituicao = instituicoes.findById(usuario.getInstituicaoId()).orElse(null);
+
+        Instituicao instituicao =
+            usuario.getInstituicaoId() == null
+                ? null
+                : instituicoes.findById(usuario.getInstituicaoId()).orElse(null);
 
         return new MeResponse(
             usuario.getId(),
