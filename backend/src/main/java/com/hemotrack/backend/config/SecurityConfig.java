@@ -43,6 +43,7 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.POST, "/instituicoes").permitAll()
             .requestMatchers("/h2-console/**").permitAll()
             .requestMatchers("/actuator/**").permitAll()
+            .requestMatchers("/error").permitAll()
             .requestMatchers(HttpMethod.PATCH, "/instituicoes/*/aprovar").hasRole("ADMIN_SISTEMA")
             .anyRequest().authenticated());
         
