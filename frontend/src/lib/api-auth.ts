@@ -33,7 +33,7 @@ export type UsuarioDoBack = {
   email: string;
   papel: Papel;
   ativo: boolean;
-  instituicaoId: number;
+  instituicaoId: number | null;
 };
 
 /** Corpo do POST /instituicoes. */
@@ -70,7 +70,7 @@ export type UsuarioLogado = {
   email: string;
   papel: Papel;
   ativo: boolean;
-  instituicaoId: number;
+  instituicaoId: number | null;
   instituicao: InstituicaoDoBack | null;
 };
 
