@@ -10,7 +10,7 @@
  * é trabalho das telas.
  */
 
-import { httpGet, httpPost } from "./httpClient";
+import { httpGet, httpPatch, httpPost } from "./httpClient";
 
 export type TipoInstituicao = "HOSPITAL" | "HEMOCENTRO";
 export type StatusInstituicao = "PENDENTE_APROVACAO" | "APROVADA";
@@ -87,4 +87,19 @@ export function login(email: string, senha: string): Promise<LoginResponse> {
 
 export function buscarUsuarioLogado(): Promise<UsuarioLogado> {
   return httpGet<UsuarioLogado>("/auth/me");
+}
+
+/** Chave do React Query para a lista de instituições, por status. */
+export function chaveInstituicoes(status: StatusInstituicao) {
+  return ["instituicoes", status] as const;
+}
+
+export function listarInstituicoes(status: StatusInstituicao): Promise<InstituicaoDoBack[]> {
+  return httpGet<InstituicaoDoBack[]>(`/instituicoes?status=${status}`);
+}
+
+export function aprovarInstituicao(id: number): Promise<InstituicaoDoBack> {
+  // PATCH sem corpo: a ação está no caminho, não no payload. O httpClient
+  // omite o body e o Content-Type quando não há corpo.
+  return httpPatch<InstituicaoDoBack>(`/instituicoes/${id}/aprovar`);
 }

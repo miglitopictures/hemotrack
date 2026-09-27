@@ -119,3 +119,7 @@ export function httpPut<T>(caminho: string, corpo: unknown): Promise<T> {
 export async function httpDelete(caminho: string): Promise<void> {
   await requisitar<void>("DELETE", caminho);
 }
+
+export function httpPatch<T>(caminho: string, corpo?: unknown): Promise<T> {
+  return requisitar<T>("PATCH", caminho, corpo);
+}
