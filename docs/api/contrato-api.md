@@ -32,11 +32,10 @@ Todos os endpoints do nossa API. O detalhamento de cada rota (body, exemplos, ca
 
 | Método | Rota | Descrição | Auth | Body | Response | Status |
 |---|---|---|---|---|---|---|
-| GET | `/instituicoes/{id}/usuarios` | Lista `Usuarios` da `Instituicao`. Aceita `?papel&ativo&page&size`. | Membro, `ADMIN_SISTEMA` | — | `[{UsuarioResponse}]` | 200, 403, 404 |
-| POST | `/instituicoes/{id}/usuarios` | Cadastra novo `Usuario` na `Instituicao`. `409` se o e-mail já existir. | `ADMIN_INSTITUICAO` | `{UsuarioRequest}` | `{UsuarioResponse}` | 201, 400, 403, 404, 409 |
+| GET | `/instituicoes/{id}/usuarios` | Lista `Usuarios` da `Instituicao`, ordenados por nome. | Membro, `ADMIN_SISTEMA` | — | `[{UsuarioResponse}]` | 200, 403, 404 |
+| POST | `/instituicoes/{id}/usuarios` | Cadastra um `OPERADOR` na `Instituicao`. O papel não é escolhido na entrada. `409` se o e-mail já existir. | `ADMIN_INSTITUICAO` | `{nome, email, senha}` | `{UsuarioResponse}` | 201, 400, 403, 404, 409 |
 | GET | `/instituicoes/{id}/usuarios/{uid}` | Retorna dados do `Usuario` especificado. | Dono, `ADMIN_INSTITUICAO`, `ADMIN_SISTEMA` | — | `{UsuarioResponse}` | 200, 403, 404 |
-| PATCH | `/instituicoes/{id}/usuarios/{uid}` | Altera papel ou ativa/desativa `Usuario`. `409` ao rebaixar o último `ADMIN_INSTITUICAO`. | `ADMIN_INSTITUICAO` | `{papel, ativo}` | `{UsuarioResponse}` | 200, 400, 403, 404, 409 |
-| DELETE | `/instituicoes/{id}/usuarios/{uid}` | Remove `Usuario` da `Instituicao`. `409` ao remover o último `ADMIN_INSTITUICAO`. | `ADMIN_INSTITUICAO`, `ADMIN_SISTEMA` | — | — | 204, 403, 404, 409 |
+| PATCH | `/instituicoes/{id}/usuarios/{uid}` | Ativa ou desativa um `OPERADOR`. `409` se o alvo não for `OPERADOR`. | `ADMIN_INSTITUICAO` | `{ativo}` | `{UsuarioResponse}` | 200, 400, 403, 404, 409 |
 
 ### `/usuarios`
 
@@ -175,11 +174,14 @@ O que está no ar e onde o código diverge deste documento.
 | Prefixo `/api/v1` | **Não implementado.** As rotas respondem na raiz (`/auth/login`, `/instituicoes`). Os exemplos de `instance` abaixo ainda mostram o prefixo. |
 | Paginação (`?page`, `?size`) | **Não implementada.** As listagens devolvem tudo. |
 | CNPJ | Gravado **normalizado**, só com dígitos, para que `12.345.678/0001-90` e `12345678000190` colidam na constraint `unique`. As respostas devolvem os dígitos; formatar é responsabilidade do cliente. |
-| Revogação de token | **Não existe.** Um JWT vale até `exp` (8 horas), mesmo que o usuário seja desativado antes. Mitigar exigiria lista de bloqueio ou refresh token. |
+| Revogação de token | **Existe.** O `JwtAuthFilter` carrega o usuário do banco a cada requisição: desativado ou inexistente não autentica, e a resposta é `401`. Custa uma consulta por chave primária em toda requisição autenticada. Reativar devolve o acesso ao mesmo token, se ele ainda não expirou — é o oposto de uma lista de bloqueio, onde o token ficaria queimado. |
+| Conteúdo do token | O JWT carrega `usuarioId`, `papel` e `instituicaoId`, mas **a fonte de verdade é o banco**: papel e vínculo são lidos na entidade a cada requisição, pelo mesmo motivo do status da instituição. As claims ficam para depuração e para o cliente. |
 | Status da instituição | **Não** vai no token, de propósito: muda quando a operação aprova, e o token viveria horas desatualizado. É lido do banco a cada requisição de negócio — por isso a aprovação passa a valer na hora, sem novo login. |
+| Filtros de membros (`?papel`, `?ativo`) | **Não implementados.** `GET /instituicoes/{id}/usuarios` devolve todos, ordenados por nome. |
+| `GET /instituicoes/{id}/usuarios/{uid}` | **Pendente.** A listagem já traz tudo que o front consome. |
 | Token no cliente | O front guarda o JWT em `localStorage`, legível por qualquer JavaScript da página. Um XSS levaria o token junto; a mitigação real seria cookie `httpOnly`. |
 
-Rotas implementadas até aqui: `POST /auth/login`, `GET /auth/me`, `POST /instituicoes`, `GET /instituicoes`, `PATCH /instituicoes/{id}/aprovar`. As demais seguem especificadas e pendentes.
+Rotas implementadas até aqui: `POST /auth/login`, `GET /auth/me`, `POST /instituicoes`, `GET /instituicoes`, `PATCH /instituicoes/{id}/aprovar`, `GET /instituicoes/{id}/usuarios`, `POST /instituicoes/{id}/usuarios`, `PATCH /instituicoes/{id}/usuarios/{uid}`. As demais seguem especificadas e pendentes.
 
 ---
 
@@ -394,7 +396,7 @@ Lista os usuários da instituição.
 #### `query`
 `papel`, `ativo`, `page`, `size`
 #### `200` - HttpStatus.OK
-**@retorna** array de `UsuarioResponse` (nunca inclui `senha`)
+**@retorna** array de `UsuarioResponse` (nunca inclui `senha`), ordenado por `nome` crescente
 ```json
 [
     {
@@ -420,7 +422,7 @@ Lista os usuários da instituição.
 ---
 
 ### **POST** `/instituicoes/{id}/usuarios`
-Cadastra um usuário na instituição. É a única rota que aceita `papel` na entrada.
+Cadastra um operador na instituição. O corpo **não** traz `papel`: quem chama é o `ADMIN_INSTITUICAO`, e quem nasce é sempre `OPERADOR`, vinculado à instituição da rota.
 
 **@caller** `ADMIN_INSTITUICAO` (da própria)
 #### `body`
@@ -428,8 +430,7 @@ Cadastra um usuário na instituição. É a única rota que aceita `papel` na en
 {
     "nome": "Pablo Tamborini",
     "email": "pablo@hemope.gov.br",
-    "senha": "senhaEmTextoPuro",
-    "papel": "OPERADOR"
+    "senha": "senhaEmTextoPuro"
 }
 ```
 #### `201` - HttpStatus.CREATED
@@ -437,9 +438,9 @@ Cadastra um usuário na instituição. É a única rota que aceita `papel` na en
 #### `400` - HttpStatus.BAD_REQUEST
 #### `404` - HttpStatus.NOT_FOUND
 #### `409` - HttpStatus.CONFLICT
-e-mail já cadastrado
+e-mail já cadastrado — o e-mail é único no sistema inteiro, não por instituição, porque é a chave do login
 
-> `ADMIN_SISTEMA` não é atribuível por esta rota.
+> Nenhum papel é atribuível por esta rota. Promover operador a administrador não existe nesta versão.
 
 ---
 
@@ -454,33 +455,27 @@ Retorna um usuário.
 ---
 
 ### **PATCH** `/instituicoes/{id}/usuarios/{uid}`
-Altera papel ou ativa/desativa. Não altera nome, e-mail nem senha — isso é `PATCH /usuarios/{id}`.
+Ativa ou desativa um operador. Não altera papel, nome, e-mail nem senha — isso é `PATCH /usuarios/{id}`.
 
 **@caller** `ADMIN_INSTITUICAO` (da própria)
 #### `body`
 ```json
 {
-    "papel": "OPERADOR",
     "ativo": false
 }
 ```
 #### `200` - HttpStatus.OK
 **@retorna** `UsuarioResponse`
 #### `400` - HttpStatus.BAD_REQUEST
+corpo sem o campo `ativo`
 #### `404` - HttpStatus.NOT_FOUND
+o `{uid}` não existe, **ou** não pertence à instituição `{id}` — os dois casos respondem igual, para não confirmar a existência de usuários de outra instituição
 #### `409` - HttpStatus.CONFLICT
-rebaixaria ou desativaria o **último** `ADMIN_INSTITUICAO`
+o alvo não é `OPERADOR`: o `ADMIN_INSTITUICAO` não pode ser desativado, nem por ele mesmo
 
----
+> A desativação vale a partir da requisição seguinte. O token de quem foi desativado deixa de autenticar e o login dele passa a responder `401`. Reativar devolve o acesso — inclusive para um token antigo que ainda não expirou.
 
-### **DELETE** `/instituicoes/{id}/usuarios/{uid}`
-Remove o usuário da instituição.
-
-**@caller** `ADMIN_INSTITUICAO` · `ADMIN_SISTEMA`
-#### `204` - HttpStatus.NO_CONTENT
-#### `404` - HttpStatus.NOT_FOUND
-#### `409` - HttpStatus.CONFLICT
-removeria o **último** `ADMIN_INSTITUICAO`
+> Não existe remoção de usuário. O histórico de hemocomponente registra `usuarioId`; apagar a pessoa quebraria a rastreabilidade. Desativar é o substituto.
 
 ---
 
@@ -858,20 +853,20 @@ há hemocomponente ainda `RESERVADO` para ela
 
 ## Resumo
 
-**31 rotas** em 8 recursos — ver a [visão macro](#visão-macro) no topo.
+**30 rotas** em 8 recursos — ver a [visão macro](#visão-macro) no topo.
 
 | Recurso | Rotas |
 |---|---|
 | `/auth` | 2 |
 | `/instituicoes` | 6 |
-| `/instituicoes/{id}/usuarios` | 5 |
+| `/instituicoes/{id}/usuarios` | 4 |
 | `/usuarios` | 1 |
 | `/instituicoes/{id}/estoque` | 5 |
 | `/disponibilidade` | 1 |
 | `/hemocomponentes` | 1 |
 | `/requisicoes` | 11 |
 
-Delete físico só para `ADMIN_SISTEMA`, e sempre com `409` quando quebraria rastreabilidade — o histórico de hemocomponente é append-only e nunca é apagado.
+Delete físico só para `ADMIN_SISTEMA`, e sempre com `409` quando quebraria rastreabilidade — o histórico de hemocomponente é append-only e nunca é apagado. Usuário não tem delete nenhum: o histórico aponta para `usuarioId`, então a saída é desativar.
 
 ### Cobertura das HUs
 

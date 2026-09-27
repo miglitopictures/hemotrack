@@ -99,9 +99,13 @@ O `ADMIN_SISTEMA` é o único usuário sem `instituicaoId`: ele pertence à
 operação do HemoTrack, não a um hospital ou hemocentro. Por isso o token
 dele não carrega a claim `instituicaoId`, e `GET /auth/me` devolve
 `instituicao: null`.
-Não existe `TipoUsuario`. O que o usuário pode fazer sai de duas coisas: `papel` (nível de acesso) e `instituicao.tipo` (hospital ou hemocentro). O JWT carrega `usuarioId`, `instituicaoId` e `papel`; `tipo` da instituição é resolvido no service.
+Não existe `TipoUsuario`. O que o usuário pode fazer sai de duas coisas: `papel` (nível de acesso) e `instituicao.tipo` (hospital ou hemocentro). O JWT carrega `usuarioId`, `instituicaoId` e `papel`; `tipo` da instituição é resolvido no service. `papel` e `instituicaoId` também são lidos do banco a cada requisição, e não das claims — mesma razão do status da instituição: o token vive 8 horas e essas coisas mudam no meio do caminho.
 
-O primeiro usuário de uma instituição nasce `ADMIN_INSTITUICAO`, criado na mesma transação do `POST /instituicoes`. Uma instituição nunca fica sem `ADMIN_INSTITUICAO`: rebaixar ou remover o último responde `409`.
+O primeiro usuário de uma instituição nasce `ADMIN_INSTITUICAO`, criado na mesma transação do `POST /instituicoes`. Nesta versão ele é o único administrador dela: todos os demais são `OPERADOR`, cadastrados por ele em `POST /instituicoes/{id}/usuarios` e já vinculados à instituição. Não existe promoção de operador a administrador, e o administrador não pode ser desativado — tentar responde `409`.
+
+`OPERADOR` e `ADMIN_INSTITUICAO` operam as mesmas rotas de negócio; o que cada um faz nelas continua saindo de `instituicao.tipo`. A diferença entre os dois papéis é só a gestão de pessoas: criar e desativar operadores é exclusivo do administrador.
+
+Usuário não é removido, apenas desativado — o histórico de hemocomponente aponta para `usuarioId`.
 
 `senha` nunca sai na resposta — toda saída é `UsuarioResponse`.
 
