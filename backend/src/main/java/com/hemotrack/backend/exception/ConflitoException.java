@@ -26,4 +26,11 @@ public class ConflitoException extends RuntimeException{
                                                             "Já existe usuário com o e-mail " + email + ".");
         return emailEexception;
     }
+
+    public static ConflitoException InstituicaoJaAprovada(Long id) {
+        ConflitoException instituicaJaAprovadaException = new ConflitoException("instituicao-ja-aprovada",
+                                                            "Instituição já aprovada",
+                                                            "A instituição " + id + " já está aprovada.");
+        return instituicaJaAprovadaException;
+    }
 }

@@ -5,7 +5,10 @@ import java.util.List;
 
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import com.hemotrack.backend.exception.ConflitoException;
+import com.hemotrack.backend.exception.NaoEncontradoException;
 import com.hemotrack.backend.model.instituicao.Instituicao;
 import com.hemotrack.backend.model.instituicao.StatusInstituicao;
 import com.hemotrack.backend.model.instituicao.dto.InstituicaoResponse;
@@ -36,5 +39,19 @@ public class InstituicaoService {
         }
 
         return resposta;
+    }
+
+    @Transactional 
+    public  InstituicaoResponse aprovar(Long id) {
+
+        Instituicao instituicao = instituicoes.findById(id).orElse(null);
+
+        if (instituicao == null) throw NaoEncontradoException.instituicao(id);
+        
+        if (instituicao.getStatus() == StatusInstituicao.APROVADA) throw ConflitoException.InstituicaoJaAprovada(id);
+
+        instituicao.setStatus(StatusInstituicao.APROVADA);
+
+        return InstituicaoResponse.de(instituicao);
     }
 }

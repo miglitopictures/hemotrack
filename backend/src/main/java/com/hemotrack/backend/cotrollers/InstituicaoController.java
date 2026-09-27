@@ -44,4 +44,9 @@ public class InstituicaoController {
         
         return instituicaoService.listar(autenticado,  status);
     }
+
+    @PatchMapping ("/{id}/aprovar")
+    public InstituicaoResponse aprovar(@PathVariable Long id) {
+        return instituicaoService.aprovar(id);
+    }
 }
