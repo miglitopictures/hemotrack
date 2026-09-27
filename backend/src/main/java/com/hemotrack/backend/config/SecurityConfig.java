@@ -16,10 +16,17 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final RespostaNaoAutenticado respostaNaoAutanticado;
+    private final RespostaAcessoNegado respostaAcessoNegado;
+    private final InstituicaoAprovada instituicaoAprovada;
 
-    public SecurityConfig(JwtAuthFilter jwtAuthFilter, RespostaNaoAutenticado respostaNaoAutanticado) {
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter,
+                          RespostaNaoAutenticado respostaNaoAutanticado,
+                          RespostaAcessoNegado respostaAcessoNegado,
+                          InstituicaoAprovada instituicaoAprovada) {
         this.jwtAuthFilter = jwtAuthFilter;
         this.respostaNaoAutanticado = respostaNaoAutanticado;
+        this.respostaAcessoNegado = respostaAcessoNegado;
+        this.instituicaoAprovada = instituicaoAprovada;
     }
     
     @Bean 
@@ -36,13 +43,19 @@ public class SecurityConfig {
 
         http.sessionManagement(sessao -> sessao.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
-        http.exceptionHandling(erros -> erros.authenticationEntryPoint(respostaNaoAutanticado));
+        http.exceptionHandling(erros -> {
+            erros.authenticationEntryPoint(respostaNaoAutanticado);
+            erros.accessDeniedHandler(respostaAcessoNegado);
+        });
 
         http.authorizeHttpRequests(regras -> regras
             .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
             .requestMatchers(HttpMethod.POST, "/instituicoes").permitAll()
             .requestMatchers("/h2-console/**").permitAll()
             .requestMatchers("/actuator/**").permitAll()
+            .requestMatchers("/error").permitAll()
+            .requestMatchers(HttpMethod.PATCH, "/instituicoes/*/aprovar").hasRole("ADMIN_SISTEMA")
+            .requestMatchers("/requisicoes/**").access(instituicaoAprovada)
             .anyRequest().authenticated());
         
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

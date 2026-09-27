@@ -78,6 +78,22 @@ Gere um valor para `JWT_SECRET` (mínimo de 32 caracteres) e cole no arquivo:
 O `.env` está no `.gitignore` — cada pessoa gera o seu. As variáveis
 `GRAFANA_*` continuam opcionais: deixe como estão se não for usar telemetria.
 
+### `ADMIN_EMAIL` e `ADMIN_SENHA` (opcionais, mas você vai querer)
+
+Toda instituição nasce `PENDENTE_APROVACAO` e não opera enquanto a operação do
+HemoTrack não aprovar. Quem aprova é um usuário com papel `ADMIN_SISTEMA`, e ele
+não pode ser criado pelo cadastro público — nasce na subida da aplicação, a
+partir destas duas variáveis:
+
+```properties
+ADMIN_EMAIL=admin@hemotrack.dev
+ADMIN_SENHA=escolha-uma-senha
+```
+
+Sem elas a aplicação sobe normalmente e avisa no log, mas aí só dá para aprovar
+instituições por SQL no H2. O admin é criado uma única vez: se já existir um, o
+seed é ignorado, e trocar `ADMIN_SENHA` depois **não** redefine a senha dele.
+
 ## 2. Rodar o backend (terminal 1)
 
 Todos os comandos abaixo devem ser executados **dentro da pasta `backend/`** (é onde fica o `pom.xml` e o wrapper):
@@ -148,6 +164,25 @@ Abrir o arquivo e clicar em **Send Request** acima de cada bloco `###` (no Intel
 - Para encadear um id: `# @name criar` no bloco de origem, `{{criar.response.body.$.id}}` nos seguintes.
 - Enums vão como string. O ordinal (`"tipo": 0`) funciona mas amarra o JSON à ordem de declaração. Não use.
 - Bloco novo = `### <n>. <o que faz>` + um comentário com o esperado (`# Esperado: 409 ...`). É o esperado que transforma o arquivo em teste.
+
+### Aprovando uma instituição
+
+O fluxo completo, do cadastro ao painel:
+
+1. Cadastre pela tela `/cadastro` do front, ou por `POST /instituicoes`. A
+   instituição nasce `PENDENTE_APROVACAO` e o usuário cai na tela
+   **Cadastro em análise**.
+2. Entre como o admin do sistema (`ADMIN_EMAIL` / `ADMIN_SENHA`) em
+   `POST /auth/login` e guarde o token.
+3. Veja quem está esperando:
+   `GET /instituicoes?status=PENDENTE_APROVACAO`, com o token do admin.
+4. Aprove: `PATCH /instituicoes/{id}/aprovar`, também com o token do admin.
+5. De volta ao front, **Verificar novamente** abre o painel. O usuário **não**
+   precisa entrar de novo: o status é lido do banco a cada requisição, não do
+   token.
+
+Erros esperados: `403` se o token não for de `ADMIN_SISTEMA`, `404` para id
+inexistente, `409` ao aprovar algo já aprovado.
 
 ## 6. Conferir o banco
 

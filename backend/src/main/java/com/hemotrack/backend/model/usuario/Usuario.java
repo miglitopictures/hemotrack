@@ -35,8 +35,8 @@ public class Usuario {
     @Column (nullable = false)
     private  boolean ativo = true;
 
-    @NotNull (message = "Id da instituição é obrigatório")
-    @Column (nullable = false)
+    // Nulo apenas para ADMIN_SISTEMA: ele é da operação do HemoTrack e não
+    // pertence a hospital nem a hemocentro.
     private Long instituicaoId;
 
     // Construtores

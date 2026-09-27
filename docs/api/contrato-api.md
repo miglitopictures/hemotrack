@@ -108,6 +108,10 @@ Todos os endpoints do nossa API. O detalhamento de cada rota (body, exemplos, ca
 
 O papel e o `instituicaoId` vêm do JWT. Não existe `TipoUsuario`: se o usuário age como hospital ou como hemocentro é derivado de `instituicao.tipo`.
 
+O `ADMIN_SISTEMA` é o único usuário **sem** `instituicaoId` — ele pertence à operação do HemoTrack, não a um hospital ou hemocentro. O token dele não carrega a claim `instituicaoId`, o `GET /auth/me` devolve `instituicao: null`, e ele recebe `403` nas rotas de negócio: administrar não é operar.
+
+O primeiro `ADMIN_SISTEMA` não nasce por nenhuma rota. Ele é criado na subida da aplicação a partir das variáveis `ADMIN_EMAIL` e `ADMIN_SENHA`, e apenas se ainda não existir nenhum — uma rota pública capaz de criar admin do sistema seria o próprio buraco que a aprovação existe para fechar.
+
 ### Qualificadores de `@caller`
 
 | Termo | Significado |
@@ -143,6 +147,39 @@ O papel e o `instituicaoId` vêm do JWT. Não existe `TipoUsuario`: se o usuári
 ### Paginação
 
 Rotas de listagem aceitam `?page` (default `0`) e `?size` (default `20`, máx `100`).
+
+### Tipos de erro emitidos
+
+O campo `type` é um identificador estável, não um endereço a ser acessado. Clientes devem compará-lo com string fixa; a documentação de cada tipo é esta tabela.
+
+| `type` | Status | Quando |
+|---|---|---|
+| `.../cnpj-duplicado` | `409` | CNPJ já cadastrado |
+| `.../email-em-uso` | `409` | e-mail já cadastrado |
+| `.../instituicao-ja-aprovada` | `409` | aprovar instituição que já estava aprovada |
+| `.../conflito-de-dados` | `409` | constraint do banco (corrida entre requisições) |
+| `.../instituicao-nao-encontrada` | `404` | id inexistente em rota de instituição |
+| `.../validacao` | `400` | falha de validação; traz o array `errors` |
+| `.../credenciais-invalidas` | `401` | login recusado |
+| `.../nao-autenticado` | `401` | token ausente, inválido ou expirado |
+| `.../acesso-negado` | `403` | papel insuficiente ou instituição não aprovada |
+
+Prefixo de todos: `https://hemotrack.dev/erros/`.
+
+### Estado da implementação
+
+O que está no ar e onde o código diverge deste documento.
+
+| Item | Situação |
+|---|---|
+| Prefixo `/api/v1` | **Não implementado.** As rotas respondem na raiz (`/auth/login`, `/instituicoes`). Os exemplos de `instance` abaixo ainda mostram o prefixo. |
+| Paginação (`?page`, `?size`) | **Não implementada.** As listagens devolvem tudo. |
+| CNPJ | Gravado **normalizado**, só com dígitos, para que `12.345.678/0001-90` e `12345678000190` colidam na constraint `unique`. As respostas devolvem os dígitos; formatar é responsabilidade do cliente. |
+| Revogação de token | **Não existe.** Um JWT vale até `exp` (8 horas), mesmo que o usuário seja desativado antes. Mitigar exigiria lista de bloqueio ou refresh token. |
+| Status da instituição | **Não** vai no token, de propósito: muda quando a operação aprova, e o token viveria horas desatualizado. É lido do banco a cada requisição de negócio — por isso a aprovação passa a valer na hora, sem novo login. |
+| Token no cliente | O front guarda o JWT em `localStorage`, legível por qualquer JavaScript da página. Um XSS levaria o token junto; a mitigação real seria cookie `httpOnly`. |
+
+Rotas implementadas até aqui: `POST /auth/login`, `GET /auth/me`, `POST /instituicoes`, `GET /instituicoes`, `PATCH /instituicoes/{id}/aprovar`. As demais seguem especificadas e pendentes.
 
 ---
 
@@ -267,7 +304,11 @@ Lista instituições **aprovadas**. É o que o hospital usa para achar hemocentr
 
 **@caller** `AUTENTICADO`
 #### `query`
-`tipo`, `municipio`, `page`, `size`
+`status`, `tipo`, `municipio`, `page`, `size`
+
+Sem `status`, devolve as `APROVADA`. Pedir qualquer outro valor é privilégio do `ADMIN_SISTEMA` — é assim que a operação encontra os cadastros a aprovar (`?status=PENDENTE_APROVACAO`). Para os demais papéis, `403`.
+
+A restrição vive no service, não numa regra de caminho: a URL é a mesma para todos e o que muda é o parâmetro, que as regras de caminho do Spring Security não enxergam.
 #### `200` - HttpStatus.OK
 **@retorna** array de `Instituicao`
 ```json

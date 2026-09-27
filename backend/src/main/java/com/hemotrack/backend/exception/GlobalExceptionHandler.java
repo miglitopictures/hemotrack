@@ -63,4 +63,12 @@ public class GlobalExceptionHandler {
         return problema;
     }
 
+    @ExceptionHandler (NaoEncontradoException.class)
+    public  ProblemDetail tratarNaoEncontrado(NaoEncontradoException ex) {
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problema.setType(URI.create(BASE_TIPO + ex.getCodigo()));
+        problema.setTitle(ex.getTitulo());        
+        return problema;
+    }
+
 }
