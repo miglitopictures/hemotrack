@@ -3,11 +3,11 @@ package com.hemotrack.backend.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -171,7 +171,7 @@ class RequisicaoServiceTest {
         // aqui estamos usando 'motivo', parametro do teste que sera, nesse caso, "", "   " e null.
         Throwable erro = catchThrowable(() -> service.recusar(motivo, 1L));
         
-        //
+        // verificar
         assertThat(erro).isInstanceOf(ResponseStatusException.class);
         ResponseStatusException erroHttp = (ResponseStatusException) erro;
         assertThat(erroHttp.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
@@ -196,15 +196,16 @@ class RequisicaoServiceTest {
     }
 
     // ATUALIZAR //
-
+    
     // NOTA: metodo atualizar() muda a prioridade mesmo de uma requisição RECUSADA ou ATENDIDA.
     // potencialmente um furo de regra e é candidato a um ciclo red -> green depois.
 
+    @Test 
     void atualizar_mudaApenasPrioridade() {
         // preparar
         Requisicao requisicaoSalva = requisicaoAberta();
         
-        Requisicao requisicaoNova = requisicaoSalva;
+        Requisicao requisicaoNova = requisicaoAberta();
         requisicaoNova.setvolumeMl(900.0);
         requisicaoNova.setAbo(TipoABO.AB);
         requisicaoNova.setPrioridade(Prioridade.EMERGENCIA);
@@ -214,12 +215,42 @@ class RequisicaoServiceTest {
 
         // executar
         Requisicao resultado = service.atualizar(requisicaoNova, 1L);
-
+        
         // verificar
         assertThat(resultado.getPrioridade()).isEqualTo(requisicaoNova.getPrioridade());
-        assertThat(resultado.getAbo()).isNotEqualTo(requisicaoNova.getAbo());
-        assertThat(resultado.getVolumeMl()).isNotEqualTo(requisicaoNova.getVolumeMl());
-        verify(repository, atLeastOnce()).save(any());
+        assertThat(resultado.getAbo()).isEqualTo(TipoABO.O);
+        assertThat(resultado.getVolumeMl()).isEqualTo(450.0);
+        verify(repository).save(requisicaoSalva);
+    }
+
+    // LISTAR TODOS //
+
+    @Test 
+    void listarTodos_comHospitalId_filtraPorHospital() {
+        // preparar
+        Requisicao requisicao = requisicaoAberta();
+        when(repository.findByHospitalId(10L)).thenReturn(List.of(requisicao));
+        
+        // executar
+        List<Requisicao> resultado = service.listarTodos(10L);
+
+        // verificar
+        assertThat(resultado).containsExactly(requisicao);
+        verify(repository, never()).findAll();
+    }
+
+    @Test 
+    void listarTodos_semHospitalId_retornaTodas() {
+        // preparar
+        Requisicao requisicao = requisicaoAberta();
+        when(repository.findAll()).thenReturn(List.of(requisicao));
+        
+        // executar
+        List<Requisicao> resultado = service.listarTodos(null);
+
+        // verificar
+        assertThat(resultado).containsExactly(requisicao);
+        verify(repository).findAll();
     }
 
 }
