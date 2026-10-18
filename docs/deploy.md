@@ -34,8 +34,13 @@ Roda sempre (push ou PR):
 3. Roda `./mvnw -B clean verify` dentro de `backend/` — compila e executa os testes
 4. Sobe o relatório de testes (`surefire-reports`) como artefato do GitHub Actions
 
+### Job `docker-image`
+Roda depois do `build-and-test`:
+1. Faz `docker build` do backend com o mesmo Dockerfile que o Render usa
+2. O primeiro estágio do Dockerfile compila e roda os testes de novo, dentro do container; se o Dockerfile ou um teste quebrar, o deploy não acontece
+
 ### Job `deploy`
-Roda **somente** quando `build-and-test` passa **e** o evento é um `push` direto na `main` (não roda em Pull Requests, para não publicar código ainda não revisado):
+Roda **somente** quando `build-and-test`, `build-frontend` e `docker-image` passam **e** o evento é um `push` direto na `main` (não roda em Pull Requests, para não publicar código ainda não revisado):
 1. Chama o **Deploy Hook** do Render via `curl -X POST`
 2. A URL do hook fica no secret `RENDER_DEPLOY_HOOK_URL` (GitHub → repositório → Settings → Secrets and variables → Actions) — nunca é exposta no código
 
@@ -120,6 +125,19 @@ curl https://hemotrack-8ecl.onrender.com/actuator/health
 ```
 
 Esperado: `{"status":"UP"}`. Se não responder (descontado o cold start de 30–60s), veja os logs em Render → o serviço → **Logs**.
+
+---
+
+## Proteção da `main`
+
+A `main` exige pull request com os checks `build-and-test`, `build-frontend` e `docker-image` verdes, não aceita push direto nem force push, e a regra vale também para administradores (GitHub Flow). O job `deploy` não é check obrigatório porque só roda em push na `main`.
+
+---
+
+## Rollback
+
+1. **Pelo Render (segundos):** o serviço → **Events / Deploys** → escolher o último deploy que funcionou → **Rollback**.
+2. **Pelo Git (com registro):** `git revert <commit>` numa branch → PR → merge. A esteira roda e publica a versão sem o commit problemático.
 
 ---
 
