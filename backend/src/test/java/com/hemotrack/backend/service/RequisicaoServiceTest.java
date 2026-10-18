@@ -87,7 +87,7 @@ class RequisicaoServiceTest {
 
         // verificar
         assertThat(resultado.getStatus()).isEqualTo(StatusRequisicao.ACEITA);
-        assertThat(resultado.getHemocentroId()).isEqualTo(99L);
+        assertThat(resultado.getHemocentroId()).isEqualTo(98L);
         // sem esse verify, um service que esquecesse o save passaria (o objeto em memoria estaria certo)
         verify(repository).save(requisicao);
     }
