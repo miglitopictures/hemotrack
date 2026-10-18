@@ -12,6 +12,8 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -49,6 +51,7 @@ class MembroServiceTest {
 
     private static final Long ID_INSTITUICAO = 5L;
     private static final Long ID_OUTRA_INSTITUICAO = 7L;
+    private static final Long ID_MEMBRO = 20L;
 
 
 
@@ -67,6 +70,13 @@ class MembroServiceTest {
     private Usuario membro(Papel papel) {
         Usuario usuario =  new Usuario("Joao Silva", "joao@hemope.com", "hash", papel, ID_INSTITUICAO);
         return usuario;
+    }
+
+    // libera o exigirAcessoAInstituicao: admin da propria instituicao, instituicao aprovada.
+    // so usar em testes que de fato passam pelo controle de acesso (modo estrito).
+    private UsuarioAutenticado prepararAcessoLiberado() {
+        when(instituicoes.findById(ID_INSTITUICAO)).thenReturn(Optional.of(instituicaoAprovada()));
+        return autenticadoComPapel(Papel.ADMIN_INSTITUICAO);
     }
 
     // LISTAR //
@@ -185,5 +195,75 @@ class MembroServiceTest {
         verify(usuarios, never()).save(any());
         verify(encoder, never()).encode(any());
     }
-}
 
+    // ALTERNAR ATIVO //
+
+    // roda 2x: desativar (false) e reativar (true)
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void alternarAtivo_operador_mudaParaValorPedido(boolean ativo) {
+        // preparar
+        UsuarioAutenticado admin = prepararAcessoLiberado();
+        Usuario membro = membro(Papel.OPERADOR);
+        membro.setAtivo(!ativo); // comeca no estado oposto ao pedido
+        when(usuarios.findById(ID_MEMBRO)).thenReturn(Optional.of(membro));
+
+        // executar
+        UsuarioResponse resultado = service.alternarAtivo(admin, ID_INSTITUICAO, ID_MEMBRO, ativo);
+
+        // verificar
+        assertThat(membro.isAtivo()).isEqualTo(ativo);     // entidade (o que o JPA gravaria)
+        assertThat(resultado.ativo()).isEqualTo(ativo);    // resposta da API
+    }
+
+    @Test
+    void alternarAtivo_usuarioInexistente_lancaNaoEncontrado() {
+        // preparar
+        UsuarioAutenticado admin = prepararAcessoLiberado();
+        when(usuarios.findById(ID_MEMBRO)).thenReturn(Optional.empty());
+
+        // executar
+        Throwable erro = catchThrowable(() -> service.alternarAtivo(admin, ID_INSTITUICAO, ID_MEMBRO, false));
+
+        // verificar
+        assertThat(erro).isInstanceOf(NaoEncontradoException.class);
+        NaoEncontradoException naoEncontrado = (NaoEncontradoException) erro;
+        assertThat(naoEncontrado.getCodigo()).isEqualTo("usuario-nao-encontrado");
+    }
+
+    // membro de outra instituicao responde 404 (e nao 403) para nao revelar que o id existe
+    @Test
+    void alternarAtivo_membroDeOutraInstituicao_lancaNaoEncontradoENaoAltera() {
+        // preparar
+        UsuarioAutenticado admin = prepararAcessoLiberado();
+        Usuario membro = membro(Papel.OPERADOR);
+        membro.setInstituicaoId(ID_OUTRA_INSTITUICAO);
+        when(usuarios.findById(ID_MEMBRO)).thenReturn(Optional.of(membro));
+
+        // executar
+        Throwable erro = catchThrowable(() -> service.alternarAtivo(admin, ID_INSTITUICAO, ID_MEMBRO, false));
+
+        // verificar
+        assertThat(erro).isInstanceOf(NaoEncontradoException.class);
+        NaoEncontradoException naoEncontrado = (NaoEncontradoException) erro;
+        assertThat(naoEncontrado.getCodigo()).isEqualTo("usuario-nao-encontrado");
+        assertThat(membro.isAtivo()).isTrue();
+    }
+
+    @Test
+    void alternarAtivo_admin_lancaConflitoENaoAltera() {
+        // preparar
+        UsuarioAutenticado admin = prepararAcessoLiberado();
+        Usuario membroAdmin = membro(Papel.ADMIN_INSTITUICAO);
+        when(usuarios.findById(ID_MEMBRO)).thenReturn(Optional.of(membroAdmin));
+
+        // executar
+        Throwable erro = catchThrowable(() -> service.alternarAtivo(admin, ID_INSTITUICAO, ID_MEMBRO, false));
+
+        // verificar
+        assertThat(erro).isInstanceOf(ConflitoException.class);
+        ConflitoException conflito = (ConflitoException) erro;
+        assertThat(conflito.getCodigo()).isEqualTo("tentou-desativar-admin");
+        assertThat(membroAdmin.isAtivo()).isTrue();
+    }
+}
