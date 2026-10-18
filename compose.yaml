@@ -1,0 +1,54 @@
+# Sobe o HemoTrack do zero com um comando:
+#   cp .env.example .env   (e preencha os valores)
+#   docker compose up -d --build
+#
+# Os servicos se encontram pela rede padrao que o Compose cria para o projeto:
+# dentro dela, o nome do servico vira o host (a API acessa o banco em "db:5432").
+
+services:
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-hemotrack}
+      POSTGRES_USER: ${POSTGRES_USER:-hemotrack}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+    volumes:
+      # volume nomeado: os dados sobrevivem a "docker compose down" (so somem com "down -v")
+      - dados-postgres:/var/lib/postgresql/data
+    healthcheck:
+      # "pronto" = o Postgres aceita conexoes, nao apenas o container estar de pe
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build: ./backend
+    ports:
+      - "8080:8080"
+    environment:
+      # perfil prod (definido no ENTRYPOINT do Dockerfile) le estas variaveis
+      DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-hemotrack}
+      DB_USERNAME: ${POSTGRES_USER:-hemotrack}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET no .env (minimo 32 caracteres)}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_SENHA: ${ADMIN_SENHA:-}
+      GRAFANA_OTLP_ENABLED: "false"
+    depends_on:
+      db:
+        # so inicia a API depois que o healthcheck do banco passar
+        condition: service_healthy
+    healthcheck:
+      # /actuator/health devolve {"status":"UP"} quando a API e a conexao com o banco estao ok
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    restart: unless-stopped
+
+volumes:
+  dados-postgres:
