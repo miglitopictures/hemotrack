@@ -31,35 +31,46 @@ import com.hemotrack.backend.repositories.InstituicaoRepository;
 
 @ExtendWith (MockitoExtension.class)
 class InstituicaoServiceTest {
+
+    /* Repositorio Falso */
+    // sem banco: cada teste programa so o que precisa com when(...).
     @Mock 
     private InstituicaoRepository instituicoes;
 
+    /* Service Verdadeiro */
+    // e o que estamos testando; recebe o repositorio mock no construtor.
     @InjectMocks 
     private  InstituicaoService service;
 
+    // o construtor de Instituicao ja define o status como PENDENTE_APROVACAO.
+    // cada chamada devolve um objeto novo (os testes alteram o status).
     private Instituicao instituicaoPendente() {
         Instituicao novaInsituicaoPendente = new Instituicao("Hemope", "12345678000190", TipoInstituicao.HEMOCENTRO,
                                                          "Rua Joaquim Nabuco, 171", "Recife", null);
         return novaInsituicaoPendente;
     }
 
+    // nas regras do service so o papel importa; ids sao fixos.
     private UsuarioAutenticado usuarioComPapel(Papel papel) {
         UsuarioAutenticado novoUsuario = new UsuarioAutenticado(1L, 5L, papel);
         return novoUsuario;
     }
 
     // LISTAR //
+    // regra: sem filtro, lista so APROVADAS; qualquer outro status e exclusivo do ADMIN_SISTEMA.
 
     @Test 
     void listar_semFiltro_usaAprovada() {
         // preparar
         Instituicao instituicao = instituicaoPendente();
-        instituicao.setStatus(StatusInstituicao.APROVADA);
+        instituicao.setStatus(StatusInstituicao.APROVADA); // dado coerente com o filtro esperado
         UsuarioAutenticado usuarioOperador = usuarioComPapel(Papel.OPERADOR);
+        // o stub so responde para APROVADA: se o service usasse outro filtro,
+        // o mock devolveria lista vazia e o hasSize(1) falharia.
         when(instituicoes.findByStatus(StatusInstituicao.APROVADA)).thenReturn(List.of(instituicao));
 
         // executar
-        List<InstituicaoResponse> resultado = service.listar(usuarioOperador, null);
+        List<InstituicaoResponse> resultado = service.listar(usuarioOperador, null); // null = sem filtro
 
         // verificar
         assertThat(resultado).hasSize(1);
@@ -81,55 +92,71 @@ class InstituicaoServiceTest {
         assertThat(resultado.get(0).status()).isEqualTo(StatusInstituicao.PENDENTE_APROVACAO);
     }
 
+    // roda 1x para cada papel listado em names (os que NAO podem ver pendentes).
+    // sem o filtro names, rodaria tambem com ADMIN_SISTEMA, que deve passar.
     @ParameterizedTest 
     @EnumSource (value = Papel.class, names = {"ADMIN_INSTITUICAO", "OPERADOR"}) 
     void listar_pendente_naoAdminSistema_lancaAcessoNegado(Papel papel) {
         // preparar
         UsuarioAutenticado usuario = usuarioComPapel(papel);
+        // sem when(...): o service barra antes de consultar o repositorio.
 
         // executar
         Throwable erro = catchThrowable(() -> service.listar(usuario, StatusInstituicao.PENDENTE_APROVACAO));
 
         // verificar
-        assertThat(erro).isInstanceOf(AccessDeniedException.class);
-        verify(instituicoes, never()).findByStatus(any());
+        assertThat(erro).isInstanceOf(AccessDeniedException.class); // org.springframework.security.access, nao java.nio
+        verify(instituicoes, never()).findByStatus(any());          // usuario barrado nem chega no banco
     }
 
     // APROVAR //
+    // aprovar() NAO chama save: o @Transactional grava sozinho no fim do metodo
+    // (dirty checking do JPA). Sem Spring no teste unitario, conferimos o estado
+    // do objeto; a gravacao real fica para o teste de integracao.
 
     @Test 
     void aprovar_pendente_mudaParaAprovada() {
+        // preparar
         Instituicao instituicao = instituicaoPendente();
         when(instituicoes.findById(1L)).thenReturn(Optional.of(instituicao));
     
+        // executar
         InstituicaoResponse resultado = service.aprovar(1L);
 
-        assertThat(instituicao.getStatus()).isEqualTo(StatusInstituicao.APROVADA);
-        assertThat(resultado.status()).isEqualTo(StatusInstituicao.APROVADA);
+        // verificar
+        assertThat(instituicao.getStatus()).isEqualTo(StatusInstituicao.APROVADA); // entidade (o que o JPA gravaria)
+        assertThat(resultado.status()).isEqualTo(StatusInstituicao.APROVADA);      // resposta da API
     }
 
     @Test 
     void aprovar_idInexistente_lancaNaoEncontrado() {
+        // preparar
         when(instituicoes.findById(1L)).thenReturn(Optional.empty());
     
+        // executar
         Throwable erro = catchThrowable(() -> service.aprovar(1L));
 
+        // verificar
         assertThat(erro).isInstanceOf(NaoEncontradoException.class);
         NaoEncontradoException naoEncontrado = (NaoEncontradoException) erro;
+        // o tipo serve para instituicao E usuario; o codigo diferencia (e e o que o front recebe no JSON)
         assertThat(naoEncontrado.getCodigo()).isEqualTo("instituicao-nao-encontrada");
     }
 
     @Test 
     void aprovar_jaAprovada_lancaConflito() {
+        // preparar
         Instituicao instituicao = instituicaoPendente();
         instituicao.setStatus(StatusInstituicao.APROVADA);
         when(instituicoes.findById(1L)).thenReturn(Optional.of(instituicao));
     
+        // executar
         Throwable erro = catchThrowable(() -> service.aprovar(1L));
 
+        // verificar
         assertThat(erro).isInstanceOf(ConflitoException.class);
-        ConflitoException naoEncontrado = (ConflitoException) erro;
-        assertThat(naoEncontrado.getCodigo()).isEqualTo("instituicao-ja-aprovada");
+        ConflitoException conflito = (ConflitoException) erro;
+        assertThat(conflito.getCodigo()).isEqualTo("instituicao-ja-aprovada");
     }
 
 }
