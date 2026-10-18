@@ -13,6 +13,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
@@ -211,8 +212,8 @@ class RequisicaoServiceTest {
 
     // ATUALIZAR //
     
-    // NOTA: metodo atualizar() muda a prioridade mesmo de uma requisição RECUSADA ou ATENDIDA.
-    // potencialmente um furo de regra e é candidato a um ciclo red -> green depois.
+    // regra nova (TDD - ciclo B): so requisicao ABERTA pode ser atualizada.
+    // antes, atualizar() mudava a prioridade ate de uma requisicao RECUSADA ou ATENDIDA.
 
     @Test 
     void atualizar_mudaApenasPrioridade() {
@@ -239,6 +240,31 @@ class RequisicaoServiceTest {
         assertThat(resultado.getAbo()).isEqualTo(TipoABO.O);
         assertThat(resultado.getVolumeMl()).isEqualTo(450.0);
         verify(repository).save(requisicaoSalva);
+    }
+
+    // roda 1x para cada status que NAO e ABERTA (mode = EXCLUDE inverte o filtro names):
+    // ACEITA, ALOCADA, ATENDIDA, RECUSADA e CANCELADA.
+    @ParameterizedTest
+    @EnumSource(value = StatusRequisicao.class, names = {"ABERTA"}, mode = EnumSource.Mode.EXCLUDE)
+    void atualizar_requisicaoNaoAberta_lanca409ENaoAltera(StatusRequisicao status) {
+        // preparar
+        Requisicao requisicaoSalva = requisicaoAberta();
+        requisicaoSalva.setStatus(status);
+
+        Requisicao requisicaoNova = requisicaoAberta();
+        requisicaoNova.setPrioridade(Prioridade.EMERGENCIA);
+
+        when(repository.findById(1L)).thenReturn(Optional.of(requisicaoSalva));
+
+        // executar
+        Throwable erro = catchThrowable(() -> service.atualizar(requisicaoNova, 1L));
+
+        // verificar
+        assertThat(erro).isInstanceOf(ResponseStatusException.class);
+        ResponseStatusException erroHttp = (ResponseStatusException) erro;
+        assertThat(erroHttp.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(requisicaoSalva.getPrioridade()).isEqualTo(Prioridade.NORMAL); // nao mexeu no objeto
+        verify(repository, never()).save(any());
     }
 
     // LISTAR TODOS //
