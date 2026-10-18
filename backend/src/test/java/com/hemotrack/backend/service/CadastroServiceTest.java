@@ -19,6 +19,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.hemotrack.backend.exception.ConflitoException;
+import com.hemotrack.backend.exception.DadosInvalidosException;
 import com.hemotrack.backend.model.instituicao.Instituicao;
 import com.hemotrack.backend.model.instituicao.StatusInstituicao;
 import com.hemotrack.backend.model.instituicao.TipoInstituicao;
@@ -172,5 +173,30 @@ class CadastroServiceTest {
         verify(instituicoes, never()).save(any());
         verify(usuarios, never()).save(any());
         verify(encoder, never()).encode(any());
+    }
+
+    // VALIDACAO DO CNPJ //
+    // regra nova (TDD - ciclo C): depois de normalizado, o CNPJ precisa ter exatamente 14 digitos.
+    // antes, "abc" virava "" e era aceito. O erro aponta o campo "instituicao.cnpj", o mesmo
+    // caminho que o front (cadastro.tsx) usa para marcar o input em vermelho.
+
+    @ParameterizedTest
+    @ValueSource(strings = {"abc", "123", "12.345.678/0001-9", "123456780001900"})
+    void cadastrar_cnpjSemQuatorzeDigitos_lancaDadosInvalidosENaoConsultaBanco(String cnpj) {
+        // preparar
+        CadastroRequest requisicao = requisicaoComCnpj(cnpj);
+
+        // executar
+        Throwable erro = catchThrowable(() -> service.cadastrar(requisicao));
+
+        // verificar
+        assertThat(erro).isInstanceOf(DadosInvalidosException.class);
+        DadosInvalidosException dadosInvalidos = (DadosInvalidosException) erro;
+        assertThat(dadosInvalidos.getCampo()).isEqualTo("instituicao.cnpj");
+
+        // formato invalido e barrado antes de qualquer consulta ou gravacao
+        verify(instituicoes, never()).existsByCnpj(any());
+        verify(instituicoes, never()).save(any());
+        verify(usuarios, never()).save(any());
     }
 }

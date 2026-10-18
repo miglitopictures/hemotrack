@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.hemotrack.backend.exception.ConflitoException;
+import com.hemotrack.backend.exception.DadosInvalidosException;
 import com.hemotrack.backend.model.instituicao.Instituicao;
 import com.hemotrack.backend.model.instituicao.dto.CadastroRequest;
 import com.hemotrack.backend.model.instituicao.dto.CadastroResponse;
@@ -40,6 +41,12 @@ public class CadastroService {
     
         String cnpj = normalizarCnpj(dadosInstituicao.cnpj());
         String email = normalizarEmail(dadosAdministrador.email());
+
+        // formato primeiro: depois de normalizado, o CNPJ precisa ter exatamente 14 digitos
+        // ("abc" vira "" e nao pode passar). Barra antes de qualquer consulta ao banco.
+        if (cnpj.length() != 14) {
+            throw DadosInvalidosException.cnpjInvalido();
+        }
         
         // validamos o cnpj
         if (instituicoes.existsByCnpj(cnpj)) {

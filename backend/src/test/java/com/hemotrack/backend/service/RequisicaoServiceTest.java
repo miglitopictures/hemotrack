@@ -13,6 +13,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
@@ -48,6 +49,8 @@ class RequisicaoServiceTest {
 
 
     // factory utilitaria para nao termos que ficar sempre preenchendo manualmente o constructor da requisicao
+    // o status nao esta no construtor: nasce ABERTA pelo valor padrao do campo no model.
+    // cada chamada cria um objeto NOVO (os testes alteram status, volume etc.).
     private Requisicao requisicaoAberta() {
         Requisicao novaRequisicao = new Requisicao(1L, null, 10L, TipoHemocomponente.HEMACIAS,
                                                    TipoABO.O, FatorRh.NEGATIVO, 450.0, Prioridade.NORMAL);
@@ -68,20 +71,24 @@ class RequisicaoServiceTest {
     */
 
     // ACEITAR // 
+    // regra: so requisicao ABERTA pode ser aceita; guarda qual hemocentro aceitou.
 
     @Test 
     void aceitar_requisicaoAberta_mudaParaAceitaEGuardaHemocentroId() {
         // preparar
         Requisicao requisicao = requisicaoAberta();
+        // aceitar() comeca pelo buscarPorId: sem esse stub, o service lancaria 404 antes da regra
         when(repository.findById(1L)).thenReturn(Optional.of(requisicao));
+        // o save do mock devolve null por padrao; aqui ele devolve o proprio objeto recebido (como o save real)
         when(repository.save(any(Requisicao.class))).thenAnswer(inv -> inv.getArgument(0));
         
         // executar
-        Requisicao resultado = service.aceitar(1L, 99L);
+        Requisicao resultado = service.aceitar(1L, 99L); // (id da requisicao, id do hemocentro)
 
         // verificar
         assertThat(resultado.getStatus()).isEqualTo(StatusRequisicao.ACEITA);
         assertThat(resultado.getHemocentroId()).isEqualTo(99L);
+        // sem esse verify, um service que esquecesse o save passaria (o objeto em memoria estaria certo)
         verify(repository).save(requisicao);
     }
     
@@ -90,11 +97,12 @@ class RequisicaoServiceTest {
         
         // preparar
         Requisicao requisicao = requisicaoAberta();
-        requisicao.setStatus(StatusRequisicao.ACEITA);
+        requisicao.setStatus(StatusRequisicao.ACEITA); // cenario proibido: ja foi aceita
         when(repository.findById(1L)).thenReturn(Optional.of(requisicao));
-    
+        // sem stub de save: o service lanca antes (stub sem uso faria o modo estrito falhar)
 
         // executar
+        // catchThrowable so executa e captura a excecao; quem verifica e o bloco abaixo
         Throwable erro = catchThrowable(() -> service.aceitar(1L,99L));
 
         // verificar
@@ -103,7 +111,7 @@ class RequisicaoServiceTest {
         ResponseStatusException erroHttp = (ResponseStatusException) erro;
         assertThat(erroHttp.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         
-        verify(repository, never()).save(any());
+        verify(repository, never()).save(any()); // lancar o erro nao basta: nada pode ter sido persistido
     }
 
     // BUSCAR POR ID //
@@ -118,12 +126,14 @@ class RequisicaoServiceTest {
         Requisicao resultado = service.buscarPorId(1L);
 
         // verificar
+        // isSameAs compara a instancia (==): o service so repassa o que o repositorio encontrou
         assertThat(resultado).isSameAs(requisicao);
     }
 
     @Test 
     void buscarPorId_idNaoExiste_lanca404() {
         // preparar
+        // Optional.empty() ja e o padrao do mock, mas escrever documenta o cenario: "o banco nao tem esse id"
         when(repository.findById(1L)).thenReturn(Optional.empty());
     
         // executar
@@ -137,6 +147,8 @@ class RequisicaoServiceTest {
 
 
     // RECUSAR //
+    // regra: so requisicao ABERTA pode ser recusada, e o motivo e obrigatorio.
+    // atencao a ordem dos parametros: recusar(motivo, id), o contrario do aceitar(id, hemocentroId).
 
     @Test 
     void recusar_requisicaoAbertaComMotivo_mudaParaRecusadaEGuardaMotivo() {
@@ -144,6 +156,7 @@ class RequisicaoServiceTest {
         String motivo = "Estoque insuficiente."; 
         Requisicao requisicao = requisicaoAberta();
         when(repository.findById(1L)).thenReturn(Optional.of(requisicao));
+        // sem esse stub, resultado seria null e o getStatus() abaixo daria NullPointerException
         when(repository.save(any(Requisicao.class))).thenAnswer(inv -> inv.getArgument(0));
         
         // executar
@@ -178,6 +191,8 @@ class RequisicaoServiceTest {
         verify(repository, never()).save(any());
     }
 
+    // documenta a ORDEM das validacoes: o status e checado antes do motivo.
+    // se alguem inverter os dois if no service, a resposta vira 400 e este teste quebra.
     @Test
     void recusar_requisicaoNaoAberta_lanca409MesmoSemMotivo() {
         // preparar
@@ -186,7 +201,7 @@ class RequisicaoServiceTest {
         when(repository.findById(1L)).thenReturn(Optional.of(requisicao));
         
         // executar
-        Throwable erro = catchThrowable(() -> service.recusar("", 1L));
+        Throwable erro = catchThrowable(() -> service.recusar("", 1L)); // motivo vazio de proposito
         
         // verificar
         assertThat(erro).isInstanceOf(ResponseStatusException.class);
@@ -197,14 +212,16 @@ class RequisicaoServiceTest {
 
     // ATUALIZAR //
     
-    // NOTA: metodo atualizar() muda a prioridade mesmo de uma requisição RECUSADA ou ATENDIDA.
-    // potencialmente um furo de regra e é candidato a um ciclo red -> green depois.
+    // regra nova (TDD - ciclo B): so requisicao ABERTA pode ser atualizada.
+    // antes, atualizar() mudava a prioridade ate de uma requisicao RECUSADA ou ATENDIDA.
 
     @Test 
     void atualizar_mudaApenasPrioridade() {
         // preparar
         Requisicao requisicaoSalva = requisicaoAberta();
         
+        // precisa ser uma instancia NOVA: "requisicaoNova = requisicaoSalva" apontaria para o mesmo
+        // objeto, e alterar uma alteraria a outra. Todos os campos diferentes do original:
         Requisicao requisicaoNova = requisicaoAberta();
         requisicaoNova.setvolumeMl(900.0);
         requisicaoNova.setAbo(TipoABO.AB);
@@ -218,12 +235,41 @@ class RequisicaoServiceTest {
         
         // verificar
         assertThat(resultado.getPrioridade()).isEqualTo(requisicaoNova.getPrioridade());
+        // comparar com o valor ORIGINAL exato (e nao "diferente do novo"): prova que o campo nao foi
+        // copiado, e quebra se alguem trocar o metodo por um "copia tudo"
         assertThat(resultado.getAbo()).isEqualTo(TipoABO.O);
         assertThat(resultado.getVolumeMl()).isEqualTo(450.0);
         verify(repository).save(requisicaoSalva);
     }
 
+    // roda 1x para cada status que NAO e ABERTA (mode = EXCLUDE inverte o filtro names):
+    // ACEITA, ALOCADA, ATENDIDA, RECUSADA e CANCELADA.
+    @ParameterizedTest
+    @EnumSource(value = StatusRequisicao.class, names = {"ABERTA"}, mode = EnumSource.Mode.EXCLUDE)
+    void atualizar_requisicaoNaoAberta_lanca409ENaoAltera(StatusRequisicao status) {
+        // preparar
+        Requisicao requisicaoSalva = requisicaoAberta();
+        requisicaoSalva.setStatus(status);
+
+        Requisicao requisicaoNova = requisicaoAberta();
+        requisicaoNova.setPrioridade(Prioridade.EMERGENCIA);
+
+        when(repository.findById(1L)).thenReturn(Optional.of(requisicaoSalva));
+
+        // executar
+        Throwable erro = catchThrowable(() -> service.atualizar(requisicaoNova, 1L));
+
+        // verificar
+        assertThat(erro).isInstanceOf(ResponseStatusException.class);
+        ResponseStatusException erroHttp = (ResponseStatusException) erro;
+        assertThat(erroHttp.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(requisicaoSalva.getPrioridade()).isEqualTo(Prioridade.NORMAL); // nao mexeu no objeto
+        verify(repository, never()).save(any());
+    }
+
     // LISTAR TODOS //
+    // a regra e QUAL metodo do repositorio e chamado: com hospitalId filtra, sem hospitalId traz tudo.
+    // por isso os verify sao o centro destes testes.
     
     @Test 
     void listarTodos_comHospitalId_filtraPorHospital() {
@@ -254,6 +300,8 @@ class RequisicaoServiceTest {
     }
     
     // REMOVER //
+    // remover() e void: nao ha retorno para o assertThat. O unico efeito visivel e a chamada
+    // ao delete, e quem confere isso e o verify. delete tambem e void: nao precisa de stub.
 
     @Test 
     void remover_idExiste_deletaRequisicao() {
