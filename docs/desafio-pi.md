@@ -98,7 +98,7 @@ Três regras novas entraram com o teste **antes** do código. Cada uma tem um co
 | B | `atualizar` só com requisição ABERTA → 409 | `test: só requisição ABERTA pode ser atualizada` | `feat: só permite atualizar requisição ABERTA` | falha de assert |
 | C | CNPJ precisa ter 14 dígitos → 400 | `test: CNPJ precisa ter 14 dígitos depois de normalizado` | `feat: rejeita CNPJ que não tenha 14 dígitos` | falha de compilação (a exceção ainda não existia) |
 
-Evidências: ciclo A no CI [vermelho](./evidencias/e2-ci-vermelho.png) ([log](./evidencias/e2-ci-vermelho-logs.png)) e [verde](./evidencias/e2-ci-verde.png); histórico de commits red -> green em [`ciclo-red-green.png`](./evidencias/ciclo-red-green.png); PR dos testes unitários verde em [`e2-ci-00-passed1.png`](./evidencias/e2-ci-00-passed1.png).
+As imagens do vermelho e do verde do ciclo A estão em [Evidências](#e2--tdd).
 
 ### Quais regras ganharam teste primeiro, e por quê
 
@@ -178,16 +178,59 @@ Nenhum segredo está no repositório.
 
 ### Evidências
 
-| O quê | Arquivo |
-|---|---|
-| Execução **vermelha** que barrou o deploy (teste quebrado de propósito na `main`; `deploy` *skipped*) | [`e3-vermelho-barrou-deploy.png`](./evidencias/e3-vermelho-barrou-deploy.png) |
-| Correção publicada de novo | [`e3-revert-change.png`](./evidencias/e3-revert-change.png) |
-| Execução **verde** que publicou (4 jobs verdes) | [`e3-verde-deploy.png`](./evidencias/e3-verde-deploy.png) |
-| Produção respondendo `UP` | [`e3-producao-up.png`](./evidencias/e3-producao-up.png) |
-| `main` protegida com checks obrigatórios | [`e3-main-protegida.png`](./evidencias/e3-main-protegida.png) |
-| `docker compose ps` com os serviços `healthy` | [`e1-compose-ps.png`](./evidencias/e1-compose-ps.png) |
-| API do Compose respondendo `UP` | [`e1-api-health.png`](./evidencias/e1-api-health.png) |
-| TDD: CI vermelho e verde do ciclo A | [`e2-ci-vermelho.png`](./evidencias/e2-ci-vermelho.png) · [`e2-ci-verde.png`](./evidencias/e2-ci-verde.png) |
+Todas as imagens estão em [`evidencias/`](./evidencias/).
+
+#### E1 · Container automatizado
+
+**`docker compose ps`:** banco e API `healthy`; a API só subiu depois do healthcheck do banco.
+
+![docker compose ps com os dois serviços healthy](./evidencias/e1-compose-ps.png)
+
+**API do Compose respondendo** em `localhost:8080/actuator/health`.
+
+![API local respondendo UP](./evidencias/e1-api-health.png)
+
+#### E2 · TDD
+
+**Ciclo A, vermelho:** o teste da regra nova falha no CI porque a regra ainda não existe.
+
+![CI vermelho no commit test: do ciclo A](./evidencias/e2-ci-vermelho.png)
+
+![Log do CI com as duas falhas do teste parametrizado](./evidencias/e2-ci-vermelho-logs.png)
+
+**Ciclo A, verde:** depois do commit `feat:`, o mesmo teste passa.
+
+![CI verde depois do commit feat: do ciclo A](./evidencias/e2-ci-verde.png)
+
+**Histórico red -> green:** commits `test:` seguidos de `feat:`.
+
+![Histórico de commits com os ciclos red e green](./evidencias/ciclo-red-green.png)
+
+**PR dos testes unitários** com a esteira verde.
+
+![PR dos testes unitários com CI verde](./evidencias/e2-ci-00-passed1.png)
+
+#### E3 · Deploy automatizado
+
+**Execução vermelha que barrou o deploy:** teste quebrado de propósito na `main`; `build-and-test` falhou, `docker-image` e `deploy` foram pulados, e a produção não foi tocada.
+
+![Execução vermelha com deploy skipped](./evidencias/e3-vermelho-barrou-deploy.png)
+
+**Correção publicada de novo:** a esteira voltou a ficar verde.
+
+![Execução verde depois da correção](./evidencias/e3-revert-change.png)
+
+**Execução verde que publicou:** `build-and-test`, `build-frontend`, `docker-image` e `deploy` verdes.
+
+![Execução verde com o deploy concluído](./evidencias/e3-verde-deploy.png)
+
+**Produção no ar:** https://hemotrack-8ecl.onrender.com/actuator/health
+
+![Produção respondendo UP](./evidencias/e3-producao-up.png)
+
+**`main` protegida:** PR obrigatório com os checks `build-and-test`, `build-frontend` e `docker-image`.
+
+![Regra de proteção da main](./evidencias/e3-main-protegida.png)
 
 ## Decisões
 
