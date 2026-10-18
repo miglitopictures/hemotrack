@@ -217,24 +217,33 @@ Nenhum segredo está no repositório.
 
 Usamos o **Claude** (Anthropic) como assistente durante o desafio. A IA rascunhou; o grupo executou, revisou e assina o resultado.
 
-**Como foi usada**
+### Especificações que guiaram o trabalho
 
-- **Mapeamento:** levantou as classes do backend e propôs a ordem dos testes por risco.
-- **Aprendizado:** explicou Mockito, `ArgumentCaptor`, testes parametrizados e o padrão AAA, linha a linha.
-- **Testes unitários:** os de `RequisicaoService`, `InstituicaoService` e parte do `MembroService` foram escritos pelo integrante com a IA guiando passo a passo; os demais foram gerados pela IA e revisados.
-- **TDD:** a IA escreveu cada teste antes da implementação; o integrante rodou, confirmou o vermelho, commitou, e só então a implementação foi escrita.
-- **Infra:** rascunho do `compose.yaml`, ajustes do Dockerfile, job de imagem no CI e este README.
+A IA não partiu do zero: cada pedido apontava para uma especificação que já existia no projeto, e o código e os testes foram conferidos contra ela.
 
-**Prompts principais**
+| Especificação | Usada para |
+|---|---|
+| PDF do desafio (seções 3 a 8) | escopo das entregas E1, E2 e E3 e critérios de avaliação |
+| [`historias.md`](./historias.md) (critérios Dado/Quando/Então) | cenários dos testes de aceitação de HU01, HU03 e HU05 |
+| [`contrato-api.md`](./api/contrato-api.md) | status HTTP e formato de erro esperados; origem das regras dos ciclos TDD A e B, que estavam no contrato mas não no código |
+| Código existente (services, controllers, `SecurityConfig`) | mapa das regras já implementadas, antes de escrever qualquer teste |
 
-- "Escaneie o estado atual do projeto e mapeie as classes para irmos implementando os testes, passo a passo."
-- "Por que estamos usando Mockito?"
-- "Explique linha a linha o snippet, com a intenção de cada parte."
-- "Implemente o AuthServiceTest" (e o mesmo para `JwtService` e `InstituicaoAprovada`).
-- "O que falta para terminarmos a atividade? Quero ir passo a passo para finalizar hoje."
+### Prompts principais
 
-**Como validamos**
+Versões resumidas dos pedidos feitos ao longo do trabalho, na ordem em que aconteceram:
 
-- Todo teste foi executado localmente (`./mvnw test`) e na esteira antes do merge.
-- A revisão humana pegou erros dos testes: stub de `save` faltando (`NullPointerException`), referência compartilhada entre objetos (`requisicaoNova = requisicaoSalva`), `@Test` esquecido e stub de acesso ausente.
-- A IA também errou: uma ferramenta de sincronização entregou versões antigas de arquivos, o que só foi percebido porque o número de testes executados não batia. Desde então, conferimos a contagem de testes a cada execução.
+1. **Mapeamento:** "Segue o PDF do desafio. Quero começar o E2 pelos testes unitários das classes que já existem. Escaneie o backend, mapeie as classes que têm regra de negócio e proponha uma ordem de testes. Vamos passo a passo: você explica, eu escrevo."
+2. **Entendimento:** "Por que estamos usando Mockito aqui, e não o banco?" · "Explique linha a linha o teste, com a intenção de cada parte." · "Separe o executar do verificar no teste de exceção."
+3. **Revisão:** a cada teste escrito pelo integrante, "revise este arquivo". A IA apontava o problema e o porquê, e o integrante corrigia.
+4. **Escala:** depois de entender o padrão, "implemente o `AuthServiceTest`" (e o mesmo para `JwtService` e `InstituicaoAprovada`), com revisão e commit pelo integrante.
+5. **Plano da entrega:** "Compare o estado atual do repositório com os requisitos do PDF e diga o que falta para fechar E1, E2 e E3 hoje, em passos."
+6. **TDD orientado pelo contrato:** para cada regra nova, primeiro o teste a partir do contrato e das histórias; o integrante rodava e confirmava o vermelho, commitava `test:`, e só então pedia a implementação mínima para o `feat:`.
+7. **Impacto:** "Verifique se essas regras novas quebram algo no frontend ou nos scripts" — conferido contra o `contrato-api.md`, o `cadastro.tsx` e o `membros.sh`.
+8. **Documentação:** "Avalie se precisamos de um README separado; quero manter a estrutura do README do projeto e só acrescentar onde for necessário."
+
+### Como validamos
+
+- Todo teste foi executado localmente (`./mvnw test`) e na esteira antes do merge; a contagem de testes executados era conferida a cada rodada.
+- Cada regra nova foi conferida contra o contrato da API e contra o comportamento do frontend antes de entrar na `main`.
+- A revisão humana pegou erros nos testes: stub de `save` faltando (`NullPointerException`), referência compartilhada entre objetos (`requisicaoNova = requisicaoSalva`), `@Test` esquecido e stub de acesso ausente.
+- A IA também errou: uma ferramenta de sincronização entregou versões antigas de arquivos, o que só foi percebido porque o número de testes executados não batia com o esperado.
