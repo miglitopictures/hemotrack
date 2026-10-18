@@ -63,9 +63,24 @@ jobs:
         working-directory: frontend
         run: npm run build
 
-  ## roda so depois do build-and-test passar, e so quando o push foi na main
+  ## etapa de IMAGEM: gera a imagem Docker do backend com o mesmo Dockerfile que o Render usa.
+  ## so roda se os testes passaram; se o Dockerfile quebrar, o deploy nao acontece.
+  docker-image:
+    needs: [build-and-test]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+        ## o estagio 1 do Dockerfile compila e roda os testes de novo, agora dentro do container
+      - name: Build da imagem do backend
+        run: docker build -t hemotrack-api:${{ github.sha }} backend
+
+  ## roda so depois de testes + imagem passarem, e so quando o push foi na main
+  ## esteira completa: build -> testes -> imagem -> deploy
   deploy:
-    needs: [build-and-test, build-frontend]
+    needs: [build-and-test, build-frontend, docker-image]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
 
