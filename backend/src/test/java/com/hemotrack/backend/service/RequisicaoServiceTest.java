@@ -3,6 +3,7 @@ package com.hemotrack.backend.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -192,6 +193,33 @@ class RequisicaoServiceTest {
         ResponseStatusException erroHttp = (ResponseStatusException) erro;
         assertThat(erroHttp.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         verify(repository, never()).save(any());
+    }
+
+    // ATUALIZAR //
+
+    // NOTA: metodo atualizar() muda a prioridade mesmo de uma requisição RECUSADA ou ATENDIDA.
+    // potencialmente um furo de regra e é candidato a um ciclo red -> green depois.
+
+    void atualizar_mudaApenasPrioridade() {
+        // preparar
+        Requisicao requisicaoSalva = requisicaoAberta();
+        
+        Requisicao requisicaoNova = requisicaoSalva;
+        requisicaoNova.setvolumeMl(900.0);
+        requisicaoNova.setAbo(TipoABO.AB);
+        requisicaoNova.setPrioridade(Prioridade.EMERGENCIA);
+        
+        when(repository.findById(1L)).thenReturn(Optional.of(requisicaoSalva));
+        when(repository.save(any(Requisicao.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // executar
+        Requisicao resultado = service.atualizar(requisicaoNova, 1L);
+
+        // verificar
+        assertThat(resultado.getPrioridade()).isEqualTo(requisicaoNova.getPrioridade());
+        assertThat(resultado.getAbo()).isNotEqualTo(requisicaoNova.getAbo());
+        assertThat(resultado.getVolumeMl()).isNotEqualTo(requisicaoNova.getVolumeMl());
+        verify(repository, atLeastOnce()).save(any());
     }
 
 }
