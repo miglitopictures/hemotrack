@@ -15,7 +15,8 @@ Uma aplicação web que gerencia e distribui hemocomponentes (bolsas de sangue) 
 |--------|-------|
 | **Backend (API)** | Java 21, Spring Boot 4, Spring Security + JWT, H2 (dev) / Postgres (prod), OpenTelemetry (OTLP), Grafana Cloud |
 | **Frontend (Interface)** | TypeScript, React 19, TanStack Router + TanStack Query, Vite, Tailwind CSS |
-| **CI/CD** | GitHub Actions (build e testes) + Render (deploy automático) |
+| **CI/CD** | GitHub Actions (build, testes e imagem Docker) + Render (deploy automático) |
+| **Containers** | Docker (multi-stage) + Docker Compose (API + Postgres) |
 | **Versionamento** | Git/GitHub |
 | **Docs** | Markdown |
 
@@ -56,6 +57,24 @@ Histórias restantes implementadas, versionamento contínuo, novos screencasts e
 
 
 ## Como rodar na sua máquina
+
+### Jeito rápido: Docker Compose
+
+Com o [Docker](https://docs.docker.com/get-docker/) instalado, a API e o banco (Postgres) sobem com um comando, sem instalar Java:
+
+```bash
+git clone https://github.com/miglitopictures/hemotrack.git
+cd hemotrack
+cp .env.example .env      # preencha POSTGRES_PASSWORD, JWT_SECRET e ADMIN_SENHA
+docker compose up -d --build
+```
+
+- O build da imagem **roda todos os testes**: se algum falhar, a imagem não é gerada.
+- A API só sobe depois que o banco passa no healthcheck.
+- Conferir: `docker compose ps` (os dois serviços `healthy`) e `curl http://localhost:8080/actuator/health` (`{"status":"UP"}`).
+- Parar: `docker compose down` (os dados ficam no volume `dados-postgres`; `down -v` apaga).
+
+O frontend ainda não está no Compose: rode-o como no passo 4 abaixo. Para desenvolver no backend, siga o passo a passo completo a seguir.
 
 ### Pré-requisitos (instale antes de começar)
 
@@ -203,6 +222,13 @@ Ver detalhes completos em [`docs/historias.md`](./docs/historias.md).
 
 ## Dúvidas comuns
 
+### `permission denied while trying to connect to the docker API` (Linux)
+Seu usuário não está no grupo `docker`:
+```bash
+sudo usermod -aG docker $USER
+newgrp docker
+```
+
 ### A aplicação não abre no navegador
 Confirme que:
 - Backend está rodando (`Started BackendApplication` no terminal 1)
@@ -281,6 +307,39 @@ O token vale 8 horas. Os erros saem em `application/problem+json`, com `type`,
 O roteiro completo (cadastro → login → bloqueio → aprovação, com o status
 esperado de cada chamada) e a configuração passo a passo do Insomnia/Postman
 estão em [`docs/como-rodar.md`](./docs/como-rodar.md#6-testar-a-api).
+
+---
+
+## Desafio do PI: Container, TDD e Deploy
+
+Entrega da disciplina de Infraestrutura de Software (Unidade 2). Detalhes completos, story map, tabela de decisões e evidências em **[`docs/desafio-pi.md`](./docs/desafio-pi.md)**.
+
+- **URL pública (API):** https://hemotrack-8ecl.onrender.com — verificação em [`/actuator/health`](https://hemotrack-8ecl.onrender.com/actuator/health)
+- **Evidências:** [`docs/evidencias/`](./docs/evidencias/)
+
+### Integrantes
+
+Ver [Desenvolvido por](#desenvolvido-por).
+
+### Como rodar
+
+`docker compose up -d --build` sobe API + Postgres do zero. Ver [Jeito rápido: Docker Compose](#jeito-rápido-docker-compose).
+
+### Testes
+
+`cd backend && ./mvnw test`. Três níveis: **unitário** (JUnit 5 + Mockito, regras de cada service), **integração** (Spring + H2 em memória: gravação via `@Transactional` e constraint de CNPJ) e **aceitação** (HTTP real, um cenário Dado/Quando/Então por história: HU01, HU03 e HU05). Três regras novas foram feitas com TDD, com commits `test:` antes de `feat:`. Story map, tarefas e o que ficou sem teste: [Testes](./docs/desafio-pi.md#testes).
+
+### Pipeline e deploy
+
+GitHub Actions: **build -> testes -> imagem Docker -> deploy no Render**. O deploy só roda em push na `main` com tudo verde; a `main` é protegida (GitHub Flow: PR com checks obrigatórios). Segredos no GitHub Secrets e nas variáveis do Render. Rollback pelo painel do Render ou com `git revert`. Ver [Pipeline e deploy](./docs/desafio-pi.md#pipeline-e-deploy) e [`docs/deploy.md`](./docs/deploy.md).
+
+### Decisões
+
+Imagem base, multi-stage, volume, rede do Compose, fluxo de branch, CI/CD, provedor e segredos: [tabela de decisões](./docs/desafio-pi.md#decisões).
+
+### Uso de IA
+
+Claude (Anthropic) usado e declarado; a IA rascunhou, o grupo executou, revisou e assina. Prompts principais e como validamos: [Uso de IA](./docs/desafio-pi.md#uso-de-ia).
 
 ---
 
