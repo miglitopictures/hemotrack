@@ -12,12 +12,14 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.access.AccessDeniedException;
 
+import com.hemotrack.backend.exception.ConflitoException;
 import com.hemotrack.backend.exception.NaoEncontradoException;
 import com.hemotrack.backend.model.instituicao.Instituicao;
 import com.hemotrack.backend.model.instituicao.StatusInstituicao;
@@ -25,6 +27,7 @@ import com.hemotrack.backend.model.instituicao.TipoInstituicao;
 import com.hemotrack.backend.model.usuario.Papel;
 import com.hemotrack.backend.model.usuario.Usuario;
 import com.hemotrack.backend.model.usuario.UsuarioAutenticado;
+import com.hemotrack.backend.model.usuario.dto.OperadorRequest;
 import com.hemotrack.backend.model.usuario.dto.UsuarioResponse;
 import com.hemotrack.backend.repositories.InstituicaoRepository;
 import com.hemotrack.backend.repositories.UsuarioRepository;
@@ -67,7 +70,7 @@ class MembroServiceTest {
     }
 
     // LISTAR //
-
+    
     @Test 
     void listar_adminSistema_acessaMesmoInstituicaoPendente() {
         
@@ -116,7 +119,7 @@ class MembroServiceTest {
         assertThat(erro).hasMessageContaining("própria instituição");
         verify(usuarios, never()).findByInstituicaoIdOrderByNomeAsc(any());
     }
-
+    
     @Test 
     void listar_instituicaoNaoAprovada_lancaAcessoNegado() {
         // preparar
@@ -133,4 +136,54 @@ class MembroServiceTest {
         assertThat(erro).hasMessageContaining("não foi aprovada");
         verify(usuarios, never()).findByInstituicaoIdOrderByNomeAsc(any());
     }
+    
+    // CADASTRAS OPERADOR //
+
+    @Test 
+    void cadastrarOperador_dadosValidos_salvaOperadorComSenhaCodificadaEEmailNormalizado() {
+        // preparar
+        UsuarioAutenticado autenticado = autenticadoComPapel(Papel.ADMIN_INSTITUICAO);
+        Instituicao instituicaoAprovada = instituicaoAprovada();
+        OperadorRequest requisicao = new OperadorRequest("   Pablito Tamborilis  ", "  Pablotbn@Hemope.COM", "senha123");
+        
+        when(instituicoes.findById(ID_INSTITUICAO)).thenReturn(Optional.of(instituicaoAprovada));
+        when(usuarios.existsByEmail("pablotbn@hemope.com")).thenReturn(false);
+        when(encoder.encode("senha123")).thenReturn("hash-mock-bcrypt");
+        when(usuarios.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // executar
+        service.cadastrarOperador(autenticado, ID_INSTITUICAO, requisicao);
+
+        // verificar
+        ArgumentCaptor<Usuario> captor = ArgumentCaptor.forClass(Usuario.class);
+        verify(usuarios).save(captor.capture());
+        Usuario salvo = captor.getValue();
+        assertThat(salvo.getNome()).isEqualTo("Pablito Tamborilis");
+        assertThat(salvo.getEmail()).isEqualTo("pablotbn@hemope.com");
+        assertThat(salvo.getSenha()).isEqualTo("hash-mock-bcrypt");
+        assertThat(salvo.getPapel()).isEqualTo(Papel.OPERADOR);
+        assertThat(salvo.getInstituicaoId()).isEqualTo(ID_INSTITUICAO);
+        assertThat(salvo.isAtivo()).isTrue();
+    }
+
+    @Test 
+    void cadastrarOperador_emailEmUso_lancaConflitoENaoSalva() {
+        // preparar
+        UsuarioAutenticado autenticado = autenticadoComPapel(Papel.ADMIN_INSTITUICAO);
+        OperadorRequest requisicao = new OperadorRequest("   Pablito Tamborilis  ", "  Pablotbn@Hemope.COM", "senha123");
+        Instituicao instituicaoAprovada = instituicaoAprovada();
+when(instituicoes.findById(ID_INSTITUICAO)).thenReturn(Optional.of(instituicaoAprovada));
+        when(usuarios.existsByEmail("pablotbn@hemope.com")).thenReturn(true);
+
+        // executar
+        Throwable erro = catchThrowable(() -> service.cadastrarOperador(autenticado, ID_INSTITUICAO, requisicao));
+    
+        // verificar
+        assertThat(erro).isInstanceOf(ConflitoException.class);
+        ConflitoException conflitoException = (ConflitoException) erro;
+        assertThat(conflitoException.getCodigo()).isEqualTo("email-em-uso");
+        verify(usuarios, never()).save(any());
+        verify(encoder, never()).encode(any());
+    }
 }
+
