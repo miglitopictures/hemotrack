@@ -283,4 +283,39 @@ class RequisicaoServiceTest {
         verify(repository, never()).delete(any());
     }
 
+    // SALVAR //
+    // regra nova (TDD - ciclo A): requisicao com volume zero ou negativo nao faz sentido
+    // clinicamente e deve ser rejeitada com 400, sem chegar ao banco.
+
+    @ParameterizedTest
+    @ValueSource(doubles = {0.0, -450.0})
+    void salvar_volumeNaoPositivo_lanca400ENaoSalva(double volume) {
+        // preparar
+        Requisicao requisicao = requisicaoAberta();
+        requisicao.setvolumeMl(volume);
+
+        // executar
+        Throwable erro = catchThrowable(() -> service.salvar(requisicao));
+
+        // verificar
+        assertThat(erro).isInstanceOf(ResponseStatusException.class);
+        ResponseStatusException erroHttp = (ResponseStatusException) erro;
+        assertThat(erroHttp.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        verify(repository, never()).save(any());
+    }
+
+    // caminho feliz: garante que a validacao nova nao vai barrar requisicoes validas.
+    @Test
+    void salvar_volumePositivo_salva() {
+        // preparar
+        Requisicao requisicao = requisicaoAberta(); // 450 ml
+        when(repository.save(requisicao)).thenReturn(requisicao);
+
+        // executar
+        Requisicao resultado = service.salvar(requisicao);
+
+        // verificar
+        assertThat(resultado).isSameAs(requisicao);
+        verify(repository).save(requisicao);
+    }
 }
