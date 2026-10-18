@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,6 +19,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.hemotrack.backend.exception.ConflitoException;
+import com.hemotrack.backend.exception.NaoEncontradoException;
 import com.hemotrack.backend.model.instituicao.Instituicao;
 import com.hemotrack.backend.model.instituicao.StatusInstituicao;
 import com.hemotrack.backend.model.instituicao.TipoInstituicao;
@@ -90,6 +93,43 @@ class InstituicaoServiceTest {
         // verificar
         assertThat(erro).isInstanceOf(AccessDeniedException.class);
         verify(instituicoes, never()).findByStatus(any());
+    }
+
+    // APROVAR //
+
+    @Test 
+    void aprovar_pendente_mudaParaAprovada() {
+        Instituicao instituicao = instituicaoPendente();
+        when(instituicoes.findById(1L)).thenReturn(Optional.of(instituicao));
+    
+        InstituicaoResponse resultado = service.aprovar(1L);
+
+        assertThat(instituicao.getStatus()).isEqualTo(StatusInstituicao.APROVADA);
+        assertThat(resultado.status()).isEqualTo(StatusInstituicao.APROVADA);
+    }
+
+    @Test 
+    void aprovar_idInexistente_lancaNaoEncontrado() {
+        when(instituicoes.findById(1L)).thenReturn(Optional.empty());
+    
+        Throwable erro = catchThrowable(() -> service.aprovar(1L));
+
+        assertThat(erro).isInstanceOf(NaoEncontradoException.class);
+        NaoEncontradoException naoEncontrado = (NaoEncontradoException) erro;
+        assertThat(naoEncontrado.getCodigo()).isEqualTo("instituicao-nao-encontrada");
+    }
+
+    @Test 
+    void aprovar_jaAprovada_lancaConflito() {
+        Instituicao instituicao = instituicaoPendente();
+        instituicao.setStatus(StatusInstituicao.APROVADA);
+        when(instituicoes.findById(1L)).thenReturn(Optional.of(instituicao));
+    
+        Throwable erro = catchThrowable(() -> service.aprovar(1L));
+
+        assertThat(erro).isInstanceOf(ConflitoException.class);
+        ConflitoException naoEncontrado = (ConflitoException) erro;
+        assertThat(naoEncontrado.getCodigo()).isEqualTo("instituicao-ja-aprovada");
     }
 
 }
