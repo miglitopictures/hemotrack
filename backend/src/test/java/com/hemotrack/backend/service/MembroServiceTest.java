@@ -172,7 +172,7 @@ class MembroServiceTest {
         UsuarioAutenticado autenticado = autenticadoComPapel(Papel.ADMIN_INSTITUICAO);
         OperadorRequest requisicao = new OperadorRequest("   Pablito Tamborilis  ", "  Pablotbn@Hemope.COM", "senha123");
         Instituicao instituicaoAprovada = instituicaoAprovada();
-when(instituicoes.findById(ID_INSTITUICAO)).thenReturn(Optional.of(instituicaoAprovada));
+        when(instituicoes.findById(ID_INSTITUICAO)).thenReturn(Optional.of(instituicaoAprovada));
         when(usuarios.existsByEmail("pablotbn@hemope.com")).thenReturn(true);
 
         // executar
