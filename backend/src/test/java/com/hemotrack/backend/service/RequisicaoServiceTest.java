@@ -224,7 +224,7 @@ class RequisicaoServiceTest {
     }
 
     // LISTAR TODOS //
-
+    
     @Test 
     void listarTodos_comHospitalId_filtraPorHospital() {
         // preparar
@@ -247,10 +247,40 @@ class RequisicaoServiceTest {
         
         // executar
         List<Requisicao> resultado = service.listarTodos(null);
-
+        
         // verificar
         assertThat(resultado).containsExactly(requisicao);
         verify(repository).findAll();
+    }
+    
+    // REMOVER //
+
+    @Test 
+    void remover_idExiste_deletaRequisicao() {
+        // preparar
+        Requisicao requisicao = requisicaoAberta();
+        when(repository.findById(1L)).thenReturn(Optional.of(requisicao));
+
+        // executar
+        service.remover(1L);
+
+        // verificar
+        verify(repository).delete(requisicao);
+    }
+
+    @Test 
+    void remover_idNaoExiste_lanca404ENaoDeleta() {
+        // preparar
+        when(repository.findById(1L)).thenReturn(Optional.empty());
+
+        // executar
+        Throwable erro = catchThrowable(() -> service.remover(1L));
+
+        // verificar
+        assertThat(erro).isInstanceOf(ResponseStatusException.class);
+        ResponseStatusException erroHttp = (ResponseStatusException) erro;
+        assertThat(erroHttp.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        verify(repository, never()).delete(any());
     }
 
 }
