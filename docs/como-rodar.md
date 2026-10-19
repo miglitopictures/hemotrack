@@ -155,8 +155,9 @@ VITE v8.x.x  ready in XXX ms
 ➜  Local:   http://localhost:8081/
 ```
 
-O frontend já aponta para `http://localhost:8080` (variável `VITE_API_URL` em
-`frontend/.env`) — não precisa mudar nada.
+O frontend já aponta para `http://localhost:8080` (padrão em
+`frontend/src/lib/httpClient.ts`; para trocar, defina `VITE_API_URL`). Não
+precisa mudar nada.
 
 Para parar: `Ctrl+C`.
 
