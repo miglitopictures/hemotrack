@@ -1,4 +1,4 @@
-# Sobe o HemoTrack do zero com um comando:
+# Sobe o HemoTrack do zero com um comando (banco, API e frontend):
 #   cp .env.example .env   (e preencha os valores)
 #   docker compose up -d --build
 #
@@ -37,6 +37,8 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_SENHA: ${ADMIN_SENHA:-}
       GRAFANA_OTLP_ENABLED: "false"
+      # origens do front liberadas no CORS; o padrao ja inclui localhost:8081 (servico web)
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8081,http://localhost:5173,http://localhost:3000}
     depends_on:
       db:
         # so inicia a API depois que o healthcheck do banco passar
@@ -48,6 +50,26 @@ services:
       timeout: 5s
       retries: 10
       start_period: 60s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        # URL vista pelo NAVEGADOR (que roda fora do Docker), por isso localhost e nao "api"
+        VITE_API_URL: http://localhost:8080
+    ports:
+      # 8081 ja esta liberada no CORS da API (padrao do CORS_ALLOWED_ORIGINS)
+      - "8081:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      # 127.0.0.1 e nao "localhost": no Alpine, localhost pode resolver para IPv6 (::1)
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
 volumes:

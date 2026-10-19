@@ -60,7 +60,7 @@ Histórias restantes implementadas, versionamento contínuo, novos screencasts e
 
 ### Jeito rápido: Docker Compose
 
-Com o [Docker](https://docs.docker.com/get-docker/) instalado, a API e o banco (Postgres) sobem com um comando, sem instalar Java:
+Com o [Docker](https://docs.docker.com/get-docker/) instalado, o banco (Postgres), a API e o frontend sobem com um comando, sem instalar Java nem Node:
 
 ```bash
 git clone https://github.com/miglitopictures/hemotrack.git
@@ -71,10 +71,10 @@ docker compose up -d --build
 
 - O build da imagem **roda todos os testes**: se algum falhar, a imagem não é gerada.
 - A API só sobe depois que o banco passa no healthcheck.
-- Conferir: `docker compose ps` (os dois serviços `healthy`) e `curl http://localhost:8080/actuator/health` (`{"status":"UP"}`).
+- Conferir: `docker compose ps` (os três serviços `healthy`), a API em `http://localhost:8080/actuator/health` (`{"status":"UP"}`) e o sistema em `http://localhost:8081`.
 - Parar: `docker compose down` (os dados ficam no volume `dados-postgres`; `down -v` apaga).
 
-O frontend ainda não está no Compose: rode-o como no passo 4 abaixo. Para desenvolver no backend, siga o passo a passo completo a seguir.
+Para desenvolver (com recarregamento automático do código), siga o passo a passo completo a seguir.
 
 ### Pré-requisitos (instale antes de começar)
 
@@ -323,7 +323,7 @@ Ver [Desenvolvido por](#desenvolvido-por).
 
 ### Como rodar
 
-`docker compose up -d --build` sobe API + Postgres do zero. Ver [Jeito rápido: Docker Compose](#jeito-rápido-docker-compose).
+`docker compose up -d --build` sobe Postgres, API e frontend do zero. Ver [Jeito rápido: Docker Compose](#jeito-rápido-docker-compose).
 
 ### Testes
 

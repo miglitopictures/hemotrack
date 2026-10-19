@@ -189,6 +189,31 @@ class HistoriasAceitacaoTest {
     }
 
     // =====================================================================================
+    // CORS - o navegador so deixa o front chamar a API se a origem estiver liberada
+    // (origens vem de CORS_ALLOWED_ORIGINS; sem a variavel, valem as portas locais)
+    // =====================================================================================
+
+    @Test
+    void cors_origemDoFrontLocal_recebePermissao() throws Exception {
+        // Dado o front rodando em localhost:8081 (o servico "web" do compose)
+        // Quando o navegador pergunta se pode fazer um POST (preflight)
+        HttpResponse<String> resposta = preflight("http://localhost:8081");
+
+        // Entao a API autoriza aquela origem
+        assertThat(resposta.headers().firstValue("Access-Control-Allow-Origin")).hasValue("http://localhost:8081");
+    }
+
+    @Test
+    void cors_origemDesconhecida_naoRecebePermissao() throws Exception {
+        // Dado um site qualquer, fora da lista de origens
+        // Quando o navegador faz o preflight a partir dele
+        HttpResponse<String> resposta = preflight("https://site-qualquer.example");
+
+        // Entao a API nao autoriza (o navegador bloqueia a chamada)
+        assertThat(resposta.headers().firstValue("Access-Control-Allow-Origin")).isEmpty();
+    }
+
+    // =====================================================================================
     // Auxiliares: montam os passos repetidos ("Dado ...") usando a propria API
     // =====================================================================================
 
@@ -283,6 +308,16 @@ class HistoriasAceitacaoTest {
         HttpRequest.Builder req = HttpRequest.newBuilder(uri(caminho))
             .method("PATCH", HttpRequest.BodyPublishers.noBody());
         return enviar(req, token);
+    }
+
+    // preflight = a pergunta que o navegador faz antes de um POST vindo de outra origem
+    private HttpResponse<String> preflight(String origem) throws IOException, InterruptedException {
+        HttpRequest req = HttpRequest.newBuilder(uri("/instituicoes"))
+            .method("OPTIONS", HttpRequest.BodyPublishers.noBody())
+            .header("Origin", origem)
+            .header("Access-Control-Request-Method", "POST")
+            .build();
+        return http.send(req, HttpResponse.BodyHandlers.ofString());
     }
 
     private HttpResponse<String> enviar(HttpRequest.Builder req, String token) throws IOException, InterruptedException {
