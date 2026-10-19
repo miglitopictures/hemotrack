@@ -36,10 +36,12 @@ import {
 import { httpGet, httpPost, httpPut, ErroDeApiHttp } from "./httpClient";
 import {
   novaSolicitacaoParaRequisicao,
+  registrarNomesInstituicoes,
   requisicaoParaSolicitacao,
   type RequisicaoBack,
 } from "./adapters/requisicao";
-
+import { listarInstituicoes } from "./api-auth";
+import { lerClaims, lerToken } from "./sessao";
 /** Latência simulada (ms), só usada pelas partes ainda mockadas. */
 const LATENCIA_MS = 0;
 
@@ -66,17 +68,26 @@ function paraErroDeApi(erro: unknown): ErroDeApi {
   return new ErroDeApi("Erro desconhecido ao falar com o servidor.");
 }
 
-// TODO(back): não existe /auth nem /instituicoes ainda, então não há como
-// descobrir o hospitalId de verdade a partir de um login. Fixamos um valor
-// só para o front conseguir criar requisições de teste; troque isso assim
-// que HU01 (login) estiver de pé.
-const HOSPITAL_ID_TEMP = 1;
+// A instituição vem do token de quem está logado (HU01).
+function instituicaoLogada(): number {
+  const token = lerToken();
+  const claims = token ? lerClaims(token) : null;
+  if (claims === null || claims.instituicaoId == null) {
+    throw new ErroDeApi("Sessão sem instituição. Entre novamente.", 401);
+  }
+  return claims.instituicaoId;
+}
 
-// TODO(back): mesma situação do hospital — não existe /auth nem
-// /instituicoes ainda, então fixamos um hemocentro só para o front
-// conseguir aceitar/recusar requisições de teste; troque isso assim que
-// HU01 (login) estiver de pé.
-const HEMOCENTRO_ID_TEMP = 1;
+// Busca os nomes das instituições aprovadas para o adapter mostrar
+// "Hospital Santa Clara" em vez de "Hospital #3". Se falhar, a lista
+// continua aparecendo, só que com o id no lugar do nome.
+async function carregarNomesInstituicoes(): Promise<void> {
+  try {
+    registrarNomesInstituicoes(await listarInstituicoes("APROVADA"));
+  } catch {
+    // sem os nomes, o adapter usa o "Hospital #id"
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Solicitações — ligado ao back real (/requisicoes)
@@ -84,7 +95,8 @@ const HEMOCENTRO_ID_TEMP = 1;
 
 export async function listarSolicitacoes(filtros?: { hospital?: string }): Promise<Solicitacao[]> {
   try {
-    const query = filtros?.hospital ? `?hospitalId=${HOSPITAL_ID_TEMP}` : "";
+    await carregarNomesInstituicoes();
+    const query = filtros?.hospital ? `?hospitalId=${instituicaoLogada()}` : "";
     const dados = await httpGet<RequisicaoBack[]>(`/requisicoes${query}`);
     return dados.map(requisicaoParaSolicitacao);
   } catch (erro) {
@@ -99,6 +111,7 @@ export function listarMinhasSolicitacoes(): Promise<Solicitacao[]> {
 export async function obterSolicitacao(id: string): Promise<Solicitacao | undefined> {
   const idBack = id.replace(/^REQ-/, "");
   try {
+    await carregarNomesInstituicoes();
     const dado = await httpGet<RequisicaoBack>(`/requisicoes/${idBack}`);
     return requisicaoParaSolicitacao(dado);
   } catch (erro) {
@@ -120,7 +133,7 @@ export async function criarSolicitacao(dados: NovaSolicitacao): Promise<Solicita
     throw new ErroDeApi("A quantidade precisa ser de ao menos 1 bolsa.", 400);
   }
   try {
-    const corpo = novaSolicitacaoParaRequisicao(dados, HOSPITAL_ID_TEMP);
+    const corpo = novaSolicitacaoParaRequisicao(dados, instituicaoLogada());
     const criada = await httpPost<RequisicaoBack>("/requisicoes", corpo);
     return requisicaoParaSolicitacao(criada);
   } catch (erro) {
@@ -144,7 +157,7 @@ export async function aceitarSolicitacao(id: string, codigosBolsas: string[]): P
   const idBack = id.replace(/^REQ-/, "");
   try {
     const atualizada = await httpPost<RequisicaoBack>(
-      `/requisicoes/${idBack}/aceitar?hemocentroId=${HEMOCENTRO_ID_TEMP}`,
+      `/requisicoes/${idBack}/aceitar?hemocentroId=${instituicaoLogada()}`,
     );
     return requisicaoParaSolicitacao(atualizada);
   } catch (erro) {
