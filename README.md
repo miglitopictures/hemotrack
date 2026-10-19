@@ -52,6 +52,7 @@ Nesta entrega foram desenvolvidas as funcionalidades e os screencasts de criaç�
 Nesta entrega foram implementadas as funcionalidades de cadastro e acesso à plataforma e de análise de requisições pelo hemocentro, incluindo:
 
 #### [Screencast da Entrega 03 (YouTube)](https://www.youtube.com/watch?v=iB-88JZbX7M)
+[![Alt](./assets/cadastro_e3-poo-imagem.png)](https://www.youtube.com/watch?v=iB-88JZbX7M)
 
 * HU01 — Cadastro e acesso à plataforma: o hospital ou hemocentro cadastra a instituição e o administrador, o administrador do HemoTrack aprova o cadastro e, no login, cada perfil é direcionado ao seu ambiente (hospital, hemocentro ou administração). O CNPJ é único: o cenário de CNPJ duplicado não aparece no vídeo, mas está implementado e coberto pelos testes automatizados (`CadastroServiceTest`).
 * HU05 — Analisar e aceitar ou recusar requisições: o hemocentro vê as requisições recebidas, aceita as que consegue atender ou recusa informando o motivo. O hospital acompanha a decisão: o status muda para "Aceita" (com o hemocentro responsável) ou "Recusada" (com o motivo registrado).
