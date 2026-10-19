@@ -36,9 +36,11 @@ import {
 import { httpGet, httpPost, httpPut, ErroDeApiHttp } from "./httpClient";
 import {
   novaSolicitacaoParaRequisicao,
+  registrarNomesInstituicoes,
   requisicaoParaSolicitacao,
   type RequisicaoBack,
 } from "./adapters/requisicao";
+import { listarInstituicoes } from "./api-auth";
 import { lerClaims, lerToken } from "./sessao";
 /** Latência simulada (ms), só usada pelas partes ainda mockadas. */
 const LATENCIA_MS = 0;
@@ -76,12 +78,24 @@ function instituicaoLogada(): number {
   return claims.instituicaoId;
 }
 
+// Busca os nomes das instituições aprovadas para o adapter mostrar
+// "Hospital Santa Clara" em vez de "Hospital #3". Se falhar, a lista
+// continua aparecendo, só que com o id no lugar do nome.
+async function carregarNomesInstituicoes(): Promise<void> {
+  try {
+    registrarNomesInstituicoes(await listarInstituicoes("APROVADA"));
+  } catch {
+    // sem os nomes, o adapter usa o "Hospital #id"
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Solicitações — ligado ao back real (/requisicoes)
 // ---------------------------------------------------------------------------
 
 export async function listarSolicitacoes(filtros?: { hospital?: string }): Promise<Solicitacao[]> {
   try {
+    await carregarNomesInstituicoes();
     const query = filtros?.hospital ? `?hospitalId=${instituicaoLogada()}` : "";
     const dados = await httpGet<RequisicaoBack[]>(`/requisicoes${query}`);
     return dados.map(requisicaoParaSolicitacao);
@@ -97,6 +111,7 @@ export function listarMinhasSolicitacoes(): Promise<Solicitacao[]> {
 export async function obterSolicitacao(id: string): Promise<Solicitacao | undefined> {
   const idBack = id.replace(/^REQ-/, "");
   try {
+    await carregarNomesInstituicoes();
     const dado = await httpGet<RequisicaoBack>(`/requisicoes/${idBack}`);
     return requisicaoParaSolicitacao(dado);
   } catch (erro) {
