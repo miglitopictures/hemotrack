@@ -149,6 +149,7 @@ export function requisicaoParaSolicitacao(r: RequisicaoBack): Solicitacao {
     status: STATUS_DO_BACK[r.status],
     criadaEm: r.dataCriacao,
     observacoes: r.observacoes ?? "",
+    motivoRecusa: r.motivoRecusa ?? null,
   };
 }
 
