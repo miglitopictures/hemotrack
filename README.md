@@ -237,7 +237,7 @@ Confirme que:
 - Se ficar branco ou der erro 404, aguarde alguns segundos e recarregue (F5)
 
 ### Aparecem erros de CORS
-O CORS está configurado no backend (`config/WebConfig.java`) para aceitar chamadas de `localhost:8081`. Se o frontend rodou em outra porta, o CORS bloqueia.
+O CORS está configurado no backend (`config/WebConfig.java`). As origens liberadas vêm da variável `CORS_ALLOWED_ORIGINS` (separadas por vírgula); sem ela, valem `localhost:8081`, `5173` e `3000`. Se o frontend rodou em outra porta, o CORS bloqueia.
 
 ### Backend não sobe: `Could not resolve placeholder 'JWT_SECRET'`
 Falta o `backend/.env`, ou ele está sem a variável. Volte ao passo 2 — a
@@ -314,7 +314,8 @@ estão em [`docs/como-rodar.md`](./docs/como-rodar.md#6-testar-a-api).
 
 Entrega da disciplina de Infraestrutura de Software (Unidade 2). Detalhes completos, story map, tabela de decisões e evidências em **[`docs/desafio-pi.md`](./docs/desafio-pi.md)**.
 
-- **URL pública (API):** https://hemotrack-8ecl.onrender.com — verificação em [`/actuator/health`](https://hemotrack-8ecl.onrender.com/actuator/health)
+- **Aplicação (frontend):** https://hemotrack-nrbm.onrender.com
+- **URL pública (API):** https://hemotrack-api-3ns9.onrender.com — verificação em [`/actuator/health`](https://hemotrack-api-3ns9.onrender.com/actuator/health)
 - **Evidências:** [`docs/evidencias/`](./docs/evidencias/)
 
 ### Integrantes
@@ -331,7 +332,7 @@ Ver [Desenvolvido por](#desenvolvido-por).
 
 ### Pipeline e deploy
 
-GitHub Actions: **build -> testes -> imagem Docker -> deploy no Render**. O deploy só roda em push na `main` com tudo verde; a `main` é protegida (GitHub Flow: PR com checks obrigatórios). Segredos no GitHub Secrets e nas variáveis do Render. Rollback pelo painel do Render ou com `git revert`. Ver [Pipeline e deploy](./docs/desafio-pi.md#pipeline-e-deploy) e [`docs/deploy.md`](./docs/deploy.md).
+GitHub Actions: **build -> testes -> imagem Docker -> deploy no Render** (API e frontend). O deploy só roda em push na `main` com tudo verde; a `main` é protegida (GitHub Flow: PR com checks obrigatórios). Segredos no GitHub Secrets e nas variáveis do Render. Rollback pelo painel do Render ou com `git revert`. Ver [Pipeline e deploy](./docs/desafio-pi.md#pipeline-e-deploy) e [`docs/deploy.md`](./docs/deploy.md).
 
 ### Decisões
 
