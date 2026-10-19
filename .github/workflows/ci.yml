@@ -90,3 +90,5 @@ jobs:
         ## (copia a URL em Render > o Web Service > Settings > Deploy Hook)
       - name: Trigger Render deploy
         run: curl -f -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+      - name: Trigger Render deploy (frontend)
+        run: curl -f -X POST "${{ secrets.RENDER_FRONTEND_DEPLOY_HOOK_URL }}"
