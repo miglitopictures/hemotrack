@@ -5,7 +5,8 @@ CESAR School · Infraestrutura de Software · 2026.2 · Unidade 2
 Este documento detalha a entrega do desafio. O resumo das seções pedidas está no [README principal](../README.md#desafio-do-pi-container-tdd-e-deploy).
 
 - **Repositório:** https://github.com/miglitopictures/hemotrack
-- **URL pública (API):** https://hemotrack-8ecl.onrender.com — verificação em [`/actuator/health`](https://hemotrack-8ecl.onrender.com/actuator/health)
+- **Aplicação (frontend):** https://hemotrack-nrbm.onrender.com
+- **URL pública (API):** https://hemotrack-api-3ns9.onrender.com — verificação em [`/actuator/health`](https://hemotrack-api-3ns9.onrender.com/actuator/health)
 - **Integrantes:** ver [Desenvolvido por](../README.md#desenvolvido-por)
 - **Como rodar:** ver [Jeito rápido: Docker Compose](../README.md#jeito-rápido-docker-compose)
 
@@ -154,9 +155,10 @@ Com a regra do time, o PR exigiria 1 aprovação de revisor; durante a entrega d
 
 ### Deploy
 
-- **Serviço:** [Render](https://render.com) (Web Service, ambiente Docker, plano gratuito) — https://hemotrack-8ecl.onrender.com
+- **API:** [Render](https://render.com) (Web Service, ambiente Docker, plano gratuito) — https://hemotrack-api-3ns9.onrender.com
+- **Frontend:** Render Static Site (build do Vite servido por CDN) — https://hemotrack-nrbm.onrender.com
 - **Banco de produção:** Postgres no [Neon](https://neon.tech) (plano gratuito, sem expiração).
-- **Gatilho:** o job `deploy` chama o Deploy Hook do Render; o Render faz o build da imagem e troca o container.
+- **Gatilho:** o job `deploy` chama os Deploy Hooks da API e do frontend; o Render faz o build e troca a versão no ar. O Auto-Deploy do Render fica desligado: só a esteira publica.
 - Detalhes da configuração em [`docs/deploy.md`](./deploy.md).
 
 > O plano gratuito do Render "dorme" após ~15 min sem tráfego: a primeira requisição pode levar 30 a 60 s.
@@ -165,8 +167,8 @@ Com a regra do time, o PR exigiria 1 aprovação de revisor; durante a entrega d
 
 | Segredo | Onde fica |
 |---|---|
-| `RENDER_DEPLOY_HOOK_URL` | GitHub → Settings → Secrets and variables → Actions |
-| `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `ADMIN_*` (produção) | variáveis de ambiente do serviço no Render |
+| `RENDER_DEPLOY_HOOK_URL`, `RENDER_FRONTEND_DEPLOY_HOOK_URL` | GitHub → Settings → Secrets and variables → Actions |
+| `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `ADMIN_*`, `CORS_ALLOWED_ORIGINS` (produção) | variáveis de ambiente do serviço no Render |
 | Valores locais (dev e Compose) | `.env` e `backend/.env`, ambos no `.gitignore`; modelos em `.env.example` |
 
 Nenhum segredo está no repositório.
@@ -224,7 +226,7 @@ Todas as imagens estão em [`evidencias/`](./evidencias/).
 
 ![Execução verde com o deploy concluído](./evidencias/e3-verde-deploy.png)
 
-**Produção no ar:** https://hemotrack-8ecl.onrender.com/actuator/health
+**Produção no ar:** https://hemotrack-api-3ns9.onrender.com/actuator/health
 
 ![Produção respondendo UP](./evidencias/e3-producao-up.png)
 
@@ -251,6 +253,9 @@ Todas as imagens estão em [`evidencias/`](./evidencias/).
 | Fluxo de branch | GitHub Flow | Git Flow, GitLab Flow | time pequeno, uma versão no ar e deploy a cada merge; branches de release e `develop` seriam burocracia |
 | CI/CD | GitHub Actions | GitLab CI, Jenkins | o código já está no GitHub; sem servidor para manter |
 | Deploy | Render (Docker) + Neon (Postgres) | Railway, Fly.io, Postgres do Render | plano gratuito sem cartão e deploy por hook; o Postgres gratuito do Render expira em 30 dias |
+| Frontend em produção | Render Static Site | container nginx no Render, Vercel | o site é estático depois do build; o Static Site serve por CDN, não dorme e fica no mesmo painel e fluxo de hooks da API. O container nginx segue no Compose |
+| CORS | origens por variável (`CORS_ALLOWED_ORIGINS`) | origens fixas no código, `*` | a mesma imagem serve local e produção; `*` liberaria qualquer site a chamar a API |
+| Variáveis `OTEL_*` do Render | removidas no Dockerfile | desligar exportador por exportador | o Render injeta um endpoint `unix://` que o Spring recusa; limpar todas protege contra variáveis novas |
 | Segredos | GitHub Secrets + variáveis do Render | `.env` no repositório | segredo fora do código e fora do log da esteira |
 | Rollback | botão do Render + `git revert` | redeploy manual | volta em segundos pelo painel, ou com registro no histórico pelo Git |
 | Erro de regra num campo | 400 no formato `validacao` com `errors` | 400 genérico | o front já marca o campo certo com esse formato (ex.: CNPJ) |
