@@ -46,6 +46,8 @@ Testes unitários por classe:
 | `JwtService` | 8 | claims, expiração, token adulterado / de outra chave / vencido, segredo curto (sem mocks) |
 | `InstituicaoAprovada` | 9 | rotas `/requisicoes/**` só para membros de instituição aprovada |
 
+Além dessas, `ListaEstoqueTest` e `FilaRequisicoesTest` cobrem as estruturas de dados próprias do projeto (lista encadeada de estoque e fila de requisições).
+
 ### Story map
 
 **Backbone** (o que os usuários fazem, da esquerda para a direita) e **releases**:
@@ -136,7 +138,7 @@ push / pull request para main
                             |
                             v
                  deploy   (só em push na main, e só se os 3 jobs acima passarem)
-                          chama o Deploy Hook do Render
+                          chama os Deploy Hooks do Render (API e frontend)
 ```
 
 **Gates:**
@@ -184,9 +186,9 @@ Todas as imagens estão em [`evidencias/`](./evidencias/).
 
 #### E1 · Container automatizado
 
-**`docker compose ps`:** banco e API `healthy`; a API só subiu depois do healthcheck do banco.
+**`docker compose ps`:** banco, API e frontend `healthy`. Cada serviço só sobe depois do healthcheck do anterior (db, depois api, depois web).
 
-![docker compose ps com os dois serviços healthy](./evidencias/e1-compose-ps.png)
+![docker compose ps com os três serviços healthy](./evidencias/e1-compose-ps.png)
 
 **API do Compose respondendo** em `localhost:8080/actuator/health`.
 
@@ -230,6 +232,14 @@ Todas as imagens estão em [`evidencias/`](./evidencias/).
 
 ![Produção respondendo UP](./evidencias/e3-producao-up.png)
 
+**Frontend em produção:** painel do hospital logado, consumindo a API publicada.
+
+![Frontend publicado no Render](./evidencias/e3-frontend-producao.png)
+
+**Serviços no Render:** API (Docker, Virginia) e frontend (Static Site) publicados.
+
+![Painel do Render com os dois serviços](./evidencias/e3-render-servicos.png)
+
 **`main` protegida:** PR obrigatório com os checks `build-and-test`, `build-frontend` e `docker-image`.
 
 ![Regra de proteção da main](./evidencias/e3-main-protegida.png)
@@ -242,6 +252,7 @@ Todas as imagens estão em [`evidencias/`](./evidencias/).
 | Imagem base (runtime) | `eclipse-temurin:21-jre-alpine` | `21-jre` (Ubuntu), distroless | só o JRE, base Alpine: imagem menor e com menos pacotes vulneráveis; roda com usuário sem root |
 | Multi-stage | 2 estágios | 1 estágio | JDK, Maven, código-fonte e cache de dependências ficam no estágio 1; a imagem final leva só o `.jar` |
 | Testes no build da imagem | estágio 1 roda `mvnw package` com testes | `-DskipTests` | imagem com teste vermelho não é gerada, nem no Render |
+| Container do frontend | `node:22-alpine` (build) e `nginx:1.27-alpine` | servidor do Vite (`npm run dev`), `serve` do Node | o build gera arquivos estáticos; o nginx serve com fallback de SPA e cache em `/assets`, sem Node na imagem final. A URL da API entra como build arg porque o Vite a embute no build |
 | Banco no Compose | Postgres 16 | H2, MySQL | é o mesmo motor da produção (Neon); H2 continua só no modo dev |
 | Dados | volume nomeado `dados-postgres` | bind mount | os dados sobrevivem ao `docker compose down` e não dependem de caminho da máquina |
 | Comunicação entre serviços | rede padrão do Compose (`db:5432`) | `network_mode: host`, IP fixo | o nome do serviço vira o host; funciona igual em qualquer máquina |
@@ -288,10 +299,12 @@ Versões resumidas dos pedidos feitos ao longo do trabalho, na ordem em que acon
 6. **TDD orientado pelo contrato:** para cada regra nova, primeiro o teste a partir do contrato e das histórias; o integrante rodava e confirmava o vermelho, commitava `test:`, e só então pedia a implementação mínima para o `feat:`.
 7. **Impacto:** "Verifique se essas regras novas quebram algo no frontend ou nos scripts" — conferido contra o `contrato-api.md`, o `cadastro.tsx` e o `membros.sh`.
 8. **Documentação:** "Avalie se precisamos de um README separado; quero manter a estrutura do README do projeto e só acrescentar onde for necessário."
+9. **Infraestrutura:** "Me guie para publicar API, banco e frontend na minha conta" e, a cada falha no Render, "encontre a causa raiz neste log".
 
 ### Como validamos
 
 - Todo teste foi executado localmente (`./mvnw test`) e na esteira antes do merge; a contagem de testes executados era conferida a cada rodada.
 - Cada regra nova foi conferida contra o contrato da API e contra o comportamento do frontend antes de entrar na `main`.
 - A revisão humana pegou erros nos testes: stub de `save` faltando (`NullPointerException`), referência compartilhada entre objetos (`requisicaoNova = requisicaoSalva`), `@Test` esquecido e stub de acesso ausente.
+- Cada correção de infraestrutura foi reproduzida localmente antes do PR (ex.: o erro de build do Render, simulando as variáveis `OTEL_*` no `./mvnw test`).
 - A IA também errou: uma ferramenta de sincronização entregou versões antigas de arquivos, o que só foi percebido porque o número de testes executados não batia com o esperado.

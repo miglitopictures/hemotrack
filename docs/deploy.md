@@ -1,4 +1,4 @@
-# Deploy e Pipeline de CI/CD — HemoTrack Backend
+# Deploy e Pipeline de CI/CD — HemoTrack
 
 ## Aplicação em produção
 
@@ -8,7 +8,7 @@
 
 Endpoint de verificação de saúde: `GET /actuator/health` → retorna `{"status":"UP"}` quando o backend e a conexão com o banco estão funcionando.
 
-> **Nota sobre cold start:** o serviço roda no plano gratuito do Render, que "dorme" após ~15 minutos sem tráfego. A primeira requisição depois disso pode demorar 30–60 segundos para responder enquanto o serviço acorda. Se for demonstrar ao vivo, acesse a URL alguns minutos antes.
+> **Nota sobre cold start:** a API roda no plano gratuito do Render, que "dorme" após ~15 minutos sem tráfego. A primeira requisição depois disso pode demorar 30–60 segundos para responder enquanto o serviço acorda. Se for demonstrar ao vivo, acesse a URL alguns minutos antes. O frontend (Static Site) não dorme.
 
 ---
 
@@ -16,7 +16,7 @@ Endpoint de verificação de saúde: `GET /actuator/health` → retorna `{"statu
 
 | Componente | Serviço | Motivo da escolha |
 |---|---|---|
-| Backend (Web Service) | [Render](https://render.com), plano Free | Deploy grátis sem cartão de crédito, integra direto com o GitHub, redeploy automático a cada push |
+| Backend (Web Service) | [Render](https://render.com), plano Free | Deploy grátis sem cartão de crédito e integrado ao GitHub; publica quando a esteira chama o Deploy Hook (o Auto-Deploy do Render fica desligado) |
 | Frontend (Static Site) | [Render](https://render.com), plano Free | Serve o build estático do Vite por CDN; mesmo painel e mesmo fluxo de Deploy Hook da API |
 | Banco de dados | [Neon](https://neon.tech), Postgres serverless, plano Free | O Postgres gratuito nativo do Render expira em 30 dias e é apagado — inviável para um projeto com entrega em dezembro. O Neon não tem essa expiração |
 | Containerização | Docker (multi-stage build) | O runtime "Java" não estava disponível diretamente na interface do Render no momento da configuração; Docker garante o build reprodutível independente disso |
@@ -36,6 +36,11 @@ Roda sempre (push ou PR):
 2. Instala JDK 21 (Temurin)
 3. Roda `./mvnw -B clean verify` dentro de `backend/` — compila e executa os testes
 4. Sobe o relatório de testes (`surefire-reports`) como artefato do GitHub Actions
+
+### Job `build-frontend`
+Roda sempre (push ou PR), em paralelo ao `build-and-test`:
+1. Instala o Node e as dependências exatas do `package-lock.json` (`npm ci`)
+2. Roda `npm run build`: compila o TypeScript e gera o bundle; erro de tipo quebra o job
 
 ### Job `docker-image`
 Roda depois do `build-and-test`:
@@ -130,7 +135,7 @@ Sem elas, a aplicação sobe e avisa no log, mas nenhum `ADMIN_SISTEMA` é criad
 
 O pipeline foi executado múltiplas vezes durante a configuração, sem falhas intermitentes — o `build-and-test` compila e roda os testes de forma determinística (não depende de estado externo), e o `deploy` é uma chamada HTTP simples e idempotente ao Deploy Hook.
 
-Se o job `deploy` falhar, o motivo mais provável é o secret `RENDER_DEPLOY_HOOK_URL` estar ausente ou desatualizado (por exemplo, se o serviço no Render for recriado, o hook muda). Nesse caso, o `build-and-test` continua passando normalmente — só o gatilho de deploy fica pendente até o secret ser atualizado.
+Se o job `deploy` falhar, o motivo mais provável é um dos secrets (`RENDER_DEPLOY_HOOK_URL` ou `RENDER_FRONTEND_DEPLOY_HOOK_URL`) estar ausente ou desatualizado: se um serviço for recriado no Render, o hook dele muda. Nesse caso, o `build-and-test` continua passando normalmente — só o gatilho de deploy fica pendente até o secret ser atualizado.
 
 ### Falha que o pipeline não detecta
 
@@ -154,7 +159,7 @@ A `main` exige pull request com os checks `build-and-test`, `build-frontend` e `
 
 ## Rollback
 
-1. **Pelo Render (segundos):** o serviço → **Events / Deploys** → escolher o último deploy que funcionou → **Rollback**.
+1. **Pelo Render (segundos):** em cada serviço (API ou frontend) → **Events / Deploys** → escolher o último deploy que funcionou → **Rollback**.
 2. **Pelo Git (com registro):** `git revert <commit>` numa branch → PR → merge. A esteira roda e publica a versão sem o commit problemático.
 
 ---
@@ -166,6 +171,8 @@ A `main` exige pull request com os checks `build-and-test`, `build-frontend` e `
 | Banco | H2 em arquivo (`./data/hemotrack-db`) | Postgres (Neon) |
 | Profile Spring | padrão (`application.properties`) | `prod` (`application-prod.properties`) |
 | `JWT_SECRET` | `backend/.env` (fora do Git) | variável de ambiente do Render |
+| Frontend | `npm run dev` (porta 8081) ou container nginx no Compose | Render Static Site, com `VITE_API_URL` embutida no build |
+| CORS | padrão: `localhost:8081`, `5173`, `3000` | `CORS_ALLOWED_ORIGINS` com a URL do frontend |
 | Como rodar | `./mvnw spring-boot:run` | `--spring.profiles.active=prod`, automático via Docker |
 
 Instruções completas de execução local já estão na seção ["Como rodar na sua máquina"](../README.md#como-rodar-na-sua-máquina) do README principal.

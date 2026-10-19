@@ -16,7 +16,7 @@ Uma aplicação web que gerencia e distribui hemocomponentes (bolsas de sangue) 
 | **Backend (API)** | Java 21, Spring Boot 4, Spring Security + JWT, H2 (dev) / Postgres (prod), OpenTelemetry (OTLP), Grafana Cloud |
 | **Frontend (Interface)** | TypeScript, React 19, TanStack Router + TanStack Query, Vite, Tailwind CSS |
 | **CI/CD** | GitHub Actions (build, testes e imagem Docker) + Render (deploy automático) |
-| **Containers** | Docker (multi-stage) + Docker Compose (API + Postgres) |
+| **Containers** | Docker (multi-stage) + Docker Compose (Postgres + API + frontend com nginx) |
 | **Versionamento** | Git/GitHub |
 | **Docs** | Markdown |
 
@@ -182,12 +182,16 @@ Cadastre **um hospital e um hemocentro** para ver os dois lados do sistema.
 
 ```
 hemotrack/
+├── .github/workflows/ci.yml   ← esteira: testes, build, imagem e deploy
 ├── backend/                    ← API REST em Java/Spring Boot
 │   ├── src/main/java/         ← código-fonte
+│   ├── src/test/java/         ← testes (unitário, integração e aceitação)
+│   ├── Dockerfile             ← imagem da API (multi-stage, roda os testes no build)
 │   ├── pom.xml                ← dependências Maven
 │   └── mvnw / mvnw.cmd        ← Maven (não instale, usa esse)
 ├── frontend/                   ← Interface em React/TypeScript/Vite (SPA)
 │   ├── src/
+│   ├── Dockerfile, nginx.conf ← imagem do frontend (build do Vite servido pelo nginx)
 │   ├── package.json           ← dependências npm
 │   └── vite.config.ts         ← configuração do Vite
 ├── docs/                       ← Documentação
@@ -195,8 +199,12 @@ hemotrack/
 │   ├── historias.md           ← histórias de usuário (HU01-HU09)
 │   ├── api/                   ← contrato da API e modelo de domínio
 │   ├── deploy.md              ← CI/CD, Render e variáveis de ambiente
+│   ├── desafio-pi.md          ← entrega do Desafio do PI (testes, pipeline, decisões)
+│   ├── evidencias/            ← prints das entregas E1, E2 e E3
 │   ├── telemetria.md          ← métricas via OpenTelemetry + Grafana Cloud
 │   └── notas/                 ← notas de design
+├── compose.yaml                ← Postgres + API + frontend com um comando
+├── .env.example                ← modelo das variáveis do Compose
 └── README.md                   ← você está aqui
 ```
 
@@ -306,7 +314,7 @@ O token vale 8 horas. Os erros saem em `application/problem+json`, com `type`,
 
 O roteiro completo (cadastro → login → bloqueio → aprovação, com o status
 esperado de cada chamada) e a configuração passo a passo do Insomnia/Postman
-estão em [`docs/como-rodar.md`](./docs/como-rodar.md#6-testar-a-api).
+estão em [`docs/como-rodar.md`](./docs/como-rodar.md#4-testar-a-api).
 
 ---
 
