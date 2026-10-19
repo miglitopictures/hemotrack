@@ -314,7 +314,7 @@ O token vale 8 horas. Os erros saem em `application/problem+json`, com `type`,
 
 O roteiro completo (cadastro → login → bloqueio → aprovação, com o status
 esperado de cada chamada) e a configuração passo a passo do Insomnia/Postman
-estão em [`docs/como-rodar.md`](./docs/como-rodar.md#6-testar-a-api).
+estão em [`docs/como-rodar.md`](./docs/como-rodar.md#4-testar-a-api).
 
 ---
 
