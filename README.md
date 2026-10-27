@@ -227,7 +227,7 @@ hemotrack/
 | HU03 | Criar requisição de sangue | ✅ Pronto |
 | HU04 | Visualizar e acompanhar requisições | ✅ Pronto |
 | HU05 | Aceitar ou recusar requisições | ✅ Pronto |
-| HU06 | Selecionar bolsas compatíveis | ⏳ Em progresso |
+| HU06 | Selecionar bolsas compatíveis | Backend pronto, front pendente |
 | HU07 | Planejar rota de distribuição | ⏳ Em progresso |
 | HU08 | Monitorar transporte em tempo real | ⏳ Em progresso |
 | HU09 | Dashboard de indicadores | ⏳ Em progresso |
