@@ -310,6 +310,53 @@ class HistoriasAceitacaoTest {
     }
 
     // =====================================================================================
+    // HU09 - Visualizar indicadores da operacao
+    // =====================================================================================
+
+    @Test
+    void hu09_usuarioAutenticado_vePainelDeIndicadores() throws Exception {
+        // Dado que o usuario esta autenticado
+        Instituicao hospital = instituicaoAprovada("HOSPITAL");
+
+        // Quando acessa o painel de indicadores
+        HttpResponse<String> painel = get("/indicadores", hospital.token());
+
+        // Entao o sistema apresenta os principais indicadores da operacao
+        assertThat(painel.statusCode()).isEqualTo(200);
+        assertThat(painel.body())
+            .contains("\"bolsasDisponiveis\"")
+            .contains("\"bolsasVencendo\"")
+            .contains("\"requisicoesPendentes\"")
+            .contains("\"requisicoesEmTransporte\"")
+            .contains("\"requisicoesEntregues\"")
+            .contains("\"demandaPorComponente\"")
+            .contains("\"estoquePorTipoSanguineo\"");
+    }
+
+    @Test
+    void hu09_novaRequisicao_atualizaRequisicoesPendentes() throws Exception {
+        Instituicao hospital = instituicaoAprovada("HOSPITAL");
+        long antes = Long.parseLong(extrair(get("/indicadores", hospital.token()).body(), "requisicoesPendentes"));
+
+        // Dado que uma nova requisicao foi criada
+        criarRequisicao(hospital);
+
+        // Quando os indicadores forem atualizados
+        HttpResponse<String> painel = get("/indicadores", hospital.token());
+
+        // Entao a quantidade de requisicoes pendentes deve ser atualizada
+        long depois = Long.parseLong(extrair(painel.body(), "requisicoesPendentes"));
+        assertThat(depois).isEqualTo(antes + 1);
+    }
+
+    @Test
+    void hu09_semLogin_naoVeIndicadores() throws Exception {
+        HttpResponse<String> painel = get("/indicadores", null);
+
+        assertThat(painel.statusCode()).isEqualTo(401);
+    }
+
+    // =====================================================================================
     // CORS - o navegador so deixa o front chamar a API se a origem estiver liberada
     // (origens vem de CORS_ALLOWED_ORIGINS; sem a variavel, valem as portas locais)
     // =====================================================================================
