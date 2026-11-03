@@ -51,14 +51,36 @@ export type MonitoramentoBack = {
   atualizadoEm: string;
 };
 
-/** GET /requisicoes/{id}/bolsas (Hemocomponente.java) */
+/** GET /requisicoes/{id}/bolsas e /compativeis (Hemocomponente.java) */
 export type BolsaBack = {
   id: number;
   codigoBolsa: string;
   abo: TipoABOBack;
   rh: FatorRhBack;
+  volumeMl: number;
   dataValidade: string; // LocalDate, "2026-11-30"
 };
+
+/** Bolsa do estoque como as telas de seleção (HU06) mostram. */
+export type BolsaDoEstoque = {
+  id: number;
+  codigo: string;
+  tipoSanguineo: string;
+  validade: string;
+  diasParaVencer: number;
+  volumeMl: number;
+};
+
+export function bolsaParaTela(b: BolsaBack): BolsaDoEstoque {
+  return {
+    id: b.id,
+    codigo: b.codigoBolsa,
+    tipoSanguineo: tipoSanguineoDoBack(b.abo, b.rh),
+    validade: b.dataValidade,
+    diasParaVencer: diasAte(b.dataValidade),
+    volumeMl: b.volumeMl,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Tradução
@@ -100,7 +122,7 @@ function previsaoDeChegada(r: RequisicaoBack, m: MonitoramentoBack): string {
   return horaMinuto(new Date(new Date(m.atualizadoEm).getTime() + faltaMs).toISOString());
 }
 
-function diasAte(dataIso: string): number {
+export function diasAte(dataIso: string): number {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
   const validade = new Date(`${dataIso}T00:00:00`);

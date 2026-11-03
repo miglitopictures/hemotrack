@@ -75,6 +75,15 @@ export const COMPONENTE_DO_BACK: Record<TipoHemocomponenteBack, string> = {
   CRIOPRECIPITADO: "Crioprecipitado",
 };
 
+// O back mede o pedido em mL (volumeMl); as telas falam em bolsas. A conversão
+// usa o volume padrão de uma bolsa de cada componente (o mesmo do seed do back).
+export const VOLUME_PADRAO_ML: Record<TipoHemocomponenteBack, number> = {
+  HEMACIAS: 300,
+  PLASMA: 200,
+  PLAQUETAS: 50,
+  CRIOPRECIPITADO: 15,
+};
+
 function tipoSanguineoParaBack(tipo: string): { abo: TipoABOBack; rh: FatorRhBack } {
   const abo = tipo.replace(/[+-]/, "") as TipoABOBack;
   const rh: FatorRhBack = tipo.endsWith("+") ? "POSITIVO" : "NEGATIVO";
@@ -138,7 +147,7 @@ export function requisicaoParaSolicitacao(r: RequisicaoBack): Solicitacao {
     hemocentro: r.hemocentroId != null ? nomeDoHemocentro(r.hemocentroId) : "",
     componente: COMPONENTE_DO_BACK[r.tipo],
     tipoSanguineo: tipoSanguineoDoBack(r.abo, r.rh),
-    quantidade: r.volumeMl, // aproximação: back mede em mL, front mostra "quantidade"
+    quantidade: Math.max(1, Math.ceil(r.volumeMl / VOLUME_PADRAO_ML[r.tipo])), // mL -> bolsas
     prioridade: PRIORIDADE_DO_BACK[r.prioridade],
     status: STATUS_DO_BACK[r.status],
     criadaEm: r.dataCriacao,
@@ -168,7 +177,7 @@ export function novaSolicitacaoParaRequisicao(
     tipo,
     abo,
     rh,
-    volumeMl: dados.quantidade,
+    volumeMl: dados.quantidade * VOLUME_PADRAO_ML[tipo], // bolsas -> mL
     prioridade: PRIORIDADE_PARA_BACK[dados.prioridade],
     observacoes: dados.observacoes,
   };
