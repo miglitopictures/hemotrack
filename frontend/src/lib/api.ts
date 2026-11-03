@@ -15,8 +15,6 @@
 
 import {
   HOSPITAL_ATUAL,
-  bolsaPorCodigo,
-  bolsas,
   buscar,
   calcularAlertas,
   estoquePorTipo,
@@ -41,6 +39,11 @@ import {
   type Indicadores,
   type IndicadoresBack,
 } from "./adapters/indicadores";
+import {
+  bolsaEstoqueParaTela,
+  novaBolsaParaBack,
+  type BolsaEstoqueBack,
+} from "./adapters/estoque";
 import {
   bolsaParaTela,
   pontosDaRota,
@@ -221,16 +224,19 @@ export async function listarBolsasDaSolicitacao(id: string): Promise<BolsaDoEsto
 }
 
 // ---------------------------------------------------------------------------
-// Estoque — TODO(back): implementar família `/instituicoes/{id}/estoque`
-// (HU02). Hoje só existe em contrato-api.md, nenhum controller/service/model
-// de Hemocomponente foi ligado a um endpoint ainda (o model Java existe,
-// mas não tem controller). Continua 100% mockado até isso existir.
+// Estoque (HU02) — ligado ao back (/instituicoes/{id}/estoque)
 // ---------------------------------------------------------------------------
 
-export function listarBolsas(filtros?: { componente?: string }): Promise<Bolsa[]> {
-  const componente = filtros?.componente;
-  const lista = componente ? bolsas.filter((b) => b.componente === componente) : bolsas;
-  return responder([...lista]);
+/** Estoque da instituição logada, a bolsa que vence primeiro no topo (FEFO). */
+export async function listarBolsas(filtros?: { componente?: string }): Promise<Bolsa[]> {
+  try {
+    const dados = await httpGet<BolsaEstoqueBack[]>(`/instituicoes/${instituicaoLogada()}/estoque`);
+    const lista = dados.map(bolsaEstoqueParaTela);
+    const componente = filtros?.componente;
+    return componente ? lista.filter((b) => b.componente === componente) : lista;
+  } catch (erro) {
+    throw paraErroDeApi(erro);
+  }
 }
 
 export function obterEstoquePorTipo(): Promise<typeof estoquePorTipo> {
@@ -243,17 +249,27 @@ export type NovaBolsa = {
   tipoSanguineo: string;
   coleta: string;
   validade: string;
-  armazenamento: string;
+  volumeMl?: number;
 };
 
-export function cadastrarBolsa(dados: NovaBolsa): Promise<Bolsa> {
+/** HU02, cenário 1: a bolsa entra no estoque como Disponível. */
+export async function cadastrarBolsa(dados: NovaBolsa): Promise<Bolsa> {
   if (!dados.codigo.trim()) {
-    return Promise.reject(new ErroDeApi("Informe o código da bolsa.", 400));
+    throw new ErroDeApi("Informe o código da bolsa.", 400);
   }
-  if (bolsaPorCodigo(dados.codigo)) {
-    return Promise.reject(new ErroDeApi(`Já existe uma bolsa com o código ${dados.codigo}.`, 409));
+  try {
+    const criada = await httpPost<BolsaEstoqueBack>(
+      `/instituicoes/${instituicaoLogada()}/estoque`,
+      novaBolsaParaBack(dados),
+    );
+    return bolsaEstoqueParaTela(criada);
+  } catch (erro) {
+    // erro de campo (data no futuro, validade antes da coleta...): mostra a mensagem do back
+    if (erro instanceof ErroDeApiHttp && erro.erros.length > 0) {
+      throw new ErroDeApi(erro.erros.map((e) => e.mensagem).join(" "), erro.status);
+    }
+    throw paraErroDeApi(erro);
   }
-  return responder({ ...dados, status: "Disponível" as const });
 }
 
 // ---------------------------------------------------------------------------

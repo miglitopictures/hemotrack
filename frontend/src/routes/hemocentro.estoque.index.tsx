@@ -17,13 +17,12 @@ import {
 import { listarBolsas } from "@/lib/api";
 import {
   bolsaSelecionavel,
-  bolsasVencendoEm,
   componentes,
-  contarPorArmazenamento,
   diasParaVencer,
-  estoquePorTipo,
   formatarData,
-  totalDisponivel,
+  minimoPorTipo,
+  tiposSanguineos,
+  type Bolsa,
   type StatusBolsa,
 } from "@/lib/data";
 import { cn } from "@/lib/utils";
@@ -67,7 +66,20 @@ const statusStyles: Record<StatusBolsa, string> = {
   Reservada: "bg-teal-soft text-teal border-teal/20",
   "Vence em breve": "bg-warning-soft text-warning border-warning/25",
   Enviada: "bg-muted text-muted-foreground border-border",
+  Utilizada: "bg-muted text-muted-foreground border-border",
+  Vencida: "bg-destructive/10 text-destructive border-destructive/30",
+  Descartada: "bg-muted text-muted-foreground border-border",
 };
+
+// dias até a validade: o do back (data real) ou, nos mocks, o calculado pela data fixa
+function diasDaBolsa(b: Bolsa): number {
+  return b.dias ?? diasParaVencer(b.validade);
+}
+
+// bolsas que ainda estão fisicamente no hemocentro (não saíram nem foram usadas/descartadas)
+function noHemocentro(b: Bolsa): boolean {
+  return b.status !== "Enviada" && b.status !== "Utilizada" && b.status !== "Descartada";
+}
 
 const LIMITE_LINHAS = 40;
 
@@ -79,6 +91,20 @@ function Estoque() {
   const [comp, setComp] = useState<string>("Todos");
   const [termo, setTermo] = useState(q);
 
+  // HU02: tudo calculado a partir do estoque real (GET /instituicoes/{id}/estoque)
+  const livres = bolsas.filter(bolsaSelecionavel);
+  const totalDisponivel = livres.length;
+  const vencidas = bolsas.filter((b) => b.status === "Vencida").length;
+  const presentes = bolsas.filter(noHemocentro);
+  const refrigeradas = presentes.filter((b) => b.armazenamento.includes("4 °C")).length;
+  const congeladas = presentes.filter((b) => b.armazenamento.includes("-30 °C")).length;
+  const vencendoEm3Dias = livres.filter((b) => diasDaBolsa(b) <= 3).length;
+  const estoquePorTipo = tiposSanguineos.map((tipo) => ({
+    tipo,
+    bolsas: livres.filter((b) => b.tipoSanguineo === tipo).length,
+    minimo: minimoPorTipo[tipo] ?? 0,
+  }));
+
   const busca = termo.trim().toLowerCase();
   const lista = bolsas
     .filter((b) => (comp === "Todos" ? true : b.componente === comp))
@@ -89,7 +115,7 @@ function Estoque() {
         b.tipoSanguineo.toLowerCase() === busca ||
         b.armazenamento.toLowerCase().includes(busca),
     )
-    .sort((a, b) => diasParaVencer(a.validade) - diasParaVencer(b.validade));
+    .sort((a, b) => diasDaBolsa(a) - diasDaBolsa(b));
 
   const visiveis = lista.slice(0, LIMITE_LINHAS);
 
@@ -97,7 +123,7 @@ function Estoque() {
     <AppShell role="hemocentro">
       <PageHeader
         title="Estoque"
-        subtitle={`Hemocentro Regional Recife · ${bolsas.length} bolsas no inventário`}
+        subtitle={`${bolsas.length} bolsas no inventário · ${vencidas} vencida(s) fora de uso`}
         actions={
           <Link to="/hemocentro/estoque/novo">
             <motion.span
@@ -124,7 +150,7 @@ function Estoque() {
         <StaggerItem className="h-full">
           <StatCard
             label="Refrigeradas (4 °C)"
-            value={contarPorArmazenamento("4 °C")}
+            value={refrigeradas}
             hint="Hemácias"
             tone="teal"
             icon={<Thermometer className="size-4" />}
@@ -133,7 +159,7 @@ function Estoque() {
         <StaggerItem className="h-full">
           <StatCard
             label="Congeladas (-30 °C)"
-            value={contarPorArmazenamento("-30 °C")}
+            value={congeladas}
             hint="Plasma e crioprecipitado"
             tone="neutral"
             icon={<Snowflake className="size-4" />}
@@ -142,7 +168,7 @@ function Estoque() {
         <StaggerItem className="h-full">
           <StatCard
             label="Vencem em até 3 dias"
-            value={bolsasVencendoEm(3).length}
+            value={vencendoEm3Dias}
             hint="Priorizar distribuição"
             tone="warning"
             icon={<Thermometer className="size-4" />}
@@ -254,7 +280,7 @@ function Estoque() {
               </thead>
               <tbody className="divide-y divide-border">
                 {visiveis.map((b, i) => {
-                  const dias = diasParaVencer(b.validade);
+                  const dias = diasDaBolsa(b);
                   return (
                     <motion.tr
                       key={b.codigo}

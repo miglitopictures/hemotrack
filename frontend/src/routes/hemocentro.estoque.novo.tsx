@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { GrupoOpcoes, PageHeader, Panel, fadeUp } from "@/components/ui-kit";
 import { cadastrarBolsa } from "@/lib/api";
+import { COMPONENTE_PARA_BACK, VOLUME_PADRAO_ML } from "@/lib/adapters/requisicao";
 import {
   armazenamentoPorComponente,
   componentes,
@@ -33,8 +34,6 @@ export const Route = createFileRoute("/hemocentro/estoque/novo")({
   component: NovoHemocomponente,
 });
 
-const locais = ["Câmara A · 4 °C", "Câmara B · 4 °C", "Agitador P2 · 22 °C", "Freezer F1 · -30 °C"];
-
 /** Validade padrão por componente, em dias (o operador ainda pode ajustar). */
 const validadePadrao: Record<string, number> = {
   "Concentrado de hemácias": 35,
@@ -42,6 +41,20 @@ const validadePadrao: Record<string, number> = {
   "Plasma fresco congelado": 365,
   Crioprecipitado: 365,
 };
+
+/** Data de hoje no fuso do navegador, no formato do input date (AAAA-MM-DD). */
+function hojeIso(): string {
+  const d = new Date();
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  const dia = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mes}-${dia}`;
+}
+
+/** Volume de uma bolsa padrão do componente (o mesmo que o back usa quando não vem volume). */
+function volumePadrao(componente: string): string {
+  const tipo = COMPONENTE_PARA_BACK[componente];
+  return tipo ? String(VOLUME_PADRAO_ML[tipo]) : "";
+}
 
 function somarDias(iso: string, dias: number): string {
   const d = new Date(`${iso}T00:00:00`);
@@ -93,24 +106,25 @@ function Row({ label, value }: { label: string; value: string }) {
 
 function NovoHemocomponente() {
   const navigate = useNavigate();
-  const hoje = "2026-08-27"; // TODO(back): usar a data do servidor.
+  const hoje = hojeIso();
+  const componenteInicial = componentes[0] ?? "Concentrado de hemácias";
 
-  const [componente, setComponente] = useState(componentes[0] ?? "Concentrado de hemácias");
+  const [componente, setComponente] = useState(componenteInicial);
   const [tipo, setTipo] = useState("O-");
-  const [local, setLocal] = useState(locais[0] ?? "");
   const [codigo, setCodigo] = useState("");
-  const [volume, setVolume] = useState("450");
+  const [volume, setVolume] = useState(volumePadrao(componenteInicial));
   const [coleta, setColeta] = useState(hoje);
-  const [validade, setValidade] = useState(somarDias(hoje, 35));
-  const [doador, setDoador] = useState("");
-  const [lote, setLote] = useState("");
+  const [validade, setValidade] = useState(somarDias(hoje, validadePadrao[componenteInicial] ?? 35));
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
 
-  /** Trocar o componente ajusta armazenamento e validade sugeridos. */
+  // o back não guarda a câmara: o armazenamento mostrado é o padrão do componente
+  const local = armazenamentoPorComponente[componente] ?? "—";
+
+  /** Trocar o componente ajusta volume e validade sugeridos. */
   function escolherComponente(c: string) {
     setComponente(c);
-    setLocal(armazenamentoPorComponente[c] ?? locais[0] ?? "");
+    setVolume(volumePadrao(c));
     setValidade(somarDias(coleta || hoje, validadePadrao[c] ?? 35));
   }
 
@@ -133,6 +147,11 @@ function NovoHemocomponente() {
       setErro("A validade precisa ser posterior à data de coleta.");
       return;
     }
+    const volumeMl = Number(volume.replace(",", "."));
+    if (volume.trim() && (!Number.isFinite(volumeMl) || volumeMl <= 0)) {
+      setErro("O volume precisa ser um número maior que zero.");
+      return;
+    }
     setErro(null);
     setSalvando(true);
     try {
@@ -142,7 +161,7 @@ function NovoHemocomponente() {
         tipoSanguineo: tipo,
         coleta,
         validade,
-        armazenamento: local,
+        ...(volume.trim() ? { volumeMl } : {}),
       });
       toast.success("Bolsa registrada no estoque", {
         description: `${codigo.trim().toUpperCase()} · ${componente} · ${tipo}`,
@@ -186,7 +205,7 @@ function NovoHemocomponente() {
               />
               <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
                 <Droplet className="size-3.5 text-primary" aria-hidden="true" />
-                Armazenamento e validade são sugeridos automaticamente pelo componente.
+                Volume e validade são sugeridos automaticamente pelo componente.
               </p>
             </div>
           </Panel>
@@ -216,20 +235,6 @@ function NovoHemocomponente() {
               <Field label="Volume (mL)" placeholder="450" value={volume} onChange={setVolume} />
               <Field label="Data da coleta" type="date" value={coleta} onChange={ajustarColeta} required />
               <Field label="Validade" type="date" value={validade} onChange={setValidade} required />
-              <Field label="Doador (código)" placeholder="DR-1042" value={doador} onChange={setDoador} />
-              <Field label="Lote de testes" placeholder="LT-2026-08" value={lote} onChange={setLote} />
-            </div>
-            <div className="border-t border-border p-5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Local de armazenamento
-              </p>
-              <GrupoOpcoes
-                legenda="Local de armazenamento"
-                className="mt-3"
-                opcoes={locais.map((l) => ({ valor: l, rotulo: l }))}
-                valor={local}
-                aoMudar={setLocal}
-              />
             </div>
           </Panel>
         </div>
@@ -245,7 +250,8 @@ function NovoHemocomponente() {
             <Row label="Tipo sanguíneo" value={tipo} />
             <Row label="Coleta" value={coleta ? formatarData(coleta) : "—"} />
             <Row label="Validade" value={validade ? formatarData(validade) : "—"} />
-            <Row label="Armazenamento" value={local} />
+            <Row label="Volume" value={volume.trim() ? `${volume} mL` : "padrão"} />
+            <Row label="Armazenamento (padrão)" value={local} />
             <Row label="Status inicial" value="Disponível" />
           </dl>
 

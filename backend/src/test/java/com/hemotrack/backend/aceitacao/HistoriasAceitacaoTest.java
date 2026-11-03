@@ -8,6 +8,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -105,6 +106,74 @@ class HistoriasAceitacaoTest {
         // Entao a API responde 400 indicando o campo, no formato que o front usa para marcar o input
         assertThat(resposta.statusCode()).isEqualTo(400);
         assertThat(resposta.body()).contains("instituicao.cnpj");
+    }
+
+    // =====================================================================================
+    // HU02 - Gerenciamento do estoque de hemocomponentes
+    // =====================================================================================
+
+    @Test
+    void hu02_hemocentroCadastraBolsa_nasceDisponivel() throws Exception {
+        // Dado que o usuario esta autenticado como hemocentro
+        Instituicao hemocentro = instituicaoAprovada("HEMOCENTRO");
+
+        // Quando informar os dados validos de uma bolsa
+        HttpResponse<String> cadastro = post("/instituicoes/" + hemocentro.id() + "/estoque",
+                                             corpoBolsa("HU02-" + SEQUENCIA.getAndIncrement()), hemocentro.token());
+
+        // Entao o sistema deve cadastra-la no estoque com status "Disponivel"
+        assertThat(cadastro.statusCode()).isEqualTo(201);
+        assertThat(cadastro.body()).contains("\"situacao\":\"DISPONIVEL\"");
+    }
+
+    @Test
+    void hu02_hemocentroVeOEstoqueComInformacoesEStatus() throws Exception {
+        // Dado que o hemocentro possui bolsas cadastradas
+        Instituicao hemocentro = instituicaoAprovada("HEMOCENTRO");
+        String codigo = "HU02-" + SEQUENCIA.getAndIncrement();
+        post("/instituicoes/" + hemocentro.id() + "/estoque", corpoBolsa(codigo), hemocentro.token());
+
+        // Quando acessar o estoque
+        HttpResponse<String> estoque = get("/instituicoes/" + hemocentro.id() + "/estoque", hemocentro.token());
+
+        // Entao o sistema apresenta as bolsas, suas informacoes e status
+        assertThat(estoque.statusCode()).isEqualTo(200);
+        assertThat(estoque.body())
+            .contains(codigo)
+            .contains("\"tipo\":\"HEMACIAS\"")
+            .contains("\"dataValidade\"")
+            .contains("\"situacao\":\"DISPONIVEL\"");
+    }
+
+    @Test
+    void hu02_bolsaVencida_identificadaENaoServeParaNovaRequisicao() throws Exception {
+        // Dado que uma bolsa atingiu sua data de validade
+        Instituicao hospital = instituicaoAprovada("HOSPITAL");
+        Instituicao hemocentro = instituicaoAprovada("HEMOCENTRO");
+        long vencidaId = bolsaVencidaNoEstoque(hemocentro.id());
+
+        // Quando o estoque for atualizado (consultado)
+        HttpResponse<String> estoque = get("/instituicoes/" + hemocentro.id() + "/estoque", hemocentro.token());
+
+        // Entao a bolsa e identificada como "Vencida"
+        assertThat(estoque.body()).contains("\"situacao\":\"VENCIDA\"");
+
+        // E nao pode ser usada em uma nova requisicao (nao aparece entre as compativeis)
+        long requisicaoId = criarRequisicao(hospital);
+        post("/requisicoes/" + requisicaoId + "/aceitar?hemocentroId=" + hemocentro.id(), null, hemocentro.token());
+        HttpResponse<String> compativeis = get("/requisicoes/" + requisicaoId + "/compativeis", hemocentro.token());
+        assertThat(compativeis.statusCode()).isEqualTo(200);
+        assertThat(compativeis.body()).doesNotContain("\"id\":" + vencidaId + ",");
+    }
+
+    @Test
+    void hu02_hospitalNaoCadastraBolsa() throws Exception {
+        Instituicao hospital = instituicaoAprovada("HOSPITAL");
+
+        HttpResponse<String> cadastro = post("/instituicoes/" + hospital.id() + "/estoque",
+                                             corpoBolsa("HU02-" + SEQUENCIA.getAndIncrement()), hospital.token());
+
+        assertThat(cadastro.statusCode()).isEqualTo(403);
     }
 
     // =====================================================================================
@@ -474,6 +543,31 @@ class HistoriasAceitacaoTest {
         bolsa.setVolumeMl(450);
         bolsa.setDataColeta(LocalDate.now().minusDays(1));
         bolsa.setDataValidade(LocalDate.now().plusDays(30));
+        return hemocomponentes.save(bolsa).getId();
+    }
+
+    // bolsa de hemacias O- coletada ontem, valida por 30 dias (datas em UTC, como o relogio do back)
+    private String corpoBolsa(String codigo) {
+        LocalDate hoje = LocalDate.now(ZoneOffset.UTC);
+        String corpo = """
+            {"codigoBolsa":"%s","tipo":"HEMACIAS","abo":"O","rh":"NEGATIVO",
+             "dataColeta":"%s","dataValidade":"%s"}
+            """.formatted(codigo, hoje.minusDays(1), hoje.plusDays(30));
+        return corpo;
+    }
+
+    // bolsa O- que vence hoje: entra direto pelo repositorio, porque a API (com razao) nao aceita cadastrar vencida
+    private long bolsaVencidaNoEstoque(long hemocentroId) {
+        LocalDate hoje = LocalDate.now(ZoneOffset.UTC);
+        Hemocomponente bolsa = new Hemocomponente();
+        bolsa.setCodigoBolsa("BOLSA-VENCIDA-" + SEQUENCIA.getAndIncrement());
+        bolsa.setInstituicaoAtualId(hemocentroId);
+        bolsa.setTipo(TipoHemocomponente.HEMACIAS);
+        bolsa.setAbo(TipoABO.O);
+        bolsa.setRh(FatorRh.NEGATIVO);
+        bolsa.setVolumeMl(300);
+        bolsa.setDataColeta(hoje.minusDays(42));
+        bolsa.setDataValidade(hoje);
         return hemocomponentes.save(bolsa).getId();
     }
 
