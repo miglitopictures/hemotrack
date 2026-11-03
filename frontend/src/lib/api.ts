@@ -40,6 +40,11 @@ import {
   requisicaoParaSolicitacao,
   type RequisicaoBack,
 } from "./adapters/requisicao";
+import {
+  indicadoresParaTela,
+  type Indicadores,
+  type IndicadoresBack,
+} from "./adapters/indicadores";
 import { listarInstituicoes } from "./api-auth";
 import { lerClaims, lerToken } from "./sessao";
 /** Latência simulada (ms), só usada pelas partes ainda mockadas. */
@@ -252,7 +257,19 @@ export function despacharRemessa(dados: { solicitacao: string; veiculo: string }
 }
 
 // ---------------------------------------------------------------------------
-// Diversos — TODO(back): HU09 (`/indicadores`) também não existe ainda.
+// Indicadores (HU09) — GET /indicadores, calculado na hora pelo back
+// ---------------------------------------------------------------------------
+
+export async function obterIndicadores(): Promise<Indicadores> {
+  try {
+    return indicadoresParaTela(await httpGet<IndicadoresBack>("/indicadores"));
+  } catch (erro) {
+    throw paraErroDeApi(erro);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Diversos
 // ---------------------------------------------------------------------------
 
 export function obterAlertas(): Promise<Alerta[]> {
