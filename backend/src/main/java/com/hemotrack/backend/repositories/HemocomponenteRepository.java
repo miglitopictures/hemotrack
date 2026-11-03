@@ -13,4 +13,7 @@ public interface HemocomponenteRepository extends JpaRepository<Hemocomponente, 
 
     // HU08: bolsas reservadas para uma requisicao (as que viajam no lote)
     List<Hemocomponente> findByRequisicaoAlocadaId(Long requisicaoAlocadaId);
+
+    // HU09: todas as bolsas com um status (ex.: DISPONIVEL), em qualquer instituicao
+    List<Hemocomponente> findByStatus(StatusHemocomponente status);
 }
