@@ -79,6 +79,7 @@ Todos os endpoints do nossa API. O detalhamento de cada rota (body, exemplos, ca
 | PATCH | `/requisicoes/{id}/recusar` | Recusa a requisição. `status = RECUSADA`. | Membro de `HEMOCENTRO` | `{motivoRecusa}` | `{Requisicao}` | 200, 400, 403, 404, 409 |
 | GET | `/requisicoes/{id}/compativeis` | Hemocomponentes do hemocentro que servem para a requisição: mesmo tipo, `DISPONIVEL`, não vencidos e compatíveis em ABO/Rh, ordenados por validade (FEFO). `409` se a requisição não estiver `ACEITA`. | Membro do `HEMOCENTRO` dono | — | `[{Hemocomponente}]` | 200, 403, 404, 409 |
 | PATCH | `/requisicoes/{id}/alocar` | Aloca `Hemocomponentes` do próprio estoque. `status = ALOCADA`; hemocomponentes vão para `RESERVADO`. | Membro do `HEMOCENTRO` dono | `{hemocomponenteIds}` | `{Requisicao}` | 200, 400, 403, 404, 409 |
+| GET | `/requisicoes/{id}/rota` | Planeja a distribuição (HU07): origem = hemocentro da requisição, destino = hospital, rota de menor distância no mapa fixo de municípios (Dijkstra). `409` se a requisição não estiver `ALOCADA`. | Membro de instituição aprovada | — | `{RotaResponse}` | 200, 403, 404, 409, 422 |
 | PATCH | `/requisicoes/{id}/enviar` | Despacha o lote. `status = EM_TRANSITO`. | Membro do `HEMOCENTRO` dono | — | `{Requisicao}` | 200, 403, 404, 409 |
 | PATCH | `/requisicoes/{id}/receber` | Confirma recebimento. `status = ATENDIDA` e transfere os `Hemocomponentes` para o estoque do `HOSPITAL`. | Membro do `HOSPITAL` dono | — | `{Requisicao}` | 200, 403, 404, 409 |
 
@@ -91,6 +92,7 @@ Todos os endpoints do nossa API. O detalhamento de cada rota (body, exemplos, ca
 | `Instituicao` | `{id, razaoSocial, cnpj, tipo, status, endereco, municipio, telefone}` · `tipo`: `HOSPITAL` \| `HEMOCENTRO` · `status`: `PENDENTE_APROVACAO` \| `APROVADA` |
 | `HemocomponenteRequest` | `{codigoBolsa, tipo, abo, rh, dataColeta, dataValidade}` |
 | `Hemocomponente` | `{id, codigoBolsa, tipo, abo, rh, dataColeta, dataValidade, status, instituicaoId}` |
+| `RotaResponse` | `{requisicaoId, origem: {instituicaoId, instituicao, municipio}, destino: {instituicaoId, instituicao, municipio}, locais, distanciaKm}` |
 | `RequisicaoRequest` | `{itens: [{tipo, abo, rh, quantidade}], prioridade, observacoes}` |
 | `Requisicao` | `{id, hospitalId, hemocentroId, itens, prioridade, status, observacoes, motivoRecusa, hemocomponenteIds, criadaEm, atualizadaEm}` |
 
@@ -805,6 +807,34 @@ requisição ou algum hemocomponente inexistente
 
 ---
 
+### **GET** `/requisicoes/{id}/rota`
+Planeja a distribuição (HU07). Origem e destino vêm da própria requisição: o município do hemocentro (`hemocentroId`) e o do hospital (`hospitalId`). A rota é a de menor distância no mapa fixo e simplificado de municípios de Pernambuco (`MapaTransporte`, Dijkstra em `GrafoTransporte`). É calculada na hora e não fica salva.
+
+O município é texto livre no cadastro, então a busca no mapa ignora acentos, maiúsculas e espaços extras; a resposta devolve o nome oficial.
+
+**@caller** membro de instituição aprovada
+#### `200` - HttpStatus.OK
+**@retorna** `RotaResponse`
+```json
+{
+    "requisicaoId": 42,
+    "origem":  { "instituicaoId": 7, "instituicao": "HEMOPE", "municipio": "Recife" },
+    "destino": { "instituicaoId": 3, "instituicao": "Hospital Regional do Agreste", "municipio": "Caruaru" },
+    "locais": ["Recife", "Jaboatão dos Guararapes", "Vitória de Santo Antão", "Gravatá", "Caruaru"],
+    "distanciaKm": 143.0
+}
+```
+#### `404` - HttpStatus.NOT_FOUND
+requisição, hemocentro ou hospital inexistente
+#### `409` - HttpStatus.CONFLICT
+`status != ALOCADA` (HU07, cenário 2: só distribui depois que as bolsas foram selecionadas)
+#### `422` - HttpStatus.UNPROCESSABLE_CONTENT
+município do hemocentro ou do hospital fora do mapa de distribuição; a mensagem informa qual
+
+> Municípios do mapa: Recife, Olinda, Paulista, Igarassu, Jaboatão dos Guararapes, Cabo de Santo Agostinho, Camaragibe, São Lourenço da Mata, Vitória de Santo Antão, Gravatá, Caruaru, Garanhuns, Arcoverde, Serra Talhada, Salgueiro e Petrolina. Distâncias aproximadas em km.
+
+---
+
 ### **PATCH** `/requisicoes/{id}/enviar`
 Despacha o lote: `status = EM_TRANSITO` (o "Em transporte" do HU04).
 
@@ -879,8 +909,8 @@ Delete físico só para `ADMIN_SISTEMA`, e sempre com `409` quando quebraria ras
 | HU04 | `GET /requisicoes`, `GET /requisicoes/{id}` |
 | HU05 | `GET /requisicoes?status=ABERTA`, `/aceitar`, `/recusar` |
 | HU06 | `GET /instituicoes/{id}/estoque` (filtro + FEFO), `/alocar` |
-| HU07 | ✗ sem rota — falta `/requisicoes/{id}/rota` (grafo) |
+| HU07 | `GET /requisicoes/{id}/rota` |
 | HU08 | parcial: `/enviar` e `/receber` cobrem o status; falta telemetria (GPS/temperatura simulados) |
 | HU09 | ✗ sem rota — falta `/indicadores` |
 
-Nenhuma rota do contrato atual foi retirada para cobrir as três lacunas: elas entram como acréscimo, provavelmente na Entrega 04.
+Nenhuma rota do contrato atual foi retirada para cobrir as lacunas: elas entram como acréscimo na Entrega 04.
