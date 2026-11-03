@@ -24,7 +24,8 @@ export type StatusRequisicaoBack =
   | "ALOCADA"
   | "ATENDIDA"
   | "RECUSADA"
-  | "CANCELADA";
+  | "CANCELADA"
+  | "EM_TRANSITO";
 
 export type RequisicaoBack = {
   id: number;
@@ -105,6 +106,7 @@ const STATUS_DO_BACK: Record<StatusRequisicaoBack, Status> = {
   ATENDIDA: "Entregue",
   RECUSADA: "Recusada",
   CANCELADA: "Recusada", // TODO: front ainda não tem um status de cancelamento
+  EM_TRANSITO: "Em transporte", // HU08: lote despachado pelo hemocentro
 };
 
 // ---------------------------------------------------------------------------

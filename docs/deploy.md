@@ -149,6 +149,19 @@ curl https://hemotrack-api-3ns9.onrender.com/actuator/health
 
 Esperado: `{"status":"UP"}`. Se não responder (descontado o cold start de 30–60s), veja os logs em Render → o serviço → **Logs**.
 
+### Status novo em `StatusRequisicao` (HU08)
+
+`Requisicao.status` é gravado como número (posição no enum, sem `@Enumerated(STRING)`). Por isso:
+
+1. Status novo entra **sempre no final** do enum. O `StatusRequisicaoTest` falha se alguém mudar a posição dos existentes.
+2. O Hibernate cria no Postgres uma restrição que só aceita as posições que existiam quando a tabela nasceu (0 a 5), e o `ddl-auto=update` não a atualiza. Ao publicar a HU08 (`EM_TRANSITO` = 6), rode uma vez no SQL Editor do Neon:
+
+```sql
+ALTER TABLE requisicoes DROP CONSTRAINT IF EXISTS requisicoes_status_check;
+```
+
+Sem isso, `PATCH /requisicoes/{id}/enviar` responde `500` em produção, mesmo com o CI verde (os testes rodam em H2, que recria a tabela do zero).
+
 ---
 
 ## Proteção da `main`
