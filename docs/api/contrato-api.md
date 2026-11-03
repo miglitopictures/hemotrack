@@ -84,6 +84,12 @@ Todos os endpoints do nossa API. O detalhamento de cada rota (body, exemplos, ca
 | PATCH | `/requisicoes/{id}/receber` | Confirma recebimento. `status = ATENDIDA`, grava `dataEntrega` e transfere os `Hemocomponentes` para o estoque do `HOSPITAL`. | Membro do `HOSPITAL` dono | — | `{Requisicao}` | 200, 403, 404, 409 |
 | GET | `/requisicoes/{id}/monitoramento` | Monitora o transporte (HU08): status, localização e temperatura simuladas, com alerta fora da faixa. `409` se não estiver `EM_TRANSITO`. | Membro de instituição aprovada | — | `{MonitoramentoResponse}` | 200, 403, 404, 409 |
 
+### `/indicadores`
+
+| Método | Rota | Descrição | Auth | Body | Response | Status |
+|---|---|---|---|---|---|---|
+| GET | `/indicadores` | Painel da operação (HU09): bolsas disponíveis e vencendo, requisições pendentes, em transporte e entregues, demanda por componente e estoque por tipo sanguíneo. Calculado na hora. | Autenticado | — | `{IndicadoresResponse}` | 200, 401 |
+
 ### Shapes citados
 
 | Nome | Formato |
@@ -95,6 +101,7 @@ Todos os endpoints do nossa API. O detalhamento de cada rota (body, exemplos, ca
 | `Hemocomponente` | `{id, codigoBolsa, tipo, abo, rh, dataColeta, dataValidade, status, instituicaoId}` |
 | `RotaResponse` | `{requisicaoId, origem: {instituicaoId, instituicao, municipio}, destino: {instituicaoId, instituicao, municipio}, locais, distanciaKm}` |
 | `MonitoramentoResponse` | `{requisicaoId, status, origem, destino, locais, localAtual, proximoLocal, progresso, kmPercorridos, distanciaKm, temperaturaC, faixa: {minC, maxC}, alertaTemperatura, atualizadoEm}` |
+| `IndicadoresResponse` | `{bolsasDisponiveis, bolsasVencendo, diasParaVencimento, requisicoesPendentes, requisicoesEmTransporte, requisicoesEntregues, demandaPorComponente: [{componente, pedidos, atendidos}], estoquePorTipoSanguineo: [{tipo, bolsas}], geradoEm}` |
 | `RequisicaoRequest` | `{itens: [{tipo, abo, rh, quantidade}], prioridade, observacoes}` |
 | `Requisicao` | `{id, hospitalId, hemocentroId, itens, prioridade, status, observacoes, motivoRecusa, hemocomponenteIds, criadaEm, atualizadaEm}` |
 
@@ -920,9 +927,50 @@ há hemocomponente ainda `RESERVADO` para ela
 
 ---
 
+### **GET** `/indicadores`
+Painel de indicadores da operação (HU09), de todas as instituições. Nada fica salvo: cada `GET` recalcula a partir do banco, então uma requisição nova já aparece na próxima consulta (cenário 2).
+
+- `bolsasDisponiveis`: `DISPONIVEL` e não vencidas.
+- `bolsasVencendo`: disponíveis que vencem em até `diasParaVencimento` (7) dias.
+- `requisicoesPendentes` / `requisicoesEmTransporte` / `requisicoesEntregues`: `ABERTA` / `EM_TRANSITO` / `ATENDIDA`.
+- `demandaPorComponente`: pedidos (todas as requisições) e atendidos (`ATENDIDA`) por componente, do mais pedido para o menos; os 4 componentes sempre aparecem.
+- `estoquePorTipoSanguineo`: os 8 tipos, de `A+` a `O-`, inclusive os zerados.
+
+**@caller** qualquer usuário autenticado
+#### `200` - HttpStatus.OK
+```json
+{
+    "bolsasDisponiveis": 74,
+    "bolsasVencendo": 12,
+    "diasParaVencimento": 7,
+    "requisicoesPendentes": 5,
+    "requisicoesEmTransporte": 2,
+    "requisicoesEntregues": 7,
+    "demandaPorComponente": [
+        { "componente": "HEMACIAS", "pedidos": 12, "atendidos": 4 },
+        { "componente": "PLASMA", "pedidos": 4, "atendidos": 2 },
+        { "componente": "PLAQUETAS", "pedidos": 3, "atendidos": 1 },
+        { "componente": "CRIOPRECIPITADO", "pedidos": 1, "atendidos": 0 }
+    ],
+    "estoquePorTipoSanguineo": [
+        { "tipo": "A+", "bolsas": 25 }, { "tipo": "A-", "bolsas": 6 },
+        { "tipo": "B+", "bolsas": 6 },  { "tipo": "B-", "bolsas": 1 },
+        { "tipo": "AB+", "bolsas": 2 }, { "tipo": "AB-", "bolsas": 0 },
+        { "tipo": "O+", "bolsas": 27 }, { "tipo": "O-", "bolsas": 7 }
+    ],
+    "geradoEm": "2026-11-09T12:00:00Z"
+}
+```
+#### `401` - HttpStatus.UNAUTHORIZED
+sem token
+
+> Dados sintéticos (a HU pede): ver "Dados de demonstração" no README.
+
+---
+
 ## Resumo
 
-**30 rotas** em 8 recursos — ver a [visão macro](#visão-macro) no topo.
+**35 rotas** em 9 recursos — ver a [visão macro](#visão-macro) no topo.
 
 | Recurso | Rotas |
 |---|---|
@@ -933,7 +981,8 @@ há hemocomponente ainda `RESERVADO` para ela
 | `/instituicoes/{id}/estoque` | 5 |
 | `/disponibilidade` | 1 |
 | `/hemocomponentes` | 1 |
-| `/requisicoes` | 11 |
+| `/requisicoes` | 14 |
+| `/indicadores` | 1 |
 
 Delete físico só para `ADMIN_SISTEMA`, e sempre com `409` quando quebraria rastreabilidade — o histórico de hemocomponente é append-only e nunca é apagado. Usuário não tem delete nenhum: o histórico aponta para `usuarioId`, então a saída é desativar.
 
@@ -949,6 +998,6 @@ Delete físico só para `ADMIN_SISTEMA`, e sempre com `409` quando quebraria ras
 | HU06 | `GET /instituicoes/{id}/estoque` (filtro + FEFO), `/alocar` |
 | HU07 | `GET /requisicoes/{id}/rota` |
 | HU08 | `/enviar`, `/receber`, `GET /requisicoes/{id}/monitoramento` |
-| HU09 | ✗ sem rota — falta `/indicadores` |
+| HU09 | `GET /indicadores` |
 
 Nenhuma rota do contrato atual foi retirada para cobrir as lacunas: elas entram como acréscimo na Entrega 04.
