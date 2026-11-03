@@ -147,4 +147,17 @@ class RotaServiceTest {
         assertEquals(422, erro.getStatusCode().value());
         assertTrue(erro.getReason().contains("Manaus"));
     }
+
+    // a tela desenha a rota com a distancia ate cada parada (km 0 na origem, total no destino)
+    @Test
+    void rotaTrazADistanciaAcumuladaAteCadaLocal() {
+        existeRequisicao(StatusRequisicao.ALOCADA);
+        existemInstituicoes("Recife", "Caruaru");
+
+        RotaResponse rota = service.planejar(REQUISICAO);
+
+        // Recife -> Jaboatao -> Vitoria de Santo Antao -> Gravata -> Caruaru
+        assertEquals(List.of(0.0, 18.0, 58.0, 93.0, 143.0), rota.kmAcumulado());
+        assertEquals(rota.locais().size(), rota.kmAcumulado().size());
+    }
 }
