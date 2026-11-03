@@ -22,6 +22,9 @@ import com.hemotrack.backend.model.requisicao.dto.RecusaRequest;
 import com.hemotrack.backend.service.RequisicaoService;
 import com.hemotrack.backend.model.requisicao.dto.RotaResponse;
 import com.hemotrack.backend.service.RotaService;
+import com.hemotrack.backend.model.requisicao.dto.MonitoramentoResponse;
+import com.hemotrack.backend.service.MonitoramentoService;
+import com.hemotrack.backend.service.TransporteService;
 
 import jakarta.validation.Valid;
 
@@ -32,12 +35,17 @@ public class RequisicaoController {
     private final RequisicaoService service;
     private final SelecaoService selecaoService;
     private final RotaService rotaService;
+    private final TransporteService transporteService;
+    private final MonitoramentoService monitoramentoService;
 
     // instâncias injetadas pelo Spring no controller
-    RequisicaoController(RequisicaoService service, SelecaoService selecaoService, RotaService rotaService) {
+    RequisicaoController(RequisicaoService service, SelecaoService selecaoService, RotaService rotaService,
+                         TransporteService transporteService, MonitoramentoService monitoramentoService) {
         this.service = service;
         this.selecaoService = selecaoService;
         this.rotaService = rotaService;
+        this.transporteService = transporteService;
+        this.monitoramentoService = monitoramentoService;
     }
 
     
@@ -96,6 +104,24 @@ public class RequisicaoController {
     @GetMapping("/{id}/rota")
     RotaResponse planejarRota(@PathVariable Long id) {
         return rotaService.planejar(id);
+    }
+
+    // HU08: hemocentro despacha o lote; ALOCADA -> EM_TRANSITO
+    @PatchMapping("/{id}/enviar")
+    Requisicao enviar(@PathVariable Long id) {
+        return transporteService.enviar(id);
+    }
+
+    // HU08: hospital confirma o recebimento; EM_TRANSITO -> ATENDIDA ("Entregue")
+    @PatchMapping("/{id}/receber")
+    Requisicao receber(@PathVariable Long id) {
+        return transporteService.receber(id);
+    }
+
+    // HU08: status, localizacao e temperatura simuladas do transporte em andamento
+    @GetMapping("/{id}/monitoramento")
+    MonitoramentoResponse monitorar(@PathVariable Long id) {
+        return monitoramentoService.monitorar(id);
     }
 
     // deletar uma requisicao {id}
