@@ -68,6 +68,13 @@ public class TransporteService {
         return requisicaoRepository.save(requisicao);
     }
 
+    // bolsas reservadas para a requisicao (o lote), em qualquer etapa
+    public List<Hemocomponente> listarBolsas(Long requisicaoId) {
+        requisicaoRepository.findById(requisicaoId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Requisição não encontrada"));
+        return hemocomponenteRepository.findByRequisicaoAlocadaId(requisicaoId);
+    }
+
     private Requisicao buscarComStatus(Long requisicaoId, StatusRequisicao esperado) {
         Requisicao requisicao = requisicaoRepository.findById(requisicaoId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Requisição não encontrada"));
