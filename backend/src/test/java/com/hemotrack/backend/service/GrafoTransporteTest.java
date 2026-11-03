@@ -1,11 +1,11 @@
-package com.hemotrack.backend;
+package com.hemotrack.backend.service;
 
-import com.hemotrack.backend.service.GrafoTransporte;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GrafoTransporteTest {
@@ -40,5 +40,22 @@ class GrafoTransporteTest {
         assertTrue(
             grafo.calcularCaminhoMinimo("HEMOCENTRO", "HOSPITAL").isEmpty()
         );
+    }
+
+    @Test
+    void rejeitaPesoNegativo() {
+        GrafoTransporte grafo = new GrafoTransporte();
+
+        assertThrows(IllegalArgumentException.class,
+            () -> grafo.adicionarConexao("HEMOCENTRO", "HOSPITAL", -1.0));
+    }
+
+    @Test
+    void rejeitaOrigemNaoCadastrada() {
+        GrafoTransporte grafo = new GrafoTransporte();
+        grafo.adicionarLocal("HOSPITAL");
+
+        assertThrows(IllegalArgumentException.class,
+            () -> grafo.calcularCaminhoMinimo("HEMOCENTRO", "HOSPITAL"));
     }
 }
