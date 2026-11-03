@@ -248,6 +248,68 @@ class HistoriasAceitacaoTest {
     }
 
     // =====================================================================================
+    // HU08 - Monitorar o transporte
+    // =====================================================================================
+
+    @Test
+    void hu08_hemocentroEnvia_hospitalMonitoraStatusLocalizacaoETemperatura() throws Exception {
+        // Dado uma requisicao alocada, de um hemocentro em Recife para um hospital em Caruaru
+        Instituicao hospital = instituicaoAprovada("HOSPITAL", "Caruaru");
+        Instituicao hemocentro = instituicaoAprovada("HEMOCENTRO", "Recife");
+        long requisicaoId = requisicaoAlocada(hospital, hemocentro);
+
+        // E o hemocentro despacha o lote
+        HttpResponse<String> envio = patch("/requisicoes/" + requisicaoId + "/enviar", hemocentro.token());
+        assertThat(envio.statusCode()).isEqualTo(200);
+        assertThat(envio.body()).contains("\"status\":\"EM_TRANSITO\"");
+
+        // Quando o hospital acessa o monitoramento
+        HttpResponse<String> monitoramento = get("/requisicoes/" + requisicaoId + "/monitoramento", hospital.token());
+
+        // Entao o sistema apresenta status, localizacao e temperatura simuladas
+        assertThat(monitoramento.statusCode()).isEqualTo(200);
+        assertThat(monitoramento.body())
+            .contains("\"status\":\"EM_TRANSITO\"")
+            .contains("\"localAtual\":\"Recife\"") // acabou de sair
+            .contains("\"temperaturaC\"")
+            .contains("\"alertaTemperatura\"");
+    }
+
+    @Test
+    void hu08_requisicaoNaoAlocada_naoPodeSerEnviada() throws Exception {
+        // Dado uma requisicao ainda pendente
+        Instituicao hospital = instituicaoAprovada("HOSPITAL");
+        Instituicao hemocentro = instituicaoAprovada("HEMOCENTRO");
+        long requisicaoId = criarRequisicao(hospital);
+
+        // Quando o hemocentro tenta despachar
+        HttpResponse<String> envio = patch("/requisicoes/" + requisicaoId + "/enviar", hemocentro.token());
+
+        // Entao o sistema impede a operacao
+        assertThat(envio.statusCode()).isEqualTo(409);
+    }
+
+    @Test
+    void hu08_hospitalRegistraEntrega_transporteFinalizadoERequisicaoEntregue() throws Exception {
+        // Dado um transporte em andamento
+        Instituicao hospital = instituicaoAprovada("HOSPITAL", "Caruaru");
+        Instituicao hemocentro = instituicaoAprovada("HEMOCENTRO", "Recife");
+        long requisicaoId = requisicaoAlocada(hospital, hemocentro);
+        assertThat(patch("/requisicoes/" + requisicaoId + "/enviar", hemocentro.token()).statusCode()).isEqualTo(200);
+
+        // Quando o hospital registra a entrega
+        HttpResponse<String> recebimento = patch("/requisicoes/" + requisicaoId + "/receber", hospital.token());
+
+        // Entao a requisicao assume o status "Entregue" (ATENDIDA)
+        assertThat(recebimento.statusCode()).isEqualTo(200);
+        assertThat(recebimento.body()).contains("\"status\":\"ATENDIDA\"");
+
+        // E o transporte e finalizado: nao ha mais o que monitorar
+        HttpResponse<String> monitoramento = get("/requisicoes/" + requisicaoId + "/monitoramento", hospital.token());
+        assertThat(monitoramento.statusCode()).isEqualTo(409);
+    }
+
+    // =====================================================================================
     // CORS - o navegador so deixa o front chamar a API se a origem estiver liberada
     // (origens vem de CORS_ALLOWED_ORIGINS; sem a variavel, valem as portas locais)
     // =====================================================================================
@@ -298,6 +360,21 @@ class HistoriasAceitacaoTest {
         assertThat(aprovacao.statusCode()).isEqualTo(200);
 
         return new Instituicao(id, login(email, "senha123"));
+    }
+
+    // requisicao aceita pelo hemocentro e com uma bolsa compativel ja alocada (status ALOCADA)
+    private long requisicaoAlocada(Instituicao hospital, Instituicao hemocentro) throws Exception {
+        long requisicaoId = criarRequisicao(hospital);
+
+        HttpResponse<String> aceite = post("/requisicoes/" + requisicaoId + "/aceitar?hemocentroId=" + hemocentro.id(),
+                                           null, hemocentro.token());
+        assertThat(aceite.statusCode()).isEqualTo(200);
+
+        long bolsaId = bolsaNoEstoque(hemocentro.id());
+        HttpResponse<String> alocacao = patch("/requisicoes/" + requisicaoId + "/alocar",
+                                              "{\"hemocomponenteIds\":[" + bolsaId + "]}", hemocentro.token());
+        assertThat(alocacao.statusCode()).isEqualTo(200);
+        return requisicaoId;
     }
 
     private long criarRequisicao(Instituicao hospital) throws Exception {
