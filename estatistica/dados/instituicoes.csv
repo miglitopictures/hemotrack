@@ -1,0 +1,11 @@
+id,razaoSocial,tipo,municipio,latitude,longitude
+1,Hemocentro Regional Recife,HEMOCENTRO,Recife,-8.0476,-34.8770
+2,Hemocentro Regional Caruaru,HEMOCENTRO,Caruaru,-8.2760,-35.9819
+3,Hospital Santa Clara,HOSPITAL,Recife,-8.0630,-34.8990
+4,Hospital Boa Vista,HOSPITAL,Recife,-8.0540,-34.8850
+5,Hospital São Lucas,HOSPITAL,Olinda,-8.0089,-34.8553
+6,Hospital Maria Aparecida,HOSPITAL,Jaboatão dos Guararapes,-8.1127,-35.0147
+7,Hospital Monte Verde,HOSPITAL,Paulista,-7.9408,-34.8728
+8,Hospital Beira-Rio,HOSPITAL,Camaragibe,-8.0235,-34.9782
+9,Hospital do Agreste,HOSPITAL,Caruaru,-8.2850,-35.9700
+10,Hospital Vale do Ipojuca,HOSPITAL,Gravatá,-8.2012,-35.5649
