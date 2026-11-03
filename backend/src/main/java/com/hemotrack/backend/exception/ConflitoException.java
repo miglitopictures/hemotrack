@@ -34,6 +34,12 @@ public class ConflitoException extends RuntimeException{
         return instituicaJaAprovadaException;
     }
 
+    public static ConflitoException codigoBolsaEmUso(String codigo) {
+        return new ConflitoException("codigo-bolsa-em-uso",
+                                     "Código de bolsa já cadastrado",
+                                     "Já existe bolsa com o código " + codigo + ".");
+    }
+
     public static ConflitoException tentouDesativarAdmin (Long id) {
         ConflitoException tentouDesativarAdminException = new ConflitoException("tentou-desativar-admin",
                                                                                 "Admin não pode ser desativado.",

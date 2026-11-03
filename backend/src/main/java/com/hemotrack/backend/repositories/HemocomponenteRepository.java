@@ -16,4 +16,9 @@ public interface HemocomponenteRepository extends JpaRepository<Hemocomponente, 
 
     // HU09: todas as bolsas com um status (ex.: DISPONIVEL), em qualquer instituicao
     List<Hemocomponente> findByStatus(StatusHemocomponente status);
+
+    // HU02: estoque de uma instituicao (todas as situacoes) e codigo unico
+    List<Hemocomponente> findByInstituicaoAtualId(Long instituicaoAtualId);
+
+    boolean existsByCodigoBolsa(String codigoBolsa);
 }
