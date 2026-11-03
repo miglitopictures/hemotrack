@@ -29,6 +29,7 @@ export type Solicitacao = {
   /** ISO 8601 — formate na exibição com formatarDataHora(). */
   criadaEm: string;
   observacoes: string;
+  motivoRecusa?: string | null;
 };
 
 export type Bolsa = {

@@ -9,7 +9,6 @@
  */
 
 import type { Prioridade, Solicitacao, Status } from "../data";
-import { HOSPITAL_ATUAL } from "../data";
 
 // ---------------------------------------------------------------------------
 // O que o back REALMENTE devolve hoje (RequisicaoController + Requisicao.java)
@@ -112,29 +111,23 @@ const STATUS_DO_BACK: Record<StatusRequisicaoBack, Status> = {
 // Tradutores públicos
 // ---------------------------------------------------------------------------
 
-// TODO(back): quando existir uma rota de instituições (/instituicoes), o
-// nome do hospital deve vir de lá, não ser fixado aqui. Enquanto isso não
-// existe, mapeamos à mão o único hospital que estamos usando para testar
-// (id 1, o mesmo valor de HOSPITAL_ID_TEMP no api.ts) para o nome exato que
-// a tela "minhas solicitações" já espera (HOSPITAL_ATUAL, em data.ts). Sem
-// isso, o texto não bate e a tela do hospital fica vazia, mesmo a
-// solicitação existindo (é exatamente o que estava acontecendo).
-const NOME_DO_HOSPITAL: Record<number, string> = {
-  1: HOSPITAL_ATUAL,
-};
+// Nomes das instituições aprovadas, vindos de GET /instituicoes. O api.ts
+// preenche este mapa antes de traduzir as requisições; se a busca falhar,
+// a tela mostra "Hospital #id" / "Hemocentro #id".
+const nomesInstituicoes = new Map<number, string>();
 
-function nomeDoHospital(hospitalId: number): string {
-  return NOME_DO_HOSPITAL[hospitalId] ?? `Hospital #${hospitalId}`;
+export function registrarNomesInstituicoes(lista: { id: number; razaoSocial: string }[]): void {
+  for (const instituicao of lista) {
+    nomesInstituicoes.set(instituicao.id, instituicao.razaoSocial);
+  }
 }
 
-// TODO(back): mesma situação do hospital — quando existir /instituicoes,
-// o nome do hemocentro deve vir de lá. Por enquanto só devolvemos um nome
-// genérico com o id, já que ainda não temos nenhum hemocentro de teste
-// mapeado à mão como fizemos com NOME_DO_HOSPITAL.
-const NOME_DO_HEMOCENTRO: Record<number, string> = {};
+function nomeDoHospital(hospitalId: number): string {
+  return nomesInstituicoes.get(hospitalId) ?? `Hospital #${hospitalId}`;
+}
 
 function nomeDoHemocentro(hemocentroId: number): string {
-  return NOME_DO_HEMOCENTRO[hemocentroId] ?? `Hemocentro #${hemocentroId}`;
+  return nomesInstituicoes.get(hemocentroId) ?? `Hemocentro #${hemocentroId}`;
 }
 
 export function requisicaoParaSolicitacao(r: RequisicaoBack): Solicitacao {
@@ -149,6 +142,7 @@ export function requisicaoParaSolicitacao(r: RequisicaoBack): Solicitacao {
     status: STATUS_DO_BACK[r.status],
     criadaEm: r.dataCriacao,
     observacoes: r.observacoes ?? "",
+    motivoRecusa: r.motivoRecusa ?? null,
   };
 }
 

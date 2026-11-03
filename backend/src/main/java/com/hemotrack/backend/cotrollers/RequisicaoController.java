@@ -12,6 +12,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.springframework.web.bind.annotation.PatchMapping;
+import com.hemotrack.backend.model.requisicao.dto.AlocacaoRequest;
+import com.hemotrack.backend.model.sangue.Hemocomponente;
+import com.hemotrack.backend.service.SelecaoService;
+
 import com.hemotrack.backend.model.requisicao.Requisicao;
 import com.hemotrack.backend.model.requisicao.dto.RecusaRequest;
 import com.hemotrack.backend.service.RequisicaoService;
@@ -23,10 +28,12 @@ import jakarta.validation.Valid;
 public class RequisicaoController {
  
     private final RequisicaoService service;
+    private final SelecaoService selecaoService;
 
-    // instância de RequisicaoService é injetada pelo Spring no controller
-    RequisicaoController(RequisicaoService service) {
+    // instâncias injetadas pelo Spring no controller
+    RequisicaoController(RequisicaoService service, SelecaoService selecaoService) {
         this.service = service;
+        this.selecaoService = selecaoService;
     }
 
     
@@ -66,6 +73,19 @@ public class RequisicaoController {
     @PostMapping ("/{id}/recusar")
     Requisicao recusarRequisicao(@RequestBody RecusaRequest body, @PathVariable Long id) {
         return service.recusar(body.getMotivoRecusa(), id);
+    }
+
+
+    // HU06: bolsas compativeis para uma requisicao aceita, validade mais proxima primeiro
+    @GetMapping("/{id}/compativeis")
+    List<Hemocomponente> listarCompativeis(@PathVariable Long id) {
+        return selecaoService.listarCompativeis(id);
+    }
+
+    // HU06: reserva as bolsas escolhidas e marca a requisicao como ALOCADA
+    @PatchMapping("/{id}/alocar")
+    Requisicao alocar(@PathVariable Long id, @Valid @RequestBody AlocacaoRequest body) {
+        return selecaoService.alocar(id, body.hemocomponenteIds());
     }
 
     // deletar uma requisicao {id}

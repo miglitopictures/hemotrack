@@ -47,6 +47,20 @@ public class GlobalExceptionHandler {
     
     }
 
+    // regra de negocio violada em um campo (lancada pelo service): mesmo formato do 400 de validacao,
+    // para o front mostrar a mensagem embaixo do input certo.
+    @ExceptionHandler (DadosInvalidosException.class)
+    public ProblemDetail tratarDadosInvalidos(DadosInvalidosException ex) {
+        List<ErroDeCampo> erros = new ArrayList<>();
+        erros.add(new ErroDeCampo(ex.getCampo(), ex.getMessage()));
+
+        ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Um ou mais campos estão inválidos.");
+        problema.setType(URI.create(BASE_TIPO + "validacao"));
+        problema.setTitle("Dados inválidos");
+        problema.setProperty("errors", erros);
+        return problema;
+    }
+
     @ExceptionHandler (DataIntegrityViolationException.class)
     public ProblemDetail tratarViolacaoDeIntegridade(DataIntegrityViolationException ex) {
         ProblemDetail problema = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, "O registro conflita com um já existente (CNPJ ou email duplicado).");
