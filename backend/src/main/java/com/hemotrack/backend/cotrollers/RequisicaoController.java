@@ -20,6 +20,8 @@ import com.hemotrack.backend.service.SelecaoService;
 import com.hemotrack.backend.model.requisicao.Requisicao;
 import com.hemotrack.backend.model.requisicao.dto.RecusaRequest;
 import com.hemotrack.backend.service.RequisicaoService;
+import com.hemotrack.backend.model.requisicao.dto.RotaResponse;
+import com.hemotrack.backend.service.RotaService;
 
 import jakarta.validation.Valid;
 
@@ -29,11 +31,13 @@ public class RequisicaoController {
  
     private final RequisicaoService service;
     private final SelecaoService selecaoService;
+    private final RotaService rotaService;
 
     // instâncias injetadas pelo Spring no controller
-    RequisicaoController(RequisicaoService service, SelecaoService selecaoService) {
+    RequisicaoController(RequisicaoService service, SelecaoService selecaoService, RotaService rotaService) {
         this.service = service;
         this.selecaoService = selecaoService;
+        this.rotaService = rotaService;
     }
 
     
@@ -86,6 +90,12 @@ public class RequisicaoController {
     @PatchMapping("/{id}/alocar")
     Requisicao alocar(@PathVariable Long id, @Valid @RequestBody AlocacaoRequest body) {
         return selecaoService.alocar(id, body.hemocomponenteIds());
+    }
+
+    // HU07: rota do hemocentro ate o hospital; so para requisicao ALOCADA
+    @GetMapping("/{id}/rota")
+    RotaResponse planejarRota(@PathVariable Long id) {
+        return rotaService.planejar(id);
     }
 
     // deletar uma requisicao {id}
