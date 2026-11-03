@@ -3,6 +3,7 @@ package com.hemotrack.backend.service;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -13,6 +14,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.hemotrack.backend.model.requisicao.Requisicao;
 import com.hemotrack.backend.model.requisicao.StatusRequisicao;
 import com.hemotrack.backend.model.requisicao.dto.MonitoramentoResponse;
+import com.hemotrack.backend.model.requisicao.dto.MonitoramentoResponse.LeituraTemperatura;
 import com.hemotrack.backend.model.requisicao.dto.RotaResponse;
 import com.hemotrack.backend.model.sangue.FaixaTemperatura;
 import com.hemotrack.backend.repositories.RequisicaoRepository;
@@ -27,9 +29,11 @@ import com.hemotrack.backend.repositories.RequisicaoRepository;
 @Service
 public class MonitoramentoService {
 
+    // o grafico de temperatura mostra no maximo a ultima hora (uma leitura por minuto)
+    private static final int MAXIMO_LEITURAS = 60;
+
     private final RequisicaoRepository requisicaoRepository;
     private final RotaService rotaService;
-    private final MapaTransporte mapa;
     private final SensorTemperatura sensor;
     private final Clock relogio;
     private final double kmPorMinuto;
@@ -37,13 +41,11 @@ public class MonitoramentoService {
     // velocidade da simulacao: 10 km/min deixa Recife -> Caruaru em ~15 minutos, bom para a demo.
     public MonitoramentoService(RequisicaoRepository requisicaoRepository,
                                 RotaService rotaService,
-                                MapaTransporte mapa,
                                 SensorTemperatura sensor,
                                 Clock relogio,
                                 @Value("${hemotrack.simulacao.km-por-minuto:10}") double kmPorMinuto) {
         this.requisicaoRepository = requisicaoRepository;
         this.rotaService = rotaService;
-        this.mapa = mapa;
         this.sensor = sensor;
         this.relogio = relogio;
         this.kmPorMinuto = kmPorMinuto;
@@ -64,7 +66,7 @@ public class MonitoramentoService {
 
         // ---------- localizacao simulada ----------
         double km = kmPercorridos(requisicao.getDataEnvio(), agora, rota.distanciaKm());
-        int indiceAtual = ultimoLocalAlcancado(locais, km);
+        int indiceAtual = ultimoLocalAlcancado(rota.kmAcumulado(), km);
         String proximoLocal = null;
         if (indiceAtual < locais.size() - 1) {
             proximoLocal = locais.get(indiceAtual + 1);
@@ -78,6 +80,7 @@ public class MonitoramentoService {
         // ---------- temperatura simulada ----------
         FaixaTemperatura faixa = FaixaTemperatura.de(requisicao.getTipo());
         double temperatura = sensor.ler(requisicao.getId(), requisicao.getTipo(), agora);
+        List<LeituraTemperatura> historico = historico(requisicao, agora);
 
         return new MonitoramentoResponse(
             requisicao.getId(),
@@ -85,6 +88,7 @@ public class MonitoramentoService {
             rota.origem().municipio(),
             rota.destino().municipio(),
             locais,
+            rota.kmAcumulado(),
             locais.get(indiceAtual),
             proximoLocal,
             progresso,
@@ -93,6 +97,7 @@ public class MonitoramentoService {
             temperatura,
             faixa,
             !faixa.contem(temperatura),
+            historico,
             agora
         );
     }
@@ -107,17 +112,32 @@ public class MonitoramentoService {
         return Math.min(km, distanciaTotal);
     }
 
-    // a distancia da origem ate cada local da rota e o caminho minimo ate ele
-    // (um trecho do caminho minimo tambem e minimo), entao o proprio mapa responde.
-    private int ultimoLocalAlcancado(List<String> locais, double km) {
-        String origem = locais.get(0);
+    // ultimo local da rota cuja distancia desde a origem ja foi percorrida.
+    private int ultimoLocalAlcancado(List<Double> kmAcumulado, double km) {
         int indice = 0;
-        for (int i = 0; i < locais.size(); i++) {
-            double distanciaAteOLocal = mapa.calcularRota(origem, locais.get(i)).orElseThrow().pesoTotal();
-            if (distanciaAteOLocal <= km) {
+        for (int i = 0; i < kmAcumulado.size(); i++) {
+            if (kmAcumulado.get(i) <= km) {
                 indice = i;
             }
         }
         return indice;
+    }
+
+    // uma leitura por minuto, contando para tras a partir de agora (a ultima e a leitura atual).
+    // o sensor simulado e deterministico por minuto, entao o historico nao muda entre consultas.
+    private List<LeituraTemperatura> historico(Requisicao requisicao, Instant agora) {
+        long minutosDeViagem = 0;
+        if (requisicao.getDataEnvio() != null) {
+            minutosDeViagem = Math.max(Duration.between(requisicao.getDataEnvio(), agora).toMinutes(), 0);
+        }
+        long anteriores = Math.min(minutosDeViagem, MAXIMO_LEITURAS - 1);
+
+        List<LeituraTemperatura> leituras = new ArrayList<>();
+        for (long k = anteriores; k >= 0; k--) {
+            Instant instante = agora.minus(Duration.ofMinutes(k));
+            leituras.add(new LeituraTemperatura(instante,
+                sensor.ler(requisicao.getId(), requisicao.getTipo(), instante)));
+        }
+        return leituras;
     }
 }

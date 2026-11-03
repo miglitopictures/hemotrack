@@ -118,6 +118,12 @@ public class RequisicaoController {
         return transporteService.receber(id);
     }
 
+    // HU07/HU08: bolsas reservadas para a requisicao (o lote)
+    @GetMapping("/{id}/bolsas")
+    List<Hemocomponente> listarBolsas(@PathVariable Long id) {
+        return transporteService.listarBolsas(id);
+    }
+
     // HU08: status, localizacao e temperatura simuladas do transporte em andamento
     @GetMapping("/{id}/monitoramento")
     MonitoramentoResponse monitorar(@PathVariable Long id) {

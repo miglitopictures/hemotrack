@@ -175,4 +175,23 @@ class TransporteServiceTest {
             () -> service.receber(REQUISICAO));
         assertEquals(HttpStatus.CONFLICT, erro.getStatusCode());
     }
+
+    // ---------- bolsas do lote (para a tela de planejamento e de monitoramento) ----------
+
+    @Test
+    void listaAsBolsasReservadasParaARequisicao() {
+        existeRequisicao(StatusRequisicao.EM_TRANSITO);
+        List<Hemocomponente> bolsas = bolsasDaRequisicao(true);
+
+        assertEquals(bolsas, service.listarBolsas(REQUISICAO));
+    }
+
+    @Test
+    void listarBolsasDeRequisicaoInexistente_retorna404() {
+        when(requisicaoRepository.findById(REQUISICAO)).thenReturn(Optional.empty());
+
+        ResponseStatusException erro = assertThrows(ResponseStatusException.class,
+            () -> service.listarBolsas(REQUISICAO));
+        assertEquals(HttpStatus.NOT_FOUND, erro.getStatusCode());
+    }
 }

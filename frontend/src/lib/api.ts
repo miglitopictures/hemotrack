@@ -23,17 +23,15 @@ import {
   estoquePorTipo,
   solicitacaoPorId,
   solicitacoes,
-  transporteDaSolicitacao,
-  transportePorId,
-  transportes,
   type Alerta,
   type Bolsa,
   type Prioridade,
   type ResultadoBusca,
+  type PontoRota,
   type Solicitacao,
   type Transporte,
 } from "./data";
-import { httpGet, httpPost, httpPut, ErroDeApiHttp } from "./httpClient";
+import { httpGet, httpPatch, httpPost, httpPut, ErroDeApiHttp } from "./httpClient";
 import {
   novaSolicitacaoParaRequisicao,
   registrarNomesInstituicoes,
@@ -45,6 +43,13 @@ import {
   type Indicadores,
   type IndicadoresBack,
 } from "./adapters/indicadores";
+import {
+  pontosDaRota,
+  requisicaoParaTransporte,
+  type BolsaBack,
+  type MonitoramentoBack,
+  type RotaBack,
+} from "./adapters/transporte";
 import { listarInstituicoes } from "./api-auth";
 import { lerClaims, lerToken } from "./sessao";
 /** Latência simulada (ms), só usada pelas partes ainda mockadas. */
@@ -226,34 +231,124 @@ export function cadastrarBolsa(dados: NovaBolsa): Promise<Bolsa> {
 }
 
 // ---------------------------------------------------------------------------
-// Transportes e distribuição — TODO(back): HU07 (rota/grafo) e HU08
-// (telemetria simulada) não têm NENHUMA rota, nem no documento nem em
-// código. É provavelmente a próxima coisa a alinhar com o Miguel, já que
-// hoje não dá pra ligar nem a versão mockada nem uma real. Continua mockado.
+// Transportes e distribuição — ligado ao back (HU07 rota, HU08 monitoramento)
+// Um "transporte" é uma requisição a partir de ALOCADA (bolsas separadas):
+// ALOCADA = "Em separação", EM_TRANSITO = "Em transporte", ATENDIDA = "Entregue".
 // ---------------------------------------------------------------------------
 
-export function listarTransportes(filtros?: { destino?: string }): Promise<Transporte[]> {
-  const destino = filtros?.destino;
-  const lista = destino ? transportes.filter((t) => t.destino.startsWith(destino)) : transportes;
-  return responder([...lista]);
+const STATUS_DE_TRANSPORTE = new Set(["ALOCADA", "EM_TRANSITO", "ATENDIDA"]);
+
+// ordem na tela: o que está na estrada primeiro, depois o que falta despachar
+const ORDEM_NA_TELA: Record<string, number> = { "Em transporte": 0, "Em separação": 1, Entregue: 2 };
+
+async function montarTransporte(r: RequisicaoBack): Promise<Transporte> {
+  // rota e monitoramento podem falhar (ex.: município fora do mapa, 422);
+  // nesse caso o card aparece sem mapa em vez de quebrar a tela inteira.
+  const [bolsasDoLote, monitoramento, rota] = await Promise.all([
+    httpGet<BolsaBack[]>(`/requisicoes/${r.id}/bolsas`),
+    r.status === "EM_TRANSITO"
+      ? httpGet<MonitoramentoBack>(`/requisicoes/${r.id}/monitoramento`).catch(() => null)
+      : Promise.resolve(null),
+    r.status === "ALOCADA"
+      ? httpGet<RotaBack>(`/requisicoes/${r.id}/rota`).catch(() => null)
+      : Promise.resolve(null),
+  ]);
+  return requisicaoParaTransporte(r, bolsasDoLote, monitoramento, rota);
+}
+
+/** Transportes em que a instituição logada é a origem (hemocentro) ou o destino (hospital). */
+export async function listarTransportes(): Promise<Transporte[]> {
+  try {
+    await carregarNomesInstituicoes();
+    const minha = instituicaoLogada();
+    const requisicoes = await httpGet<RequisicaoBack[]>("/requisicoes");
+
+    const doTransporte: RequisicaoBack[] = [];
+    for (const r of requisicoes) {
+      const envolvida = r.hospitalId === minha || r.hemocentroId === minha;
+      if (envolvida && STATUS_DE_TRANSPORTE.has(r.status)) {
+        doTransporte.push(r);
+      }
+    }
+
+    const lista = await Promise.all(doTransporte.map(montarTransporte));
+    return lista.sort((a, b) => (ORDEM_NA_TELA[a.status] ?? 9) - (ORDEM_NA_TELA[b.status] ?? 9));
+  } catch (erro) {
+    throw paraErroDeApi(erro);
+  }
 }
 
 export function listarMeusTransportes(): Promise<Transporte[]> {
-  return listarTransportes({ destino: HOSPITAL_ATUAL });
+  return listarTransportes();
 }
 
-export function obterTransporte(id: string): Promise<Transporte | undefined> {
-  return responder(transportePorId(id));
+/** Transporte de uma requisição; `undefined` se não existe ou ainda não chegou à separação. */
+export async function obterTransporte(id: string): Promise<Transporte | undefined> {
+  const idBack = id.replace(/^REQ-/, "");
+  try {
+    await carregarNomesInstituicoes();
+    const r = await httpGet<RequisicaoBack>(`/requisicoes/${idBack}`);
+    if (!STATUS_DE_TRANSPORTE.has(r.status)) return undefined;
+    return await montarTransporte(r);
+  } catch (erro) {
+    if (erro instanceof ErroDeApiHttp && erro.status === 404) return undefined;
+    throw paraErroDeApi(erro);
+  }
 }
 
 export function obterTransporteDaSolicitacao(id: string): Promise<Transporte | undefined> {
-  return responder(transporteDaSolicitacao(id));
+  return obterTransporte(id);
 }
 
-export function despacharRemessa(dados: { solicitacao: string; veiculo: string }): Promise<Transporte> {
-  const existente = transporteDaSolicitacao(dados.solicitacao);
-  if (existente) return responder({ ...existente, veiculo: dados.veiculo });
-  return Promise.reject(new ErroDeApi("Não há remessa vinculada a esta solicitação.", 404));
+/** O transporte é da instituição logada (origem ou destino)? */
+export function transporteDaMinhaInstituicao(t: Transporte): boolean {
+  const minha = instituicaoLogada();
+  return t.hospitalId === minha || t.hemocentroId === minha;
+}
+
+/** HU07: rota planejada (só para requisição com bolsas separadas, senão `null`). */
+export async function obterRotaDaSolicitacao(
+  id: string,
+): Promise<{ pontos: PontoRota[]; distanciaKm: number } | null> {
+  const idBack = id.replace(/^REQ-/, "");
+  try {
+    await carregarNomesInstituicoes();
+    const rota = await httpGet<RotaBack>(`/requisicoes/${idBack}/rota`);
+    return {
+      pontos: pontosDaRota(rota.locais, rota.kmAcumulado, rota.origem.instituicao, rota.destino.instituicao),
+      distanciaKm: rota.distanciaKm,
+    };
+  } catch (erro) {
+    // 409: ainda não está ALOCADA; 422: município fora do mapa
+    if (erro instanceof ErroDeApiHttp && (erro.status === 409 || erro.status === 422)) return null;
+    throw paraErroDeApi(erro);
+  }
+}
+
+/** HU08: o hemocentro despacha o lote (ALOCADA -> EM_TRANSITO). O veículo ainda não é gravado no back. */
+export async function despacharRemessa(dados: { solicitacao: string; veiculo: string }): Promise<Transporte> {
+  const idBack = dados.solicitacao.replace(/^REQ-/, "");
+  try {
+    await httpPatch<RequisicaoBack>(`/requisicoes/${idBack}/enviar`);
+  } catch (erro) {
+    throw paraErroDeApi(erro);
+  }
+  const transporte = await obterTransporte(dados.solicitacao);
+  if (!transporte) throw new ErroDeApi("Remessa despachada, mas não foi possível carregá-la.", 500);
+  return { ...transporte, veiculo: dados.veiculo };
+}
+
+/** HU08, cenário 3: o hospital confirma o recebimento (EM_TRANSITO -> ATENDIDA). */
+export async function confirmarRecebimento(id: string): Promise<Transporte> {
+  const idBack = id.replace(/^REQ-/, "");
+  try {
+    await httpPatch<RequisicaoBack>(`/requisicoes/${idBack}/receber`);
+  } catch (erro) {
+    throw paraErroDeApi(erro);
+  }
+  const transporte = await obterTransporte(id);
+  if (!transporte) throw new ErroDeApi("Recebimento registrado, mas não foi possível carregar a remessa.", 500);
+  return transporte;
 }
 
 // ---------------------------------------------------------------------------

@@ -11,6 +11,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,7 @@ import com.hemotrack.backend.model.instituicao.TipoInstituicao;
 import com.hemotrack.backend.model.requisicao.Requisicao;
 import com.hemotrack.backend.model.requisicao.StatusRequisicao;
 import com.hemotrack.backend.model.requisicao.dto.MonitoramentoResponse;
+import com.hemotrack.backend.model.requisicao.dto.MonitoramentoResponse.LeituraTemperatura;
 import com.hemotrack.backend.model.sangue.TipoHemocomponente;
 import com.hemotrack.backend.repositories.InstituicaoRepository;
 import com.hemotrack.backend.repositories.RequisicaoRepository;
@@ -63,7 +65,7 @@ class MonitoramentoServiceTest {
         MapaTransporte mapa = new MapaTransporte();
         RotaService rotaService = new RotaService(requisicaoRepository, instituicaoRepository, mapa);
         Clock relogio = Clock.fixed(ENVIO.plus(tempoDeViagem), ZoneOffset.UTC);
-        return new MonitoramentoService(requisicaoRepository, rotaService, mapa, sensorFalso, relogio, KM_POR_MINUTO);
+        return new MonitoramentoService(requisicaoRepository, rotaService, sensorFalso, relogio, KM_POR_MINUTO);
     }
 
     private Requisicao existeRequisicao(StatusRequisicao status) {
@@ -176,5 +178,41 @@ class MonitoramentoServiceTest {
         ResponseStatusException erro = assertThrows(ResponseStatusException.class,
             () -> serviceDepoisDe(Duration.ZERO).monitorar(REQUISICAO));
         assertEquals(HttpStatus.NOT_FOUND, erro.getStatusCode());
+    }
+
+    // ---------- dados para a tela: rota com km e historico de temperatura ----------
+
+    @Test
+    void trazADistanciaAcumuladaAteCadaLocalDaRota() {
+        transporteEmAndamentoDeRecifeParaCaruaru();
+
+        MonitoramentoResponse m = serviceDepoisDe(Duration.ofMinutes(6)).monitorar(REQUISICAO);
+
+        assertEquals(List.of(0.0, 18.0, 58.0, 93.0, 143.0), m.kmAcumulado());
+    }
+
+    // uma leitura por minuto desde o envio; a ultima e a leitura atual.
+    @Test
+    void historicoTemUmaLeituraPorMinutoDesdeOEnvio() {
+        transporteEmAndamentoDeRecifeParaCaruaru();
+
+        MonitoramentoResponse m = serviceDepoisDe(Duration.ofMinutes(6)).monitorar(REQUISICAO);
+
+        List<LeituraTemperatura> historico = m.historico();
+        assertEquals(7, historico.size()); // minutos 0, 1, ..., 6
+        assertEquals(ENVIO, historico.get(0).instante());
+        assertEquals(m.atualizadoEm(), historico.get(6).instante());
+        assertEquals(m.temperaturaC(), historico.get(6).temperaturaC());
+    }
+
+    // viagem longa: o grafico mostra so a ultima hora.
+    @Test
+    void historicoGuardaNoMaximo60Leituras() {
+        transporteEmAndamentoDeRecifeParaCaruaru();
+
+        MonitoramentoResponse m = serviceDepoisDe(Duration.ofMinutes(90)).monitorar(REQUISICAO);
+
+        assertEquals(60, m.historico().size());
+        assertEquals(m.atualizadoEm(), m.historico().get(59).instante());
     }
 }

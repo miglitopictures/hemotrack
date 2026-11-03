@@ -12,6 +12,8 @@ import com.hemotrack.backend.model.sangue.FaixaTemperatura;
  * @param localAtual ultimo municipio da rota por onde o lote ja passou
  * @param proximoLocal proximo municipio da rota; null quando ja chegou ao destino
  * @param progresso percentual da distancia percorrida (0 a 100)
+ * @param kmAcumulado distancia da origem ate cada local de locais
+ * @param historico leituras de temperatura, uma por minuto, no maximo a ultima hora; a ultima e a atual
  */
 public record MonitoramentoResponse(
     Long requisicaoId,
@@ -19,6 +21,7 @@ public record MonitoramentoResponse(
     String origem,
     String destino,
     List<String> locais,
+    List<Double> kmAcumulado,
     String localAtual,
     String proximoLocal,
     int progresso,
@@ -27,5 +30,8 @@ public record MonitoramentoResponse(
     double temperaturaC,
     FaixaTemperatura faixa,
     boolean alertaTemperatura,
+    List<LeituraTemperatura> historico,
     Instant atualizadoEm
-) { }
+) {
+    public record LeituraTemperatura(Instant instante, double temperaturaC) { }
+}

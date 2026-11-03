@@ -1,5 +1,8 @@
 package com.hemotrack.backend.service;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
@@ -63,11 +66,19 @@ public class RotaService {
             .orElseThrow(() -> new ResponseStatusException(NAO_PROCESSAVEL,
                 "Não existe rota entre " + origem + " e " + destino));
 
+        // distancia ate cada parada: um trecho do caminho minimo tambem e minimo,
+        // entao o proprio Dijkstra da origem ate o local responde.
+        List<Double> kmAcumulado = new ArrayList<>();
+        for (String local : rota.locais()) {
+            kmAcumulado.add(mapa.calcularRota(origem, local).orElseThrow().pesoTotal());
+        }
+
         return new RotaResponse(
             requisicao.getId(),
             new RotaResponse.Ponto(hemocentro.getId(), hemocentro.getRazaoSocial(), origem),
             new RotaResponse.Ponto(hospital.getId(), hospital.getRazaoSocial(), destino),
             rota.locais(),
+            kmAcumulado,
             rota.pesoTotal()
         );
     }

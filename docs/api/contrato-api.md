@@ -83,6 +83,7 @@ Todos os endpoints do nossa API. O detalhamento de cada rota (body, exemplos, ca
 | PATCH | `/requisicoes/{id}/enviar` | Despacha o lote. `status = EM_TRANSITO`, grava `dataEnvio` e marca os hemocomponentes como `emTransito`. `409` se não estiver `ALOCADA`. | Membro do `HEMOCENTRO` dono | — | `{Requisicao}` | 200, 403, 404, 409 |
 | PATCH | `/requisicoes/{id}/receber` | Confirma recebimento. `status = ATENDIDA`, grava `dataEntrega` e transfere os `Hemocomponentes` para o estoque do `HOSPITAL`. | Membro do `HOSPITAL` dono | — | `{Requisicao}` | 200, 403, 404, 409 |
 | GET | `/requisicoes/{id}/monitoramento` | Monitora o transporte (HU08): status, localização e temperatura simuladas, com alerta fora da faixa. `409` se não estiver `EM_TRANSITO`. | Membro de instituição aprovada | — | `{MonitoramentoResponse}` | 200, 403, 404, 409 |
+| GET | `/requisicoes/{id}/bolsas` | Hemocomponentes reservados para a requisição (o lote), em qualquer etapa. | Membro de instituição aprovada | — | `[{Hemocomponente}]` | 200, 403, 404 |
 
 ### `/indicadores`
 
@@ -99,8 +100,8 @@ Todos os endpoints do nossa API. O detalhamento de cada rota (body, exemplos, ca
 | `Instituicao` | `{id, razaoSocial, cnpj, tipo, status, endereco, municipio, telefone}` · `tipo`: `HOSPITAL` \| `HEMOCENTRO` · `status`: `PENDENTE_APROVACAO` \| `APROVADA` |
 | `HemocomponenteRequest` | `{codigoBolsa, tipo, abo, rh, dataColeta, dataValidade}` |
 | `Hemocomponente` | `{id, codigoBolsa, tipo, abo, rh, dataColeta, dataValidade, status, instituicaoId}` |
-| `RotaResponse` | `{requisicaoId, origem: {instituicaoId, instituicao, municipio}, destino: {instituicaoId, instituicao, municipio}, locais, distanciaKm}` |
-| `MonitoramentoResponse` | `{requisicaoId, status, origem, destino, locais, localAtual, proximoLocal, progresso, kmPercorridos, distanciaKm, temperaturaC, faixa: {minC, maxC}, alertaTemperatura, atualizadoEm}` |
+| `RotaResponse` | `{requisicaoId, origem: {instituicaoId, instituicao, municipio}, destino: {instituicaoId, instituicao, municipio}, locais, kmAcumulado, distanciaKm}` |
+| `MonitoramentoResponse` | `{requisicaoId, status, origem, destino, locais, kmAcumulado, localAtual, proximoLocal, progresso, kmPercorridos, distanciaKm, temperaturaC, faixa: {minC, maxC}, alertaTemperatura, historico: [{instante, temperaturaC}], atualizadoEm}` |
 | `IndicadoresResponse` | `{bolsasDisponiveis, bolsasVencendo, diasParaVencimento, requisicoesPendentes, requisicoesEmTransporte, requisicoesEntregues, demandaPorComponente: [{componente, pedidos, atendidos}], estoquePorTipoSanguineo: [{tipo, bolsas}], geradoEm}` |
 | `RequisicaoRequest` | `{itens: [{tipo, abo, rh, quantidade}], prioridade, observacoes}` |
 | `Requisicao` | `{id, hospitalId, hemocentroId, itens, prioridade, status, observacoes, motivoRecusa, hemocomponenteIds, criadaEm, atualizadaEm}` |
@@ -830,6 +831,7 @@ O município é texto livre no cadastro, então a busca no mapa ignora acentos, 
     "origem":  { "instituicaoId": 7, "instituicao": "HEMOPE", "municipio": "Recife" },
     "destino": { "instituicaoId": 3, "instituicao": "Hospital Regional do Agreste", "municipio": "Caruaru" },
     "locais": ["Recife", "Jaboatão dos Guararapes", "Vitória de Santo Antão", "Gravatá", "Caruaru"],
+    "kmAcumulado": [0.0, 18.0, 58.0, 93.0, 143.0],
     "distanciaKm": 143.0
 }
 ```
@@ -872,6 +874,7 @@ Hospital confirma o recebimento: `status = ATENDIDA` e os hemocomponentes passam
 Monitora o transporte em andamento (HU08). Nada é salvo: tudo é calculado na hora da consulta.
 
 - **Localização simulada:** o lote anda pela rota da HU07 (`GET /requisicoes/{id}/rota`) a uma velocidade fixa a partir de `dataEnvio` (`hemotrack.simulacao.km-por-minuto`, padrão 10). `localAtual` é o último município da rota já alcançado; `proximoLocal` fica `null` quando o lote chega ao destino. O transporte só termina quando o hospital chama `/receber`.
+- **Histórico:** `historico` traz uma leitura por minuto, contando para trás a partir de agora (no máximo 60, a última hora); a última é a leitura atual. Serve o gráfico da cadeia de frio.
 - **Temperatura simulada:** a leitura depende só da requisição e do minuto (mesma consulta no mesmo minuto, mesma leitura). Em cerca de 1 a cada 12 minutos sai acima da faixa, para o alerta aparecer.
 - **Faixas de transporte** (ANVISA): hemácias 1 a 10 °C; plaquetas 20 a 24 °C; plasma e crioprecipitado -18 °C ou menos (`minC = null`).
 
@@ -885,6 +888,7 @@ Monitora o transporte em andamento (HU08). Nada é salvo: tudo é calculado na h
     "origem": "Recife",
     "destino": "Caruaru",
     "locais": ["Recife", "Jaboatão dos Guararapes", "Vitória de Santo Antão", "Gravatá", "Caruaru"],
+    "kmAcumulado": [0.0, 18.0, 58.0, 93.0, 143.0],
     "localAtual": "Vitória de Santo Antão",
     "proximoLocal": "Gravatá",
     "progresso": 41,
@@ -893,6 +897,11 @@ Monitora o transporte em andamento (HU08). Nada é salvo: tudo é calculado na h
     "temperaturaC": 12.5,
     "faixa": { "minC": 1.0, "maxC": 10.0 },
     "alertaTemperatura": true,
+    "historico": [
+        { "instante": "2026-11-09T12:00:00Z", "temperaturaC": 5.1 },
+        { "instante": "2026-11-09T12:01:00Z", "temperaturaC": 4.7 },
+        { "instante": "2026-11-09T12:06:00Z", "temperaturaC": 12.5 }
+    ],
     "atualizadoEm": "2026-11-09T12:06:00Z"
 }
 ```
@@ -970,7 +979,7 @@ sem token
 
 ## Resumo
 
-**35 rotas** em 9 recursos — ver a [visão macro](#visão-macro) no topo.
+**36 rotas** em 9 recursos — ver a [visão macro](#visão-macro) no topo.
 
 | Recurso | Rotas |
 |---|---|
@@ -981,7 +990,7 @@ sem token
 | `/instituicoes/{id}/estoque` | 5 |
 | `/disponibilidade` | 1 |
 | `/hemocomponentes` | 1 |
-| `/requisicoes` | 14 |
+| `/requisicoes` | 15 |
 | `/indicadores` | 1 |
 
 Delete físico só para `ADMIN_SISTEMA`, e sempre com `409` quando quebraria rastreabilidade — o histórico de hemocomponente é append-only e nunca é apagado. Usuário não tem delete nenhum: o histórico aponta para `usuarioId`, então a saída é desativar.

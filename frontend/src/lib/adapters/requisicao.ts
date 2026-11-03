@@ -40,6 +40,8 @@ export type RequisicaoBack = {
   status: StatusRequisicaoBack;
   observacoes?: string | null;
   motivoRecusa?: string | null;
+  dataEnvio?: string | null; // HU08: quando o hemocentro despachou
+  dataEntrega?: string | null; // HU08: quando o hospital confirmou o recebimento
 };
 
 /** O corpo que o `POST /requisicoes` do back espera. */
@@ -66,7 +68,7 @@ const COMPONENTE_PARA_BACK: Record<string, TipoHemocomponenteBack> = {
   "Concentrado de plaquetas": "PLAQUETAS",
   Crioprecipitado: "CRIOPRECIPITADO",
 };
-const COMPONENTE_DO_BACK: Record<TipoHemocomponenteBack, string> = {
+export const COMPONENTE_DO_BACK: Record<TipoHemocomponenteBack, string> = {
   HEMACIAS: "Concentrado de hemácias",
   PLASMA: "Plasma fresco congelado",
   PLAQUETAS: "Concentrado de plaquetas",
@@ -78,7 +80,7 @@ function tipoSanguineoParaBack(tipo: string): { abo: TipoABOBack; rh: FatorRhBac
   const rh: FatorRhBack = tipo.endsWith("+") ? "POSITIVO" : "NEGATIVO";
   return { abo, rh };
 }
-function tipoSanguineoDoBack(abo: TipoABOBack, rh: FatorRhBack): string {
+export function tipoSanguineoDoBack(abo: TipoABOBack, rh: FatorRhBack): string {
   return `${abo}${rh === "POSITIVO" ? "+" : "-"}`;
 }
 
@@ -93,16 +95,13 @@ const PRIORIDADE_DO_BACK: Record<PrioridadeBack, Prioridade> = {
   EMERGENCIA: "Emergência",
 };
 
-// O front (HU04) só conhece 6 status. O back já tem um a mais (ALOCADA, do
-// HU06) e um status de cancelamento que o front ainda não trata em nenhuma
-// tela. Por ora colapsamos ALOCADA em "Aceita" (é o mais próximo do que a
-// tela de acompanhamento do hospital sabe exibir) e CANCELADA em "Recusada".
-// Quando a tela de estoque/seleção de bolsas existir de verdade, vale criar
-// um status "Alocada" próprio no front em vez de esconder essa diferença.
-const STATUS_DO_BACK: Record<StatusRequisicaoBack, Status> = {
+// O front (HU04) conhece 6 status. ALOCADA (HU06: bolsas já reservadas) é o
+// "Em separação" do front: o hemocentro separou as bolsas e falta despachar.
+// CANCELADA ainda não tem tela própria e aparece como "Recusada".
+export const STATUS_DO_BACK: Record<StatusRequisicaoBack, Status> = {
   ABERTA: "Pendente",
   ACEITA: "Aceita",
-  ALOCADA: "Aceita", // TODO: front ainda não distingue "aceita" de "alocada"
+  ALOCADA: "Em separação", // HU06: bolsas reservadas, aguardando despacho
   ATENDIDA: "Entregue",
   RECUSADA: "Recusada",
   CANCELADA: "Recusada", // TODO: front ainda não tem um status de cancelamento
@@ -124,11 +123,11 @@ export function registrarNomesInstituicoes(lista: { id: number; razaoSocial: str
   }
 }
 
-function nomeDoHospital(hospitalId: number): string {
+export function nomeDoHospital(hospitalId: number): string {
   return nomesInstituicoes.get(hospitalId) ?? `Hospital #${hospitalId}`;
 }
 
-function nomeDoHemocentro(hemocentroId: number): string {
+export function nomeDoHemocentro(hemocentroId: number): string {
   return nomesInstituicoes.get(hemocentroId) ?? `Hemocentro #${hemocentroId}`;
 }
 

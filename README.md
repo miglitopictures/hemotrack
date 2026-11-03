@@ -249,9 +249,9 @@ hemotrack/
 | HU04 | Visualizar e acompanhar requisições | ✅ Pronto |
 | HU05 | Aceitar ou recusar requisições | ✅ Pronto |
 | HU06 | Selecionar bolsas compatíveis | Backend pronto, front pendente |
-| HU07 | Planejar rota de distribuição | Backend pronto, front pendente |
-| HU08 | Monitorar transporte em tempo real | Backend pronto, front pendente |
-| HU09 | Dashboard de indicadores | Backend pronto, front pendente |
+| HU07 | Planejar rota de distribuição | ✅ Pronto |
+| HU08 | Monitorar transporte em tempo real | ✅ Pronto |
+| HU09 | Dashboard de indicadores | ✅ Pronto |
 
 Ver detalhes completos em [`docs/historias.md`](./docs/historias.md).
 
@@ -399,8 +399,7 @@ Claude (Anthropic) usado e declarado; a IA rascunhou, o grupo executou, revisou 
 
 - Implementar HU02 (estoque real)
 - Conectar HU06 (seleção de bolsas compatíveis)
-- Conectar a rota da HU07 no front (tela de Transportes)
-- Conectar o painel de Indicadores (HU09) ao `GET /indicadores`
-- Conectar o monitoramento da HU08 no front
+- Calcular no back os gráficos ainda ilustrativos dos Indicadores (saídas por dia, tempo de atendimento)
+- Gravar o veículo escolhido no despacho (hoje só aparece no front)
 
 Para detalhes de cada história, ver [`docs/historias.md`](./docs/historias.md).
