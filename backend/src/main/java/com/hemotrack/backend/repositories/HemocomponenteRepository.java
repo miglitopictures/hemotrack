@@ -10,4 +10,7 @@ import com.hemotrack.backend.model.sangue.StatusHemocomponente;
 public interface HemocomponenteRepository extends JpaRepository<Hemocomponente, Long> {
 
     List<Hemocomponente> findByInstituicaoAtualIdAndStatus(Long instituicaoAtualId, StatusHemocomponente status);
+
+    // HU08: bolsas reservadas para uma requisicao (as que viajam no lote)
+    List<Hemocomponente> findByRequisicaoAlocadaId(Long requisicaoAlocadaId);
 }

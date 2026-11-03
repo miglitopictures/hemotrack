@@ -54,6 +54,12 @@ public class Requisicao {
     @Nullable
     private Long hemocentroId; // preenchido quando um hemocentro aceita a requisição
 
+    @Nullable
+    private Instant dataEnvio; // HU08: quando o hemocentro despachou o lote (EM_TRANSITO)
+
+    @Nullable
+    private Instant dataEntrega; // HU08: quando o hospital confirmou o recebimento (ATENDIDA)
+
 
     // Construtores
     public Requisicao() {  }
@@ -166,5 +172,21 @@ public class Requisicao {
     }
     public void setHemocentroId(Long hemocentroId){
         this.hemocentroId = hemocentroId;
+    }
+
+    // dataEnvio
+    public Instant getDataEnvio(){
+        return this.dataEnvio;
+    }
+    public void setDataEnvio(Instant dataEnvio){
+        this.dataEnvio = dataEnvio;
+    }
+
+    // dataEntrega
+    public Instant getDataEntrega(){
+        return this.dataEntrega;
+    }
+    public void setDataEntrega(Instant dataEntrega){
+        this.dataEntrega = dataEntrega;
     }
 }
