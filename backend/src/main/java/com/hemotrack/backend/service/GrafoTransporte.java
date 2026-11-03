@@ -85,6 +85,7 @@ public class GrafoTransporte {
     }
 
     /**
+import com.hemotrack.backend.service.GrafoTransporte;
      * Adiciona uma conexão de mão única da origem ao destino.
      *
      * Por exemplo, A -> B não cria automaticamente B -> A.
@@ -252,7 +253,7 @@ public class GrafoTransporte {
      */
     public List<Aresta> listarConexoesDe(String local) {
         validarLocalExistente(local);
-        return Collections.unmodifiableList(adjacencias.get(local));
+        return List.copyOf(adjacencias.get(local));
     }
 
     /**
