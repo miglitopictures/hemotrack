@@ -44,6 +44,14 @@ public class RotaService {
                 "A rota só pode ser planejada para requisição ALOCADA (bolsas já selecionadas)");
         }
 
+        return calcularRota(requisicao);
+    }
+
+    /**
+     * Calcula a rota da requisicao sem checar o status.
+     * Usada pelo planejar (HU07) e pelo monitoramento do transporte (HU08).
+     */
+    public RotaResponse calcularRota(Requisicao requisicao) {
         // origem e destino vem da propria requisicao, nunca do cliente.
         Instituicao hemocentro = buscarInstituicao(requisicao.getHemocentroId());
         Instituicao hospital = buscarInstituicao(requisicao.getHospitalId());
