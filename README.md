@@ -177,6 +177,27 @@ O sistema exige login, e toda instituição nova nasce pendente de aprovação.
 
 Cadastre **um hospital e um hemocentro** para ver os dois lados do sistema.
 
+### Dados de demonstração (opcional)
+
+Para não começar com o sistema vazio (indicadores, transportes, requisições em todas as etapas), suba o backend com o seed de dados sintéticos:
+
+```bash
+cd backend
+./mvnw spring-boot:run -Dspring-boot.run.arguments=--hemotrack.seed.dados-sinteticos=true
+```
+
+Cria 5 instituições já aprovadas, 80 bolsas e 20 requisições (abertas, aceitas, alocadas, 2 em transporte saindo de Recife, entregues e recusadas). Rodar de novo não duplica nada. Logins, todos com a senha `demo1234`:
+
+| Login | Instituição |
+|---|---|
+| `hemocentro@demo.hemotrack` | Hemocentro Capibaribe (Recife) |
+| `hemocentro.agreste@demo.hemotrack` | Hemocentro do Agreste (Caruaru) |
+| `hospital@demo.hemotrack` | Hospital Mar Azul (Olinda) |
+| `hospital.garanhuns@demo.hemotrack` | Hospital Regional Serra Verde (Garanhuns) |
+| `hospital.petrolina@demo.hemotrack` | Hospital do Sertao (Petrolina) |
+
+Desligado por padrão e nunca ligado no Render. Com Docker Compose, coloque `HEMOTRACK_SEED_DADOS_SINTETICOS=true` no `.env` da raiz antes do `docker compose up`.
+
 ### 6. Parar a aplicação
 
 `Ctrl+C` em cada terminal.
@@ -230,7 +251,7 @@ hemotrack/
 | HU06 | Selecionar bolsas compatíveis | Backend pronto, front pendente |
 | HU07 | Planejar rota de distribuição | Backend pronto, front pendente |
 | HU08 | Monitorar transporte em tempo real | Backend pronto, front pendente |
-| HU09 | Dashboard de indicadores | ⏳ Em progresso |
+| HU09 | Dashboard de indicadores | Backend pronto, front pendente |
 
 Ver detalhes completos em [`docs/historias.md`](./docs/historias.md).
 
@@ -379,6 +400,7 @@ Claude (Anthropic) usado e declarado; a IA rascunhou, o grupo executou, revisou 
 - Implementar HU02 (estoque real)
 - Conectar HU06 (seleção de bolsas compatíveis)
 - Conectar a rota da HU07 no front (tela de Transportes)
-- Dashboard de indicadores (HU09)
+- Conectar o painel de Indicadores (HU09) ao `GET /indicadores`
+- Conectar o monitoramento da HU08 no front
 
 Para detalhes de cada história, ver [`docs/historias.md`](./docs/historias.md).
