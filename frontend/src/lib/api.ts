@@ -17,11 +17,9 @@ import {
   HOSPITAL_ATUAL,
   bolsaPorCodigo,
   bolsas,
-  bolsasCompativeis,
   buscar,
   calcularAlertas,
   estoquePorTipo,
-  solicitacaoPorId,
   solicitacoes,
   type Alerta,
   type Bolsa,
@@ -44,9 +42,11 @@ import {
   type IndicadoresBack,
 } from "./adapters/indicadores";
 import {
+  bolsaParaTela,
   pontosDaRota,
   requisicaoParaTransporte,
   type BolsaBack,
+  type BolsaDoEstoque,
   type MonitoramentoBack,
   type RotaBack,
 } from "./adapters/transporte";
@@ -151,19 +151,9 @@ export async function criarSolicitacao(dados: NovaSolicitacao): Promise<Solicita
   }
 }
 
-// TODO(back): a rota real de aceitar (`POST /requisicoes/{id}/aceitar`) não
-// recebe bolsas no corpo — ela só muda o status para ACEITA e agora também
-// grava o hemocentroId (via query param, enquanto não existe login pra
-// descobrir isso sozinho). A seleção de bolsas compatíveis (HU06, `/alocar`
-// em contrato-api.md) ainda não foi implementada em código nenhum. Por isso
-// a assinatura desta função muda: ela aceita a requisição no back, mas a
-// escolha de bolsas continua só visual, com os mocks de `data.ts`, até o
-// Miguel implementar `/alocar`.
-export async function aceitarSolicitacao(id: string, codigosBolsas: string[]): Promise<Solicitacao> {
-  const sol = solicitacaoPorId(id);
-  if (sol && codigosBolsas.length !== sol.quantidade) {
-    throw new ErroDeApi(`Selecione exatamente ${sol.quantidade} bolsa(s) antes de aceitar.`, 400);
-  }
+// HU05: aceitar só muda o status para ACEITA e grava o hemocentro logado.
+// A escolha das bolsas vem depois (HU06): listarCompativeisDaSolicitacao + reservarBolsas.
+export async function aceitarSolicitacao(id: string): Promise<Solicitacao> {
   const idBack = id.replace(/^REQ-/, "");
   try {
     const atualizada = await httpPost<RequisicaoBack>(
@@ -191,6 +181,46 @@ export async function recusarSolicitacao(id: string, motivo: string): Promise<So
 }
 
 // ---------------------------------------------------------------------------
+// Seleção de bolsas (HU06) — ligado ao back
+// ---------------------------------------------------------------------------
+
+/** Bolsas do estoque do hemocentro que servem para a requisição ACEITA, validade mais próxima primeiro (FEFO). */
+export async function listarCompativeisDaSolicitacao(id: string): Promise<BolsaDoEstoque[]> {
+  const idBack = id.replace(/^REQ-/, "");
+  try {
+    const bolsasBack = await httpGet<BolsaBack[]>(`/requisicoes/${idBack}/compativeis`);
+    return bolsasBack.map(bolsaParaTela);
+  } catch (erro) {
+    throw paraErroDeApi(erro);
+  }
+}
+
+/** Reserva as bolsas escolhidas (ACEITA -> ALOCADA, o "Em separação" do front). */
+export async function reservarBolsas(id: string, idsDasBolsas: number[]): Promise<Solicitacao> {
+  const idBack = id.replace(/^REQ-/, "");
+  try {
+    await carregarNomesInstituicoes();
+    const atualizada = await httpPatch<RequisicaoBack>(`/requisicoes/${idBack}/alocar`, {
+      hemocomponenteIds: idsDasBolsas,
+    });
+    return requisicaoParaSolicitacao(atualizada);
+  } catch (erro) {
+    throw paraErroDeApi(erro);
+  }
+}
+
+/** Bolsas já reservadas para a requisição (o lote). */
+export async function listarBolsasDaSolicitacao(id: string): Promise<BolsaDoEstoque[]> {
+  const idBack = id.replace(/^REQ-/, "");
+  try {
+    const bolsasBack = await httpGet<BolsaBack[]>(`/requisicoes/${idBack}/bolsas`);
+    return bolsasBack.map(bolsaParaTela);
+  } catch (erro) {
+    throw paraErroDeApi(erro);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Estoque — TODO(back): implementar família `/instituicoes/{id}/estoque`
 // (HU02). Hoje só existe em contrato-api.md, nenhum controller/service/model
 // de Hemocomponente foi ligado a um endpoint ainda (o model Java existe,
@@ -201,10 +231,6 @@ export function listarBolsas(filtros?: { componente?: string }): Promise<Bolsa[]
   const componente = filtros?.componente;
   const lista = componente ? bolsas.filter((b) => b.componente === componente) : bolsas;
   return responder([...lista]);
-}
-
-export function listarBolsasCompativeis(componente: string, receptor: string): Promise<Bolsa[]> {
-  return responder(bolsasCompativeis(componente, receptor));
 }
 
 export function obterEstoquePorTipo(): Promise<typeof estoquePorTipo> {

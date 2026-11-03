@@ -248,7 +248,7 @@ hemotrack/
 | HU03 | Criar requisição de sangue | ✅ Pronto |
 | HU04 | Visualizar e acompanhar requisições | ✅ Pronto |
 | HU05 | Aceitar ou recusar requisições | ✅ Pronto |
-| HU06 | Selecionar bolsas compatíveis | Backend pronto, front pendente |
+| HU06 | Selecionar bolsas compatíveis | ✅ Pronto |
 | HU07 | Planejar rota de distribuição | ✅ Pronto |
 | HU08 | Monitorar transporte em tempo real | ✅ Pronto |
 | HU09 | Dashboard de indicadores | ✅ Pronto |
@@ -398,7 +398,6 @@ Claude (Anthropic) usado e declarado; a IA rascunhou, o grupo executou, revisou 
 ## Próximas etapas
 
 - Implementar HU02 (estoque real)
-- Conectar HU06 (seleção de bolsas compatíveis)
 - Calcular no back os gráficos ainda ilustrativos dos Indicadores (saídas por dia, tempo de atendimento)
 - Gravar o veículo escolhido no despacho (hoje só aparece no front)
 
