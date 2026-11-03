@@ -229,7 +229,7 @@ hemotrack/
 | HU05 | Aceitar ou recusar requisições | ✅ Pronto |
 | HU06 | Selecionar bolsas compatíveis | Backend pronto, front pendente |
 | HU07 | Planejar rota de distribuição | Backend pronto, front pendente |
-| HU08 | Monitorar transporte em tempo real | ⏳ Em progresso |
+| HU08 | Monitorar transporte em tempo real | Backend pronto, front pendente |
 | HU09 | Dashboard de indicadores | ⏳ Em progresso |
 
 Ver detalhes completos em [`docs/historias.md`](./docs/historias.md).

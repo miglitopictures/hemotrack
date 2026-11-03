@@ -80,8 +80,9 @@ Todos os endpoints do nossa API. O detalhamento de cada rota (body, exemplos, ca
 | GET | `/requisicoes/{id}/compativeis` | Hemocomponentes do hemocentro que servem para a requisição: mesmo tipo, `DISPONIVEL`, não vencidos e compatíveis em ABO/Rh, ordenados por validade (FEFO). `409` se a requisição não estiver `ACEITA`. | Membro do `HEMOCENTRO` dono | — | `[{Hemocomponente}]` | 200, 403, 404, 409 |
 | PATCH | `/requisicoes/{id}/alocar` | Aloca `Hemocomponentes` do próprio estoque. `status = ALOCADA`; hemocomponentes vão para `RESERVADO`. | Membro do `HEMOCENTRO` dono | `{hemocomponenteIds}` | `{Requisicao}` | 200, 400, 403, 404, 409 |
 | GET | `/requisicoes/{id}/rota` | Planeja a distribuição (HU07): origem = hemocentro da requisição, destino = hospital, rota de menor distância no mapa fixo de municípios (Dijkstra). `409` se a requisição não estiver `ALOCADA`. | Membro de instituição aprovada | — | `{RotaResponse}` | 200, 403, 404, 409, 422 |
-| PATCH | `/requisicoes/{id}/enviar` | Despacha o lote. `status = EM_TRANSITO`. | Membro do `HEMOCENTRO` dono | — | `{Requisicao}` | 200, 403, 404, 409 |
-| PATCH | `/requisicoes/{id}/receber` | Confirma recebimento. `status = ATENDIDA` e transfere os `Hemocomponentes` para o estoque do `HOSPITAL`. | Membro do `HOSPITAL` dono | — | `{Requisicao}` | 200, 403, 404, 409 |
+| PATCH | `/requisicoes/{id}/enviar` | Despacha o lote. `status = EM_TRANSITO`, grava `dataEnvio` e marca os hemocomponentes como `emTransito`. `409` se não estiver `ALOCADA`. | Membro do `HEMOCENTRO` dono | — | `{Requisicao}` | 200, 403, 404, 409 |
+| PATCH | `/requisicoes/{id}/receber` | Confirma recebimento. `status = ATENDIDA`, grava `dataEntrega` e transfere os `Hemocomponentes` para o estoque do `HOSPITAL`. | Membro do `HOSPITAL` dono | — | `{Requisicao}` | 200, 403, 404, 409 |
+| GET | `/requisicoes/{id}/monitoramento` | Monitora o transporte (HU08): status, localização e temperatura simuladas, com alerta fora da faixa. `409` se não estiver `EM_TRANSITO`. | Membro de instituição aprovada | — | `{MonitoramentoResponse}` | 200, 403, 404, 409 |
 
 ### Shapes citados
 
@@ -93,6 +94,7 @@ Todos os endpoints do nossa API. O detalhamento de cada rota (body, exemplos, ca
 | `HemocomponenteRequest` | `{codigoBolsa, tipo, abo, rh, dataColeta, dataValidade}` |
 | `Hemocomponente` | `{id, codigoBolsa, tipo, abo, rh, dataColeta, dataValidade, status, instituicaoId}` |
 | `RotaResponse` | `{requisicaoId, origem: {instituicaoId, instituicao, municipio}, destino: {instituicaoId, instituicao, municipio}, locais, distanciaKm}` |
+| `MonitoramentoResponse` | `{requisicaoId, status, origem, destino, locais, localAtual, proximoLocal, progresso, kmPercorridos, distanciaKm, temperaturaC, faixa: {minC, maxC}, alertaTemperatura, atualizadoEm}` |
 | `RequisicaoRequest` | `{itens: [{tipo, abo, rh, quantidade}], prioridade, observacoes}` |
 | `Requisicao` | `{id, hospitalId, hemocentroId, itens, prioridade, status, observacoes, motivoRecusa, hemocomponenteIds, criadaEm, atualizadaEm}` |
 
@@ -859,6 +861,42 @@ Hospital confirma o recebimento: `status = ATENDIDA` e os hemocomponentes passam
 
 ---
 
+### **GET** `/requisicoes/{id}/monitoramento`
+Monitora o transporte em andamento (HU08). Nada é salvo: tudo é calculado na hora da consulta.
+
+- **Localização simulada:** o lote anda pela rota da HU07 (`GET /requisicoes/{id}/rota`) a uma velocidade fixa a partir de `dataEnvio` (`hemotrack.simulacao.km-por-minuto`, padrão 10). `localAtual` é o último município da rota já alcançado; `proximoLocal` fica `null` quando o lote chega ao destino. O transporte só termina quando o hospital chama `/receber`.
+- **Temperatura simulada:** a leitura depende só da requisição e do minuto (mesma consulta no mesmo minuto, mesma leitura). Em cerca de 1 a cada 12 minutos sai acima da faixa, para o alerta aparecer.
+- **Faixas de transporte** (ANVISA): hemácias 1 a 10 °C; plaquetas 20 a 24 °C; plasma e crioprecipitado -18 °C ou menos (`minC = null`).
+
+**@caller** membro de instituição aprovada
+#### `200` - HttpStatus.OK
+**@retorna** `MonitoramentoResponse`
+```json
+{
+    "requisicaoId": 42,
+    "status": "EM_TRANSITO",
+    "origem": "Recife",
+    "destino": "Caruaru",
+    "locais": ["Recife", "Jaboatão dos Guararapes", "Vitória de Santo Antão", "Gravatá", "Caruaru"],
+    "localAtual": "Vitória de Santo Antão",
+    "proximoLocal": "Gravatá",
+    "progresso": 41,
+    "kmPercorridos": 60.0,
+    "distanciaKm": 143.0,
+    "temperaturaC": 12.5,
+    "faixa": { "minC": 1.0, "maxC": 10.0 },
+    "alertaTemperatura": true,
+    "atualizadoEm": "2026-11-09T12:06:00Z"
+}
+```
+#### `404` - HttpStatus.NOT_FOUND
+#### `409` - HttpStatus.CONFLICT
+`status != EM_TRANSITO` (ainda não despachada, ou já entregue)
+#### `422` - HttpStatus.UNPROCESSABLE_CONTENT
+município do hemocentro ou do hospital fora do mapa (mesma regra da rota)
+
+---
+
 ### **PATCH** `/requisicoes/{id}/cancelar`
 Cancela a requisição: `status = CANCELADA`. Hemocomponentes já alocados voltam para `DISPONIVEL`.
 
@@ -910,7 +948,7 @@ Delete físico só para `ADMIN_SISTEMA`, e sempre com `409` quando quebraria ras
 | HU05 | `GET /requisicoes?status=ABERTA`, `/aceitar`, `/recusar` |
 | HU06 | `GET /instituicoes/{id}/estoque` (filtro + FEFO), `/alocar` |
 | HU07 | `GET /requisicoes/{id}/rota` |
-| HU08 | parcial: `/enviar` e `/receber` cobrem o status; falta telemetria (GPS/temperatura simulados) |
+| HU08 | `/enviar`, `/receber`, `GET /requisicoes/{id}/monitoramento` |
 | HU09 | ✗ sem rota — falta `/indicadores` |
 
 Nenhuma rota do contrato atual foi retirada para cobrir as lacunas: elas entram como acréscimo na Entrega 04.
