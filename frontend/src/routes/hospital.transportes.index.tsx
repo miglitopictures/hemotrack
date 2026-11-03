@@ -53,7 +53,7 @@ function TransportesHospital() {
     <AppShell role="hospital">
       <PageHeader
         title="Transportes"
-        subtitle="Remessas de hemocomponentes a caminho do Hospital Santa Clara"
+        subtitle="Remessas de hemocomponentes a caminho do seu hospital"
       />
 
       <Stagger className="grid gap-4 sm:grid-cols-3">
