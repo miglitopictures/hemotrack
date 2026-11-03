@@ -521,14 +521,16 @@ Atualiza os próprios dados. Não altera `papel` nem `instituicaoId`.
 
 Estoque de hemocomponentes (HU02). É visão sobre `Hemocomponente.instituicaoId` — hospital também tem estoque, mas só hemocentro cadastra.
 
-### **GET** `/instituicoes/{id}/estoque`
-Lista os hemocomponentes da instituição.
+> **Implementado (Entrega 04):** `GET` e `POST`. `GET /{idHemoc}`, `PATCH` (descarte) e `DELETE` continuam só no contrato: a HU02 não pede, ficam para depois.
+>
+> **Situação na tela (`situacao`):** calculada, não gravada. `DISPONIVEL` (e dentro da validade), `RESERVADA` (`RESERVADO`), `UTILIZADA` (`TRANSFUNDIDO`), `VENCIDA` (`DISPONIVEL` com `dataValidade` <= hoje, cenário 3) e `DESCARTADA`. Vencida não aparece em `/compativeis`, então não serve para nova requisição.
 
-**@caller** `MEMBRO`
-#### `query`
-`tipo`, `abo`, `rh`, `status`, `page`, `size`
+### **GET** `/instituicoes/{id}/estoque`
+Lista os hemocomponentes da instituição, a validade mais próxima primeiro (FEFO). Filtros por query ainda não implementados.
+
+**@caller** `MEMBRO` da instituição (aprovada) ou `ADMIN_SISTEMA`
 #### `200` - HttpStatus.OK
-**@retorna** array de `Hemocomponente`
+**@retorna** array de `HemocomponenteResponse`
 ```json
 [
     {
@@ -537,13 +539,20 @@ Lista os hemocomponentes da instituição.
         "tipo": "HEMACIAS",
         "abo": "O",
         "rh": "NEGATIVO",
-        "dataColeta": "2026-09-01",
-        "dataValidade": "2026-10-13",
+        "volumeMl": 300.0,
+        "dataColeta": "2026-11-02",
+        "dataValidade": "2026-12-07",
         "status": "DISPONIVEL",
-        "instituicaoId": 20
+        "situacao": "DISPONIVEL",
+        "diasParaVencer": 34,
+        "emTransito": false,
+        "instituicaoId": 20,
+        "requisicaoAlocadaId": null
     }
 ]
 ```
+#### `403` - HttpStatus.FORBIDDEN
+estoque de outra instituição, ou instituição não aprovada
 #### `404` - HttpStatus.NOT_FOUND
 
 ---
@@ -551,7 +560,7 @@ Lista os hemocomponentes da instituição.
 ### **POST** `/instituicoes/{id}/estoque`
 Registra um novo hemocomponente. Nasce `DISPONIVEL` (HU02, cenário 1).
 
-**@caller** `MEMBRO` de `HEMOCENTRO`
+**@caller** `MEMBRO` de `HEMOCENTRO` (a própria instituição)
 #### `body`
 ```json
 {
@@ -559,14 +568,18 @@ Registra um novo hemocomponente. Nasce `DISPONIVEL` (HU02, cenário 1).
     "tipo": "HEMACIAS",
     "abo": "O",
     "rh": "NEGATIVO",
-    "dataColeta": "2026-09-01",
-    "dataValidade": "2026-10-13"
+    "dataColeta": "2026-11-02",
+    "dataValidade": "2026-12-07",
+    "volumeMl": 300
 }
 ```
+`volumeMl` é opcional: sem ele, usa o volume padrão do componente (hemácias 300, plasma 200, plaquetas 50, crio 15 mL). O código é gravado sem espaços e em maiúsculas.
 #### `201` - HttpStatus.CREATED
-**@retorna** `Location` + `Hemocomponente` com `status = DISPONIVEL`
+**@retorna** `Location` + `HemocomponenteResponse` com `situacao = DISPONIVEL`
 #### `400` - HttpStatus.BAD_REQUEST
-campo faltando, `dataColeta` no futuro ou `dataValidade` anterior à coleta
+campo faltando, `dataColeta` no futuro, `dataValidade` anterior à coleta ou bolsa já vencida (`errors[].campo` aponta `dataColeta` / `dataValidade`)
+#### `403` - HttpStatus.FORBIDDEN
+instituição é `HOSPITAL`, ou estoque de outra instituição
 #### `404` - HttpStatus.NOT_FOUND
 #### `409` - HttpStatus.CONFLICT
 `codigoBolsa` já existe
@@ -1000,7 +1013,7 @@ Delete físico só para `ADMIN_SISTEMA`, e sempre com `409` quando quebraria ras
 | HU | Coberta por |
 |---|---|
 | HU01 | `POST /instituicoes`, `POST /auth/login`, `GET /auth/me` |
-| HU02 | família `/instituicoes/{id}/estoque` |
+| HU02 | `GET` e `POST /instituicoes/{id}/estoque` |
 | HU03 | `POST /requisicoes` |
 | HU04 | `GET /requisicoes`, `GET /requisicoes/{id}` |
 | HU05 | `GET /requisicoes?status=ABERTA`, `/aceitar`, `/recusar` |

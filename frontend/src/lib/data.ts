@@ -15,7 +15,16 @@ export type Status =
 
 export type Prioridade = "Rotina" | "Urgente" | "Emergência";
 
-export type StatusBolsa = "Disponível" | "Reservada" | "Vence em breve" | "Enviada";
+// HU02: Disponível, Reservada, Utilizada, Vencida (+ Descartada). "Vence em breve" é uma
+// Disponível perto da validade; "Enviada" é uma Reservada que está no caminhão (HU08).
+export type StatusBolsa =
+  | "Disponível"
+  | "Vence em breve"
+  | "Reservada"
+  | "Enviada"
+  | "Utilizada"
+  | "Vencida"
+  | "Descartada";
 
 export type Solicitacao = {
   id: string;
@@ -42,6 +51,8 @@ export type Bolsa = {
   validade: string;
   status: StatusBolsa;
   armazenamento: string;
+  /** Dias até a validade calculados pelo back (hoje real). Os mocks não têm; usam diasParaVencer(). */
+  dias?: number;
 };
 
 export type Transporte = {

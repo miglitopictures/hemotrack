@@ -62,7 +62,7 @@ export type NovaRequisicaoBack = {
 // e o back combinarem um enum único). Enquanto isso não acontece, a tradução
 // mora aqui.
 
-const COMPONENTE_PARA_BACK: Record<string, TipoHemocomponenteBack> = {
+export const COMPONENTE_PARA_BACK: Record<string, TipoHemocomponenteBack> = {
   "Concentrado de hemácias": "HEMACIAS",
   "Plasma fresco congelado": "PLASMA",
   "Concentrado de plaquetas": "PLAQUETAS",
@@ -84,7 +84,7 @@ export const VOLUME_PADRAO_ML: Record<TipoHemocomponenteBack, number> = {
   CRIOPRECIPITADO: 15,
 };
 
-function tipoSanguineoParaBack(tipo: string): { abo: TipoABOBack; rh: FatorRhBack } {
+export function tipoSanguineoParaBack(tipo: string): { abo: TipoABOBack; rh: FatorRhBack } {
   const abo = tipo.replace(/[+-]/, "") as TipoABOBack;
   const rh: FatorRhBack = tipo.endsWith("+") ? "POSITIVO" : "NEGATIVO";
   return { abo, rh };

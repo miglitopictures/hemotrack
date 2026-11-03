@@ -244,7 +244,7 @@ hemotrack/
 | # | Descrição | Status |
 |---|-----------|--------|
 | HU01 | Cadastro e login de instituição | ✅ Pronto |
-| HU02 | Gerenciar estoque de hemocomponentes | ⏳ Em progresso |
+| HU02 | Gerenciar estoque de hemocomponentes | ✅ Pronto |
 | HU03 | Criar requisição de sangue | ✅ Pronto |
 | HU04 | Visualizar e acompanhar requisições | ✅ Pronto |
 | HU05 | Aceitar ou recusar requisições | ✅ Pronto |
@@ -397,7 +397,7 @@ Claude (Anthropic) usado e declarado; a IA rascunhou, o grupo executou, revisou 
 
 ## Próximas etapas
 
-- Implementar HU02 (estoque real)
+- Estoque: descarte de bolsa (`PATCH`), filtros e paginação
 - Calcular no back os gráficos ainda ilustrativos dos Indicadores (saídas por dia, tempo de atendimento)
 - Gravar o veículo escolhido no despacho (hoje só aparece no front)
 
