@@ -63,8 +63,11 @@ Histórias completas: [docs/historias.md](https://github.com/miglitopictures/hem
 
 Nesta entrega foram implementadas as histórias restantes, que completam o ciclo da bolsa de sangue: do estoque do hemocentro até a entrega no hospital, com indicadores da operação, incluindo:
 
-#### [Screencast da Entrega 04 (YouTube)](https://www.youtube.com/watch?v=TF_ChrQ34rE)
-[![Screencast da Entrega 04](https://img.youtube.com/vi/TF_ChrQ34rE/maxresdefault.jpg)](https://www.youtube.com/watch?v=TF_ChrQ34rE)
+#### [Screencast do sistema da Entrega 04 (YouTube)](https://www.youtube.com/watch?v=TF_ChrQ34rE)
+[![Screencast do sistema da Entrega 04](https://img.youtube.com/vi/TF_ChrQ34rE/maxresdefault.jpg)](https://www.youtube.com/watch?v=TF_ChrQ34rE)
+
+#### [Screencast da explicação do código (YouTube)](https://www.youtube.com/watch?v=ZjZrRQ9FFD0)
+[![Explicação do código da Entrega 04](https://img.youtube.com/vi/ZjZrRQ9FFD0/maxresdefault.jpg)](https://www.youtube.com/watch?v=ZjZrRQ9FFD0)
 
 #### Histórias implementadas
 
