@@ -61,7 +61,24 @@ Histórias completas: [docs/historias.md](https://github.com/miglitopictures/hem
 
 ### Entrega 04 — 09/11
 
-Histórias restantes implementadas, versionamento contínuo, novos screencasts e issue tracker atualizado.
+Nesta entrega foram implementadas as histórias restantes, que completam o ciclo da bolsa de sangue: do estoque do hemocentro até a entrega no hospital, com indicadores da operação, incluindo:
+
+#### [Screencast da Entrega 04 (YouTube)](https://www.youtube.com/watch?v=TF_ChrQ34rE)
+[![Screencast da Entrega 04](https://img.youtube.com/vi/TF_ChrQ34rE/maxresdefault.jpg)](https://www.youtube.com/watch?v=TF_ChrQ34rE)
+
+#### Histórias implementadas
+
+* HU02 — Gerenciamento do estoque de hemocomponentes: o hemocentro cadastra bolsas (identificação, hemocomponente, tipo sanguíneo, datas de coleta e validade) e visualiza o estoque com o status de cada uma (Disponível, Reservada, Utilizada, Vencida). Bolsas vencidas ou reservadas não ficam disponíveis para novas requisições.
+* HU06 — Selecionar hemocomponentes compatíveis: para uma requisição aceita, o hemocentro vê só as bolsas compatíveis e disponíveis (regras ABO/Rh por hemocomponente, em `Compatibilidade.java`), ordenadas pela validade mais próxima (FEFO), e reserva a quantidade solicitada.
+* HU07 — Planejar a distribuição: com as bolsas selecionadas, o sistema apresenta a origem (hemocentro), o destino (hospital da requisição) e uma rota calculada sobre um grafo simplificado. Requisição não aceita não pode ser distribuída.
+* HU08 — Monitorar o transporte: hospital e hemocentro acompanham o status, a localização (GPS simulado) e a temperatura simulada do transporte, com alerta quando a temperatura sai do intervalo da cadeia fria. Ao registrar a entrega, o transporte é finalizado e a requisição passa para "Entregue".
+* HU09 — Visualizar indicadores da operação: painel com bolsas disponíveis, bolsas próximas do vencimento, requisições pendentes, em transporte e entregues, componentes mais solicitados e estoque por tipo sanguíneo.
+
+Histórias completas: [docs/historias.md](https://github.com/miglitopictures/hemotrack/blob/main/docs/historias.md)
+
+- Issue / Bug tracker:
+
+  ![Issue tracker da Entrega 04](./assets/print-issues-entrega-4-poo.png)
 
 
 ## Como rodar na sua máquina
