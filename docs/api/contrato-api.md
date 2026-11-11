@@ -72,11 +72,11 @@ Todos os endpoints do nossa API. O detalhamento de cada rota (body, exemplos, ca
 | GET | `/requisicoes` | Listar `Requisicoes`. `HOSPITAL` vê as próprias; `HEMOCENTRO` vê as pendentes e as que aceitou. Aceita `?status&prioridade&page&size`. | Membro de `HOSPITAL`, Membro de `HEMOCENTRO` | — | `[{Requisicao}]` | 200, 403 |
 | POST | `/requisicoes` | Criar nova `Requisicao`. `status = ABERTA`. | Membro de `HOSPITAL` | `{RequisicaoRequest}` | `{Requisicao}` | 201, 400, 403 |
 | GET | `/requisicoes/{id}` | Retorna dados da `Requisicao` especificada. | Membro do `HOSPITAL` dono, Membro de `HEMOCENTRO` | — | `{Requisicao}` | 200, 403, 404 |
-| PATCH | `/requisicoes/{id}` | Atualizar dados da `Requisicao`. `409` se `status != ABERTA`. | Membro do `HOSPITAL` dono | `{prioridade, observacoes}` | `{Requisicao}` | 200, 400, 403, 404, 409 |
+| PUT | `/requisicoes/{id}` | Atualizar dados da `Requisicao`. `409` se `status != ABERTA`. | Membro do `HOSPITAL` dono | `{prioridade, observacoes}` | `{Requisicao}` | 200, 400, 403, 404, 409 |
 | DELETE | `/requisicoes/{id}` | Deletar uma `Requisicao` do sistema. | `ADMIN_SISTEMA` | — | — | 204, 403, 404, 409 |
 | PATCH | `/requisicoes/{id}/cancelar` | Cancela a requisição. `status = CANCELADA`. `409` se já `EM_TRANSITO` ou `ATENDIDA`. | Membro do `HOSPITAL` dono | — | `{Requisicao}` | 200, 403, 404, 409 |
-| PATCH | `/requisicoes/{id}/aceitar` | Aceita a requisição. `status = ACEITA` e define `hemocentroId`. `409` se já aceita por outro. | Membro de `HEMOCENTRO` | — | `{Requisicao}` | 200, 403, 404, 409 |
-| PATCH | `/requisicoes/{id}/recusar` | Recusa a requisição. `status = RECUSADA`. | Membro de `HEMOCENTRO` | `{motivoRecusa}` | `{Requisicao}` | 200, 400, 403, 404, 409 |
+| POST | `/requisicoes/{id}/aceitar` | Aceita a requisição. `status = ACEITA` e define `hemocentroId`. `409` se já aceita por outro. | Membro de `HEMOCENTRO` | — | `{Requisicao}` | 200, 403, 404, 409 |
+| POST | `/requisicoes/{id}/recusar` | Recusa a requisição. `status = RECUSADA`. | Membro de `HEMOCENTRO` | `{motivoRecusa}` | `{Requisicao}` | 200, 400, 403, 404, 409 |
 | GET | `/requisicoes/{id}/compativeis` | Hemocomponentes do hemocentro que servem para a requisição: mesmo tipo, `DISPONIVEL`, não vencidos e compatíveis em ABO/Rh, ordenados por validade (FEFO). `409` se a requisição não estiver `ACEITA`. | Membro do `HEMOCENTRO` dono | — | `[{Hemocomponente}]` | 200, 403, 404, 409 |
 | PATCH | `/requisicoes/{id}/alocar` | Aloca `Hemocomponentes` do próprio estoque. `status = ALOCADA`; hemocomponentes vão para `RESERVADO`. | Membro do `HEMOCENTRO` dono | `{hemocomponenteIds}` | `{Requisicao}` | 200, 400, 403, 404, 409 |
 | GET | `/requisicoes/{id}/rota` | Planeja a distribuição (HU07): origem = hemocentro da requisição, destino = hospital, rota de menor distância no mapa fixo de municípios (Dijkstra). `409` se a requisição não estiver `ALOCADA`. | Membro de instituição aprovada | — | `{RotaResponse}` | 200, 403, 404, 409, 422 |
@@ -194,7 +194,18 @@ O que está no ar e onde o código diverge deste documento.
 | `GET /instituicoes/{id}/usuarios/{uid}` | **Pendente.** A listagem já traz tudo que o front consome. |
 | Token no cliente | O front guarda o JWT em `localStorage`, legível por qualquer JavaScript da página. Um XSS levaria o token junto; a mitigação real seria cookie `httpOnly`. |
 
-Rotas implementadas até aqui: `POST /auth/login`, `GET /auth/me`, `POST /instituicoes`, `GET /instituicoes`, `PATCH /instituicoes/{id}/aprovar`, `GET /instituicoes/{id}/usuarios`, `POST /instituicoes/{id}/usuarios`, `PATCH /instituicoes/{id}/usuarios/{uid}`. As demais seguem especificadas e pendentes.
+Rotas implementadas até aqui:
+
+- **Auth:** `POST /auth/login`, `GET /auth/me`
+- **Instituições:** `POST /instituicoes`, `GET /instituicoes`, `PATCH /instituicoes/{id}/aprovar`
+- **Membros:** `GET /instituicoes/{id}/usuarios`, `POST /instituicoes/{id}/usuarios`, `PATCH /instituicoes/{id}/usuarios/{uid}`
+- **Estoque:** `GET /instituicoes/{id}/estoque`, `POST /instituicoes/{id}/estoque`
+- **Requisições:** `GET /requisicoes`, `POST /requisicoes`, `GET /requisicoes/{id}`, `PUT /requisicoes/{id}`, `DELETE /requisicoes/{id}`, `POST /requisicoes/{id}/aceitar`, `POST /requisicoes/{id}/recusar`, `GET /requisicoes/{id}/compativeis`, `PATCH /requisicoes/{id}/alocar`, `GET /requisicoes/{id}/rota`, `PATCH /requisicoes/{id}/enviar`, `PATCH /requisicoes/{id}/receber`, `GET /requisicoes/{id}/monitoramento`, `GET /requisicoes/{id}/bolsas`
+- **Indicadores:** `GET /indicadores`
+
+Especificadas e ainda pendentes: `GET`/`PATCH`/`DELETE /instituicoes/{id}`, `GET /instituicoes/{id}/usuarios/{uid}`, `PATCH /usuarios/{id}`, `GET`/`PATCH`/`DELETE /instituicoes/{id}/estoque/{idHemoc}`, `GET /disponibilidade`, `GET /hemocomponentes/{id}/historico`, `PATCH /requisicoes/{id}/cancelar`.
+
+Fora deste contrato: `GET /relatorio/benchmark` e `POST /relatorio`, usados no relatório de paralelismo de SO (`docs/relatorio-paralelismo.md`).
 
 ---
 
@@ -755,7 +766,7 @@ Detalhe da requisição (HU04, cenário 2).
 
 ---
 
-### **PATCH** `/requisicoes/{id}`
+### **PUT** `/requisicoes/{id}`
 Atualiza a requisição. Só `prioridade` e `observacoes`.
 
 **@caller** `MEMBRO` do `HOSPITAL` dono
@@ -775,7 +786,7 @@ Atualiza a requisição. Só `prioridade` e `observacoes`.
 
 ---
 
-### **PATCH** `/requisicoes/{id}/aceitar`
+### **POST** `/requisicoes/{id}/aceitar`
 Hemocentro assume a requisição: `status = ACEITA` e grava `hemocentroId` (HU05, cenário 2).
 
 **@caller** `MEMBRO` de `HEMOCENTRO`
@@ -787,7 +798,7 @@ Hemocentro assume a requisição: `status = ACEITA` e grava `hemocentroId` (HU05
 
 ---
 
-### **PATCH** `/requisicoes/{id}/recusar`
+### **POST** `/requisicoes/{id}/recusar`
 Recusa com motivo obrigatório (HU05, cenário 3). Terminal.
 
 **@caller** `MEMBRO` de `HEMOCENTRO`
