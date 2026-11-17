@@ -1,10 +1,12 @@
-# HemoTrack — Modelo de domínio v1.0
+# HemoTrack — Modelo de domínio v1.1
+
+> v1.1 (17/11/2026): alinhado ao código. Requisição com um item só, medido em volume; "vencida" a partir do dia da validade; `HistoricoHemocomponente` mantido como planejado para a Parte 3 de SO; rotas corrigidas. Na Parte 3, a classe `Hemocomponente` passa a se chamar `Bolsa` (linguagem das histórias).
 
 ```
 Instituicao (HOSPITAL | HEMOCENTRO)
      │
      ├── Usuario            (papel: ADMIN_SISTEMA | ADMIN_INSTITUICAO | OPERADOR)
-     ├── Hemocomponente     ("estoque" = os hemocomponentes com instituicaoId = X)
+     ├── Hemocomponente     ("estoque" = os hemocomponentes com instituicaoAtualId = X)
      └── Requisicao         (hospitalId ─► hemocentroId)
 
 HEMOCENTRO.estoque ──alocar──► Requisicao ──receber──► HOSPITAL.estoque
@@ -38,12 +40,12 @@ ABERTA → ACEITA → ALOCADA → EM_TRANSITO → ATENDIDA
 | Valor | Significado | Rótulo no HU04 | Rota que produz |
 |---|---|---|---|
 | `ABERTA` | criada pelo hospital, aguardando hemocentro | Pendente | `POST /requisicoes` |
-| `ACEITA` | hemocentro assumiu; `hemocentroId` definido | Aceita | `PATCH /requisicoes/{id}/aceitar` |
+| `ACEITA` | hemocentro assumiu; `hemocentroId` definido | Aceita | `POST /requisicoes/{id}/aceitar` |
 | `ALOCADA` | hemocomponentes reservados no estoque do hemocentro | Em separação | `PATCH /requisicoes/{id}/alocar` |
 | `EM_TRANSITO` | lote despachado | Em transporte | `PATCH /requisicoes/{id}/enviar` |
 | `ATENDIDA` | recebido pelo hospital; hemocomponentes transferidos | Entregue | `PATCH /requisicoes/{id}/receber` |
-| `RECUSADA` | terminal; exige `motivoRecusa` | Recusada | `PATCH /requisicoes/{id}/recusar` |
-| `CANCELADA` | terminal; só antes de `EM_TRANSITO` | — | `PATCH /requisicoes/{id}/cancelar` |
+| `RECUSADA` | terminal; exige `motivoRecusa` | Recusada | `POST /requisicoes/{id}/recusar` |
+| `CANCELADA` | terminal; só antes de `EM_TRANSITO` | — | sem rota ainda (hoje `DELETE /requisicoes/{id}` apaga o registro) |
 
 ### `StatusHemocomponente` — máquina de estados
 
@@ -60,7 +62,7 @@ DISPONIVEL ⇄ RESERVADO → TRANSFUNDIDO
 | `RESERVADO → TRANSFUNDIDO` | uso no hospital, depois do `/receber` |
 | qualquer → `DESCARTADO` | vencimento, quebra de cadeia de frio, descarte manual |
 
-Transição inválida responde `409`. "Vencida" **não** é status: é `dataValidade < hoje`, calculado — um hemocomponente vencido continua `DISPONIVEL` até alguém descartar, mas não pode ser alocado.
+Transição inválida responde `409`. "Vencida" **não** é status: é `dataValidade <= hoje` (vence **no** dia da validade, HU02 cenário 3), calculado — um hemocomponente vencido continua `DISPONIVEL` até alguém descartar, mas não pode ser alocado.
 
 ---
 
@@ -122,15 +124,21 @@ Unidade de estoque. É a bolsa já pronta para uso — não há entidade de frac
 | `tipo` | `TipoHemocomponente` | `@NotNull` |
 | `abo` | `TipoABO` | `@NotNull` |
 | `rh` | `FatorRh` | `@NotNull` |
-| `dataColeta` | `LocalDate` | `@NotNull`, `@PastOrPresent` |
+| `volumeMl` | `double` | obrigatório; somado na alocação |
+| `dataColeta` | `LocalDate` | `@NotNull` |
 | `dataValidade` | `LocalDate` | `@NotNull`, posterior a `dataColeta` |
+| `dataProcessamento` | `Instant` | `@CreationTimestamp` |
 | `status` | `StatusHemocomponente` | `@NotNull`, default `DISPONIVEL` |
-| `instituicaoId` | `Long` | `@NotNull` — onde a bolsa está agora |
-| `requisicaoId` | `Long` | `@Nullable` — preenchido enquanto `RESERVADO` |
+| `emTransito` | `boolean` | `true` entre `/enviar` e `/receber` |
+| `instituicaoAtualId` | `Long` | `@NotNull` — onde a bolsa está agora |
+| `requisicaoAlocadaId` | `Long` | `@Nullable` — preenchido enquanto `RESERVADO` |
+| `bolsaOrigemId` | `Long` | `@Nullable` — não usado no fluxo |
 
 `codigoBolsa` duplicado responde `409`.
 
-`instituicaoId` muda uma vez: no `PATCH /requisicoes/{id}/receber`, do hemocentro para o hospital.
+Regras no próprio objeto: `estaVencido(hoje)` e `estaDisponivel(hoje)` (= `DISPONIVEL` e não vencido).
+
+`instituicaoAtualId` muda uma vez: no `PATCH /requisicoes/{id}/receber`, do hemocentro para o hospital.
 
 ---
 
@@ -149,7 +157,7 @@ Trilha de rastreio do HU08/HU09, exposta em `GET /hemocomponentes/{id}/historico
 
 Append-only: nunca sofre `UPDATE` nem `DELETE`. É o que permite o delete lógico das outras entidades não perder rastreabilidade.
 
-✗ Entidade nova — não existe no código.
+Ainda não existe no código: decidido em 17/11 manter no modelo e implementar na Parte 3 de SO (DDD em código), no contexto Estoque.
 
 ---
 
@@ -160,33 +168,29 @@ Append-only: nunca sofre `UPDATE` nem `DELETE`. É o que permite o delete lógic
 | `id` | `Long` | `@GeneratedValue(IDENTITY)` |
 | `hospitalId` | `Long` | `@NotNull` — do JWT, nunca do body |
 | `hemocentroId` | `Long` | `@Nullable` — definido no `/aceitar` |
-| `itens` | `List<ItemRequisicao>` | `@NotEmpty`, `@Valid` |
-| `prioridade` | `Prioridade` | `@NotNull` |
-| `status` | `StatusRequisicao` | `@NotNull`, default `ABERTA` |
-| `observacoes` | `String` | `@Nullable`, `@Size(max=500)` |
-| `motivoRecusa` | `String` | `@Nullable` — obrigatório quando `RECUSADA` |
-| `hemocomponenteIds` | `List<Long>` | preenchido no `/alocar` |
-| `criadaEm` | `Instant` | `@CreationTimestamp`, `updatable = false` |
-| `atualizadaEm` | `Instant` | `@UpdateTimestamp` |
-
-Só é editável (`PATCH /requisicoes/{id}`) enquanto `ABERTA`, e só `prioridade` e `observacoes`. `status` nunca vem do body — muda pelas rotas de ação.
-
-### `ItemRequisicao`
-
-| Campo | Tipo | Validação |
-|---|---|---|
 | `tipo` | `TipoHemocomponente` | `@NotNull` |
 | `abo` | `TipoABO` | `@NotNull` |
 | `rh` | `FatorRh` | `@NotNull` |
-| `quantidade` | `int` | `@Min(1)` — número de bolsas |
+| `volumeMl` | `double` | maior que zero (senão `400`) |
+| `prioridade` | `Prioridade` | `@NotNull` |
+| `status` | `StatusRequisicao` | default `ABERTA`; gravado como ordinal (status novo entra sempre no fim do enum) |
+| `observacoes` | `String` | `@Nullable` |
+| `motivoRecusa` | `String` | `@Nullable` — obrigatório quando `RECUSADA` |
+| `dataCriacao` | `Instant` | `@CreationTimestamp`, `updatable = false` |
+| `dataEnvio` | `Instant` | `@Nullable` — preenchido no `/enviar` |
+| `dataEntrega` | `Instant` | `@Nullable` — preenchido no `/receber` |
 
-A alocação fecha o pedido **contando bolsas**, não somando volume.
+Uma requisição pede **um** item: um tipo de hemocomponente, um ABO/Rh e um volume. As bolsas reservadas não ficam na requisição: cada `Hemocomponente` aponta para ela por `requisicaoAlocadaId`.
+
+Só é editável (`PUT /requisicoes/{id}`) enquanto `ABERTA`; hoje só `prioridade` muda. `status` nunca vem do body — muda pelas rotas de ação.
+
+A alocação fecha o pedido **somando volume**: a soma de `volumeMl` das bolsas escolhidas precisa ser maior ou igual ao `volumeMl` pedido.
 
 ---
 
 ## Estoque
 
-Continua sem ser entidade: é **visão calculada** sobre `Hemocomponente.instituicaoId`.
+Continua sem ser entidade: é **visão calculada** sobre `Hemocomponente.instituicaoAtualId`.
 
 Diferença em relação ao modelo antigo: hospital também tem estoque — o `/receber` transfere as bolsas para ele. O que é exclusivo do hemocentro é *cadastrar* (`POST /instituicoes/{id}/estoque`) e *alocar*.
 
@@ -194,16 +198,17 @@ Rótulos do HU02:
 
 | Rótulo (HU02) | Regra |
 |---|---|
-| Disponível | `status = DISPONIVEL` e `dataValidade >= hoje` |
+| Disponível | `status = DISPONIVEL` e `dataValidade > hoje` |
 | Reservada | `status = RESERVADO` |
 | Utilizada | `status = TRANSFUNDIDO` |
-| Vencida | `dataValidade < hoje`, independente do status |
+| Descartada | `status = DESCARTADO` |
+| Vencida | `status = DISPONIVEL` e `dataValidade <= hoje` |
 
-Elegível para alocação = `status = DISPONIVEL` **e** `dataValidade >= hoje` **e** `instituicaoId` = hemocentro dono da requisição.
+Elegível para alocação = `status = DISPONIVEL` **e** `dataValidade > hoje` **e** `instituicaoAtualId` = hemocentro que aceitou a requisição **e** mesmo tipo **e** ABO/Rh compatível.
 
 FEFO = `ORDER BY dataValidade ASC` sobre esse filtro. O índice por hash + fila de prioridade (entrega do time de Algoritmos) é interno ao serviço de alocação — não aparece na API, só o resultado.
 
-`/disponibilidade` é a mesma visão agregada entre instituições: contagem de `DISPONIVEL` não vencidos, agrupada por instituição, com filtro de `tipo`, `abo`, `rh` e `municipio`.
+`/disponibilidade` (planejada, ainda sem rota) seria a mesma visão agregada entre instituições: contagem de `DISPONIVEL` não vencidos, agrupada por instituição, com filtro de `tipo`, `abo`, `rh` e `municipio`.
 
 ---
 
