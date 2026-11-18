@@ -1,0 +1,16 @@
+Medicao de W - Rota Vital (U2 Parte 2, Secao E)
+Data: 18/11/2026 09:59 (hora local)
+API: https://hemotrack-api-3ns9.onrender.com  Rota: GET /requisicoes  Requisicoes: 100 sequenciais (erros: 0)
+
+W no servidor (Actuator, http.server.requests):
+  49.5 ms  (100 requisicoes contadas)
+Tempo no cliente (Recife -> Virginia, inclui rede):
+  media 470.0 ms | mediana 435.9 ms | p95 614.7 ms
+
+Lei de Little com o W do servidor (L = lambda x W):
+  Baixo     lambda =   5 req/s  ->  L = 0.25 requisicoes simultaneas
+  Moderado  lambda =  50 req/s  ->  L = 2.47 requisicoes simultaneas
+  Alto      lambda = 500 req/s  ->  L = 24.74 requisicoes simultaneas
+
+Observacao: requisicoes sequenciais medem W sem carga (limite inferior).
+Sob carga W cresce; a utilizacao-alvo de 70% da planilha e a folga para isso.

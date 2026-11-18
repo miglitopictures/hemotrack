@@ -10,6 +10,7 @@ Uso:
 Opcoes:
     --n 100        quantidade de requisicoes medidas (padrao 100)
     --url URL      base da API (padrao: producao no Render)
+    --acordar 300  segundos maximos esperando a API acordar (padrao 300)
 
 Mede duas coisas:
   - W no servidor: tempo DENTRO da API, lido do Actuator (http.server.requests).
@@ -52,19 +53,20 @@ def requisitar(url, metodo="GET", corpo=None, token=None, timeout=90):
     return status, conteudo, time.perf_counter() - inicio
 
 
-def acordar(base):
-    print("Acordando a API (o plano Free dorme; pode levar ate 60 s)...")
-    limite = time.time() + 120
-    while time.time() < limite:
+def acordar(base, espera_max):
+    print(f"Acordando a API (o plano Free dorme; esperando ate {espera_max} s)...")
+    inicio = time.time()
+    while time.time() - inicio < espera_max:
         try:
-            status, _, segundos = requisitar(base + "/actuator/health")
+            status, _, _ = requisitar(base + "/actuator/health", timeout=espera_max)
             if status == 200:
-                print(f"  API no ar ({segundos:.1f} s na primeira resposta)")
+                print(f"  API no ar ({time.time() - inicio:.1f} s ate responder)")
                 return
         except Exception:
             pass
-        time.sleep(3)
-    raise SystemExit("A API nao respondeu em 2 minutos. Confira a URL no docs/deploy.md.")
+        print(f"  ainda acordando... {time.time() - inicio:.0f} s")
+        time.sleep(5)
+    raise SystemExit(f"A API nao respondeu em {espera_max} s. Rode de novo com --acordar 600 ou confira a URL no docs/deploy.md.")
 
 
 def metrica(base, uri):
@@ -81,10 +83,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--n", type=int, default=100)
     parser.add_argument("--url", default=PADRAO_URL)
+    parser.add_argument("--acordar", type=int, default=300, help="segundos maximos esperando a API acordar")
     args = parser.parse_args()
     base = args.url.rstrip("/")
 
-    acordar(base)
+    acordar(base, args.acordar)
 
     token = None
     email, senha = os.environ.get("HEMOTRACK_EMAIL"), os.environ.get("HEMOTRACK_SENHA")
