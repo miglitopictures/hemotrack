@@ -1,9 +1,8 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
-import { DetalheTransporte } from "@/components/detalhe-transporte";
+import { MonitorTransporte } from "@/components/monitor-transporte";
 import { EstadoErro, SkeletonPagina } from "@/components/ui-kit";
-import { obterTransporte } from "@/lib/api";
-import { HOSPITAL_ATUAL } from "@/lib/data";
+import { obterTransporte, transporteDaMinhaInstituicao } from "@/lib/api";
 
 export const Route = createFileRoute("/hospital/transportes/$id")({
   head: () => ({
@@ -23,9 +22,8 @@ export const Route = createFileRoute("/hospital/transportes/$id")({
   }),
   loader: async ({ params }) => {
     const transporte = await obterTransporte(params.id);
-    // 404 tanto para id inexistente quanto para remessa de outro hospital —
-    // antes caía silenciosamente no primeiro transporte da lista.
-    if (!transporte || !transporte.destino.startsWith(HOSPITAL_ATUAL)) throw notFound();
+    // 404 tanto para id inexistente quanto para remessa de outro hospital
+    if (!transporte || !transporteDaMinhaInstituicao(transporte)) throw notFound();
     return { transporte };
   },
   pendingComponent: () => (
@@ -45,7 +43,7 @@ function AcompanharTransporte() {
   const { transporte } = Route.useLoaderData();
   return (
     <AppShell role="hospital">
-      <DetalheTransporte transporte={transporte} papel="hospital" />
+      <MonitorTransporte key={transporte.id} inicial={transporte} papel="hospital" />
     </AppShell>
   );
 }

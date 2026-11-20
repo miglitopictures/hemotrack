@@ -1,4 +1,4 @@
-import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import {
@@ -10,6 +10,7 @@ import {
   Droplet,
   Loader2,
   MessageSquare,
+  PackageCheck,
   Thermometer,
   Truck,
   XCircle,
@@ -27,9 +28,16 @@ import {
   StatusBadge,
   fadeUp,
 } from "@/components/ui-kit";
-import { aceitarSolicitacao, listarBolsasCompativeis, obterSolicitacao, recusarSolicitacao } from "@/lib/api";
 import {
-  diasParaVencer,
+  aceitarSolicitacao,
+  listarBolsasDaSolicitacao,
+  listarCompativeisDaSolicitacao,
+  obterSolicitacao,
+  recusarSolicitacao,
+  reservarBolsas,
+} from "@/lib/api";
+import type { BolsaDoEstoque } from "@/lib/adapters/transporte";
+import {
   ehTipoEscasso,
   formatarData,
   formatarDataHora,
@@ -39,6 +47,9 @@ import {
 } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
+// Fluxo do hemocentro (HU05 + HU06), na mesma ordem do back:
+// Pendente -> aceitar (ACEITA) -> escolher bolsas compatíveis -> reservar (ALOCADA = "Em separação")
+// -> planejar e despachar (HU07/HU08).
 export const Route = createFileRoute("/hemocentro/solicitacoes/$id")({
   head: () => ({
     meta: [
@@ -58,11 +69,20 @@ export const Route = createFileRoute("/hemocentro/solicitacoes/$id")({
   loader: async ({ params }) => {
     const solicitacao = await obterSolicitacao(params.id);
     if (!solicitacao) throw notFound();
-    const compativeis = await listarBolsasCompativeis(
-      solicitacao.componente,
-      solicitacao.tipoSanguineo,
-    );
-    return { solicitacao, compativeis };
+
+    // aceita: mostra o estoque compatível para escolher (FEFO, vem ordenado do back)
+    let compativeis: BolsaDoEstoque[] = [];
+    if (solicitacao.status === "Aceita") {
+      compativeis = await listarCompativeisDaSolicitacao(solicitacao.id);
+    }
+
+    // já separada ou adiante: mostra as bolsas reservadas
+    let reservadas: BolsaDoEstoque[] = [];
+    if (["Em separação", "Em transporte", "Entregue"].includes(solicitacao.status)) {
+      reservadas = await listarBolsasDaSolicitacao(solicitacao.id);
+    }
+
+    return { solicitacao, compativeis, reservadas };
   },
   pendingComponent: () => (
     <AppShell role="hemocentro">
@@ -78,21 +98,25 @@ export const Route = createFileRoute("/hemocentro/solicitacoes/$id")({
 });
 
 function AnaliseSolicitacao() {
-  const { solicitacao: sol, compativeis } = Route.useLoaderData();
+  const { solicitacao: sol, compativeis, reservadas } = Route.useLoaderData();
   const navigate = useNavigate();
+  const router = useRouter();
   const aceitos = tiposCompativeis(sol.componente, sol.tipoSanguineo);
   const limite = limitesTemperatura[sol.componente];
 
-  const [selecionadas, setSelecionadas] = useState<string[]>([]);
-  const [decisao, setDecisao] = useState<"aceita" | "recusada" | null>(null);
+  const [selecionadas, setSelecionadas] = useState<number[]>([]);
+  const [decisao, setDecisao] = useState<"recusada" | null>(null);
   const [motivo, setMotivo] = useState(motivosRecusa[0] ?? "");
   const [processando, setProcessando] = useState(false);
 
-  const jaDecidida = sol.status !== "Pendente";
+  const pendente = sol.status === "Pendente";
+  const escolhendo = sol.status === "Aceita";
+  const separada = sol.status === "Em separação";
+
   const completa = selecionadas.length === sol.quantidade;
   const faltam = sol.quantidade - selecionadas.length;
 
-  const bolsasSelecionadas = compativeis.filter((b) => selecionadas.includes(b.codigo));
+  const bolsasSelecionadas = compativeis.filter((b) => selecionadas.includes(b.id));
   const escassasUsadas = bolsasSelecionadas.filter((b) =>
     ehTipoEscasso(b.tipoSanguineo, sol.tipoSanguineo),
   );
@@ -103,9 +127,12 @@ function AnaliseSolicitacao() {
     }, {}),
   );
 
-  function alternar(codigo: string) {
+  // a lista mostrada: para escolher (Aceita) ou as já reservadas (Em separação em diante)
+  const lista = escolhendo ? compativeis : reservadas;
+
+  function alternar(id: number) {
     setSelecionadas((prev) => {
-      if (prev.includes(codigo)) return prev.filter((c) => c !== codigo);
+      if (prev.includes(id)) return prev.filter((c) => c !== id);
       // Nunca deixa separar mais bolsas do que o pedido.
       if (prev.length >= sol.quantidade) {
         toast.warning(`A solicitação pede ${sol.quantidade} bolsa(s)`, {
@@ -113,20 +140,17 @@ function AnaliseSolicitacao() {
         });
         return prev;
       }
-      return [...prev, codigo];
+      return [...prev, id];
     });
   }
 
-  async function aceitar() {
+  async function executar(acao: () => Promise<void>, erroTitulo: string) {
     setProcessando(true);
     try {
-      await aceitarSolicitacao(sol.id, selecionadas);
-      setDecisao("aceita");
-      toast.success(`${sol.id} aceita`, {
-        description: `${selecionadas.length} bolsa(s) reservadas para separação.`,
-      });
+      await acao();
+      await router.invalidate(); // recarrega a solicitação com o status novo
     } catch (e) {
-      toast.error("Não foi possível aceitar", {
+      toast.error(erroTitulo, {
         description: e instanceof Error ? e.message : "Erro inesperado.",
       });
     } finally {
@@ -134,20 +158,38 @@ function AnaliseSolicitacao() {
     }
   }
 
-  async function recusar() {
-    setProcessando(true);
-    try {
-      await recusarSolicitacao(sol.id, motivo);
-      setDecisao("recusada");
-      toast.success(`${sol.id} recusada`, { description: `Motivo informado: ${motivo}` });
-    } catch (e) {
-      toast.error("Não foi possível recusar", {
-        description: e instanceof Error ? e.message : "Erro inesperado.",
+  function aceitar() {
+    void executar(async () => {
+      await aceitarSolicitacao(sol.id);
+      toast.success(`${sol.id} aceita`, {
+        description: "Agora escolha as bolsas compatíveis do estoque.",
       });
-    } finally {
-      setProcessando(false);
-    }
+    }, "Não foi possível aceitar");
   }
+
+  function reservar() {
+    void executar(async () => {
+      await reservarBolsas(sol.id, selecionadas);
+      setSelecionadas([]);
+      toast.success(`${selecionadas.length} bolsa(s) reservadas`, {
+        description: "A remessa está em separação. Planeje o despacho.",
+      });
+    }, "Não foi possível reservar as bolsas");
+  }
+
+  function recusar() {
+    void executar(async () => {
+      await recusarSolicitacao(sol.id, motivo);
+      setDecisao(null);
+      toast.success(`${sol.id} recusada`, { description: `Motivo informado: ${motivo}` });
+    }, "Não foi possível recusar");
+  }
+
+  const descricaoLista = escolhendo
+    ? `${compativeis.length} bolsa(s) livres de ${sol.componente.toLowerCase()} · tipos aceitos para ${sol.tipoSanguineo}: ${aceitos.join(", ")}`
+    : lista.length > 0
+      ? `${lista.length} bolsa(s) reservadas para esta solicitação`
+      : `Tipos aceitos para ${sol.tipoSanguineo}: ${aceitos.join(", ")}`;
 
   return (
     <AppShell role="hemocentro">
@@ -176,10 +218,10 @@ function AnaliseSolicitacao() {
               {[
                 { label: "Hemocomponente", value: sol.componente },
                 { label: "Tipo sanguíneo", value: sol.tipoSanguineo },
-                { label: "Quantidade", value: `${sol.quantidade} bolsas` },
+                { label: "Quantidade", value: `${sol.quantidade} bolsa(s)` },
                 { label: "Prioridade", value: sol.prioridade },
                 { label: "Hospital solicitante", value: sol.hospital },
-                { label: "Hemocentro responsável", value: sol.hemocentro },
+                { label: "Hemocentro responsável", value: sol.hemocentro || "—" },
               ].map((item) => (
                 <div key={item.label} className="rounded-xl border border-border bg-background p-4">
                   <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -191,40 +233,55 @@ function AnaliseSolicitacao() {
             </dl>
             <div className="flex gap-3 border-t border-border px-5 py-4">
               <MessageSquare className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
-              <p className="text-sm text-muted-foreground">{sol.observacoes || "Sem observações."}</p>
+              <p className="text-sm text-muted-foreground">
+                {sol.observacoes || "Sem observações."}
+              </p>
             </div>
           </Panel>
 
           <Panel
-            title="Bolsas compatíveis em estoque"
-            description={`${compativeis.length} bolsa(s) livres de ${sol.componente.toLowerCase()} · tipos aceitos para ${sol.tipoSanguineo}: ${aceitos.join(", ")}`}
+            title={escolhendo ? "Bolsas compatíveis em estoque" : "Bolsas da remessa"}
+            description={descricaoLista}
             actions={
-              <span className="rounded-full border border-warning/25 bg-warning-soft px-2.5 py-1 text-xs font-semibold text-warning">
-                Ordenado por validade mais próxima
-              </span>
+              escolhendo ? (
+                <span className="rounded-full border border-warning/25 bg-warning-soft px-2.5 py-1 text-xs font-semibold text-warning">
+                  Validade mais próxima primeiro (FEFO)
+                </span>
+              ) : null
             }
           >
-            {compativeis.length === 0 ? (
+            {pendente ? (
               <EstadoVazio
-                titulo="Nenhuma bolsa compatível disponível"
-                descricao="Recuse a solicitação informando o motivo, para o hospital procurar outro hemocentro."
+                titulo="Aceite a solicitação para escolher as bolsas"
+                descricao="Depois de aceitar, o estoque compatível do seu hemocentro aparece aqui."
+              />
+            ) : lista.length === 0 ? (
+              <EstadoVazio
+                titulo={
+                  escolhendo ? "Nenhuma bolsa compatível disponível" : "Nenhuma bolsa reservada"
+                }
+                {...(escolhendo
+                  ? {
+                      descricao:
+                        "Não há estoque compatível e dentro da validade no seu hemocentro agora.",
+                    }
+                  : {})}
               />
             ) : (
               <ul className="divide-y divide-border">
-                {compativeis.map((b) => {
-                  const ativa = selecionadas.includes(b.codigo);
-                  const dias = diasParaVencer(b.validade);
+                {lista.map((b) => {
+                  const ativa = escolhendo ? selecionadas.includes(b.id) : true;
                   const escassa = ehTipoEscasso(b.tipoSanguineo, sol.tipoSanguineo);
                   return (
-                    <li key={b.codigo}>
+                    <li key={b.id}>
                       <button
                         type="button"
                         role="checkbox"
                         aria-checked={ativa}
-                        disabled={jaDecidida || decisao !== null}
-                        onClick={() => alternar(b.codigo)}
+                        disabled={!escolhendo || processando}
+                        onClick={() => alternar(b.id)}
                         className={cn(
-                          "flex w-full flex-wrap items-center gap-3 px-5 py-4 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+                          "flex w-full flex-wrap items-center gap-3 px-5 py-4 text-left transition-colors disabled:cursor-default",
                           ativa ? "bg-primary-soft/60" : "hover:bg-secondary/60",
                         )}
                       >
@@ -244,7 +301,7 @@ function AnaliseSolicitacao() {
                             {b.codigo} · {b.tipoSanguineo}
                           </p>
                           <p className="mt-0.5 text-xs text-muted-foreground">
-                            Validade {formatarData(b.validade)} · {b.armazenamento}
+                            Validade {formatarData(b.validade)} · {b.volumeMl} mL
                           </p>
                         </div>
                         {escassa ? (
@@ -255,15 +312,12 @@ function AnaliseSolicitacao() {
                         <span
                           className={cn(
                             "rounded-full border px-2.5 py-1 text-xs font-semibold",
-                            dias <= 5
+                            b.diasParaVencer <= 5
                               ? "border-warning/25 bg-warning-soft text-warning"
                               : "border-border text-muted-foreground",
                           )}
                         >
-                          {dias} dias p/ vencer
-                        </span>
-                        <span className="rounded-full border border-border px-2.5 py-1 text-xs font-semibold text-muted-foreground">
-                          {b.status}
+                          {b.diasParaVencer} dias p/ vencer
                         </span>
                       </button>
                     </li>
@@ -280,58 +334,15 @@ function AnaliseSolicitacao() {
             className="rounded-2xl border border-border bg-card p-5 shadow-card lg:sticky lg:top-24"
           >
             <h2 className="text-base font-semibold">Decisão</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {selecionadas.length} de {sol.quantidade} bolsas selecionadas
-            </p>
-            <div
-              className="mt-3 h-1.5 overflow-hidden rounded-full bg-secondary"
-              role="progressbar"
-              aria-valuenow={selecionadas.length}
-              aria-valuemin={0}
-              aria-valuemax={sol.quantidade}
-              aria-label="Bolsas selecionadas"
-            >
-              <motion.div
-                animate={{
-                  width: `${Math.min(100, (selecionadas.length / sol.quantidade) * 100)}%`,
-                }}
-                transition={{ type: "spring", stiffness: 220, damping: 26 }}
-                className={cn("h-full rounded-full", completa ? "bg-success" : "bg-primary")}
-              />
-            </div>
 
-            {resumoTipos.length > 0 ? (
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {resumoTipos.map(([tipo, qtd]) => (
-                  <span
-                    key={tipo}
-                    className="rounded-full border border-border px-2 py-0.5 text-xs font-semibold"
-                  >
-                    {qtd}× {tipo}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-
-            {escassasUsadas.length > 0 ? (
-              <p className="mt-3 flex gap-2 rounded-xl border border-warning/25 bg-warning-soft px-3 py-2 text-xs font-medium text-warning">
-                <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-                {escassasUsadas.length} bolsa(s) O- para receptor {sol.tipoSanguineo}. O- é o estoque
-                mais escasso — use só se não houver alternativa.
-              </p>
-            ) : null}
-
-            {jaDecidida ? (
-              <p className="mt-4 rounded-xl border border-border bg-secondary px-3 py-2.5 text-xs font-medium text-muted-foreground">
-                Esta solicitação já está com status “{sol.status}”. Não há decisão pendente.
-              </p>
-            ) : (
-              <div className="mt-5 flex flex-col gap-2">
+            {pendente ? (
+              <div className="mt-4 flex flex-col gap-2">
                 <motion.button
                   type="button"
-                  {...(completa ? { whileHover: { y: -2 }, whileTap: { scale: 0.96 } } : {})}
+                  whileHover={{ y: -2 }}
+                  whileTap={{ scale: 0.96 }}
                   onClick={aceitar}
-                  disabled={!completa || processando || decisao !== null}
+                  disabled={processando || decisao !== null}
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-card disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {processando ? (
@@ -339,26 +350,112 @@ function AnaliseSolicitacao() {
                   ) : (
                     <ClipboardCheck className="size-4" aria-hidden="true" />
                   )}
-                  Aceitar e separar
+                  Aceitar solicitação
                 </motion.button>
-                {!completa ? (
-                  <p className="text-center text-xs text-muted-foreground">
-                    {faltam > 0
-                      ? `Selecione mais ${faltam} bolsa(s) compatível(is) para aceitar.`
-                      : "Ajuste a seleção para a quantidade pedida."}
-                  </p>
-                ) : null}
                 <motion.button
                   type="button"
                   whileTap={{ scale: 0.96 }}
                   onClick={() => setDecisao(decisao === "recusada" ? null : "recusada")}
-                  disabled={processando || decisao === "aceita"}
+                  disabled={processando}
                   className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <XCircle className="size-4" aria-hidden="true" /> Recusar solicitação
                 </motion.button>
               </div>
-            )}
+            ) : null}
+
+            {escolhendo ? (
+              <>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {selecionadas.length} de {sol.quantidade} bolsas selecionadas
+                </p>
+                <div
+                  className="mt-3 h-1.5 overflow-hidden rounded-full bg-secondary"
+                  role="progressbar"
+                  aria-valuenow={selecionadas.length}
+                  aria-valuemin={0}
+                  aria-valuemax={sol.quantidade}
+                  aria-label="Bolsas selecionadas"
+                >
+                  <motion.div
+                    animate={{
+                      width: `${Math.min(100, (selecionadas.length / sol.quantidade) * 100)}%`,
+                    }}
+                    transition={{ type: "spring", stiffness: 220, damping: 26 }}
+                    className={cn("h-full rounded-full", completa ? "bg-success" : "bg-primary")}
+                  />
+                </div>
+
+                {resumoTipos.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {resumoTipos.map(([tipo, qtd]) => (
+                      <span
+                        key={tipo}
+                        className="rounded-full border border-border px-2 py-0.5 text-xs font-semibold"
+                      >
+                        {qtd}× {tipo}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+
+                {escassasUsadas.length > 0 ? (
+                  <p className="mt-3 flex gap-2 rounded-xl border border-warning/25 bg-warning-soft px-3 py-2 text-xs font-medium text-warning">
+                    <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+                    {escassasUsadas.length} bolsa(s) O- para receptor {sol.tipoSanguineo}. O- é o
+                    estoque mais escasso — use só se não houver alternativa.
+                  </p>
+                ) : null}
+
+                <motion.button
+                  type="button"
+                  {...(completa ? { whileHover: { y: -2 }, whileTap: { scale: 0.96 } } : {})}
+                  onClick={reservar}
+                  disabled={!completa || processando}
+                  className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-card disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {processando ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <PackageCheck className="size-4" aria-hidden="true" />
+                  )}
+                  Reservar bolsas
+                </motion.button>
+                {!completa ? (
+                  <p className="mt-2 text-center text-xs text-muted-foreground">
+                    {faltam > 0
+                      ? `Selecione mais ${faltam} bolsa(s) compatível(is) para reservar.`
+                      : "Ajuste a seleção para a quantidade pedida."}
+                  </p>
+                ) : null}
+              </>
+            ) : null}
+
+            {separada ? (
+              <div className="mt-4 space-y-2">
+                <p className="rounded-xl border border-success/20 bg-success-soft px-3 py-2.5 text-xs font-medium text-success">
+                  Bolsas reservadas. A remessa está em separação.
+                </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    void navigate({
+                      to: "/hemocentro/distribuicoes/planejar",
+                      search: { sol: sol.id },
+                    })
+                  }
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary-soft px-4 py-2.5 text-sm font-semibold text-primary"
+                >
+                  <Truck className="size-4" aria-hidden="true" /> Planejar distribuição
+                </button>
+              </div>
+            ) : null}
+
+            {!pendente && !escolhendo && !separada ? (
+              <p className="mt-4 rounded-xl border border-border bg-secondary px-3 py-2.5 text-xs font-medium text-muted-foreground">
+                Esta solicitação já está com status “{sol.status}”. Não há decisão pendente.
+              </p>
+            ) : null}
 
             <AnimatePresence>
               {decisao === "recusada" ? (
@@ -387,33 +484,6 @@ function AnaliseSolicitacao() {
                     className="mt-3 w-full rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2 text-xs font-semibold text-destructive disabled:opacity-50"
                   >
                     Confirmar recusa
-                  </button>
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
-
-            <AnimatePresence>
-              {decisao === "aceita" ? (
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  className="mt-4 space-y-2"
-                >
-                  <p className="rounded-xl border border-success/20 bg-success-soft px-3 py-2.5 text-xs font-medium text-success">
-                    Solicitação aceita (protótipo). Bolsas reservadas para separação.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      void navigate({
-                        to: "/hemocentro/distribuicoes/planejar",
-                        search: { sol: sol.id },
-                      })
-                    }
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary-soft px-4 py-2.5 text-sm font-semibold text-primary"
-                  >
-                    <Truck className="size-4" aria-hidden="true" /> Planejar distribuição
                   </button>
                 </motion.div>
               ) : null}

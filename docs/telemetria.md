@@ -13,6 +13,7 @@ O backend exporta métricas no padrão **OpenTelemetry (OTLP)** para o **Grafana
 | `datasource-micrometer-spring-boot` | `pom.xml` | Mede o tempo das queries JDBC/JPA |
 | `management.otlp.metrics.export.*` | `application.properties` | Endpoint, token e intervalo de envio (10s), lidos do `backend/.env` ou de variáveis de ambiente |
 | `management.metrics.tags.application` | `application.properties` | Marca toda métrica com `application="hemotrack-backend"` |
+| `management.tracing.export.enabled=false` e `management.logging.export.otlp.enabled=false` | `application.properties` | Só as métricas são exportadas; traces e logs OTLP ficam desligados (o Render injeta variáveis `OTEL_*` que derrubavam a aplicação; ver [`deploy.md`](./deploy.md)) |
 
 > O export vem **desligado por padrão**. Sem o `.env` o backend sobe normalmente, só não envia nada.
 
@@ -56,4 +57,4 @@ O `.env` está no `.gitignore`. **Nunca commite o token.** Se preferir, as mesma
 ## Próximos passos
 - Métricas de negócio: transições de status da requisição (contador por status) e tempo entre `ALOCADA` e `ATENDIDA`.
 - Status `EM_TRANSITO` com as rotas `/enviar` e `/receber` (ver [`api/dominio.md`](./api/dominio.md)), para instrumentar o transporte.
-- Tracing do fluxo de transporte e um dashboard dedicado no Grafana.
+- Tracing do fluxo de transporte (exige religar `management.tracing.export.enabled`) e um dashboard dedicado no Grafana.

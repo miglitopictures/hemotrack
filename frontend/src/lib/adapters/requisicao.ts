@@ -9,7 +9,6 @@
  */
 
 import type { Prioridade, Solicitacao, Status } from "../data";
-import { HOSPITAL_ATUAL } from "../data";
 
 // ---------------------------------------------------------------------------
 // O que o back REALMENTE devolve hoje (RequisicaoController + Requisicao.java)
@@ -25,7 +24,8 @@ export type StatusRequisicaoBack =
   | "ALOCADA"
   | "ATENDIDA"
   | "RECUSADA"
-  | "CANCELADA";
+  | "CANCELADA"
+  | "EM_TRANSITO";
 
 export type RequisicaoBack = {
   id: number;
@@ -40,6 +40,8 @@ export type RequisicaoBack = {
   status: StatusRequisicaoBack;
   observacoes?: string | null;
   motivoRecusa?: string | null;
+  dataEnvio?: string | null; // HU08: quando o hemocentro despachou
+  dataEntrega?: string | null; // HU08: quando o hospital confirmou o recebimento
 };
 
 /** O corpo que o `POST /requisicoes` do back espera. */
@@ -60,25 +62,34 @@ export type NovaRequisicaoBack = {
 // e o back combinarem um enum único). Enquanto isso não acontece, a tradução
 // mora aqui.
 
-const COMPONENTE_PARA_BACK: Record<string, TipoHemocomponenteBack> = {
+export const COMPONENTE_PARA_BACK: Record<string, TipoHemocomponenteBack> = {
   "Concentrado de hemácias": "HEMACIAS",
   "Plasma fresco congelado": "PLASMA",
   "Concentrado de plaquetas": "PLAQUETAS",
   Crioprecipitado: "CRIOPRECIPITADO",
 };
-const COMPONENTE_DO_BACK: Record<TipoHemocomponenteBack, string> = {
+export const COMPONENTE_DO_BACK: Record<TipoHemocomponenteBack, string> = {
   HEMACIAS: "Concentrado de hemácias",
   PLASMA: "Plasma fresco congelado",
   PLAQUETAS: "Concentrado de plaquetas",
   CRIOPRECIPITADO: "Crioprecipitado",
 };
 
-function tipoSanguineoParaBack(tipo: string): { abo: TipoABOBack; rh: FatorRhBack } {
+// O back mede o pedido em mL (volumeMl); as telas falam em bolsas. A conversão
+// usa o volume padrão de uma bolsa de cada componente (o mesmo do seed do back).
+export const VOLUME_PADRAO_ML: Record<TipoHemocomponenteBack, number> = {
+  HEMACIAS: 300,
+  PLASMA: 200,
+  PLAQUETAS: 50,
+  CRIOPRECIPITADO: 15,
+};
+
+export function tipoSanguineoParaBack(tipo: string): { abo: TipoABOBack; rh: FatorRhBack } {
   const abo = tipo.replace(/[+-]/, "") as TipoABOBack;
   const rh: FatorRhBack = tipo.endsWith("+") ? "POSITIVO" : "NEGATIVO";
   return { abo, rh };
 }
-function tipoSanguineoDoBack(abo: TipoABOBack, rh: FatorRhBack): string {
+export function tipoSanguineoDoBack(abo: TipoABOBack, rh: FatorRhBack): string {
   return `${abo}${rh === "POSITIVO" ? "+" : "-"}`;
 }
 
@@ -93,48 +104,40 @@ const PRIORIDADE_DO_BACK: Record<PrioridadeBack, Prioridade> = {
   EMERGENCIA: "Emergência",
 };
 
-// O front (HU04) só conhece 6 status. O back já tem um a mais (ALOCADA, do
-// HU06) e um status de cancelamento que o front ainda não trata em nenhuma
-// tela. Por ora colapsamos ALOCADA em "Aceita" (é o mais próximo do que a
-// tela de acompanhamento do hospital sabe exibir) e CANCELADA em "Recusada".
-// Quando a tela de estoque/seleção de bolsas existir de verdade, vale criar
-// um status "Alocada" próprio no front em vez de esconder essa diferença.
-const STATUS_DO_BACK: Record<StatusRequisicaoBack, Status> = {
+// O front (HU04) conhece 6 status. ALOCADA (HU06: bolsas já reservadas) é o
+// "Em separação" do front: o hemocentro separou as bolsas e falta despachar.
+// CANCELADA ainda não tem tela própria e aparece como "Recusada".
+export const STATUS_DO_BACK: Record<StatusRequisicaoBack, Status> = {
   ABERTA: "Pendente",
   ACEITA: "Aceita",
-  ALOCADA: "Aceita", // TODO: front ainda não distingue "aceita" de "alocada"
+  ALOCADA: "Em separação", // HU06: bolsas reservadas, aguardando despacho
   ATENDIDA: "Entregue",
   RECUSADA: "Recusada",
   CANCELADA: "Recusada", // TODO: front ainda não tem um status de cancelamento
+  EM_TRANSITO: "Em transporte", // HU08: lote despachado pelo hemocentro
 };
 
 // ---------------------------------------------------------------------------
 // Tradutores públicos
 // ---------------------------------------------------------------------------
 
-// TODO(back): quando existir uma rota de instituições (/instituicoes), o
-// nome do hospital deve vir de lá, não ser fixado aqui. Enquanto isso não
-// existe, mapeamos à mão o único hospital que estamos usando para testar
-// (id 1, o mesmo valor de HOSPITAL_ID_TEMP no api.ts) para o nome exato que
-// a tela "minhas solicitações" já espera (HOSPITAL_ATUAL, em data.ts). Sem
-// isso, o texto não bate e a tela do hospital fica vazia, mesmo a
-// solicitação existindo (é exatamente o que estava acontecendo).
-const NOME_DO_HOSPITAL: Record<number, string> = {
-  1: HOSPITAL_ATUAL,
-};
+// Nomes das instituições aprovadas, vindos de GET /instituicoes. O api.ts
+// preenche este mapa antes de traduzir as requisições; se a busca falhar,
+// a tela mostra "Hospital #id" / "Hemocentro #id".
+const nomesInstituicoes = new Map<number, string>();
 
-function nomeDoHospital(hospitalId: number): string {
-  return NOME_DO_HOSPITAL[hospitalId] ?? `Hospital #${hospitalId}`;
+export function registrarNomesInstituicoes(lista: { id: number; razaoSocial: string }[]): void {
+  for (const instituicao of lista) {
+    nomesInstituicoes.set(instituicao.id, instituicao.razaoSocial);
+  }
 }
 
-// TODO(back): mesma situação do hospital — quando existir /instituicoes,
-// o nome do hemocentro deve vir de lá. Por enquanto só devolvemos um nome
-// genérico com o id, já que ainda não temos nenhum hemocentro de teste
-// mapeado à mão como fizemos com NOME_DO_HOSPITAL.
-const NOME_DO_HEMOCENTRO: Record<number, string> = {};
+export function nomeDoHospital(hospitalId: number): string {
+  return nomesInstituicoes.get(hospitalId) ?? `Hospital #${hospitalId}`;
+}
 
-function nomeDoHemocentro(hemocentroId: number): string {
-  return NOME_DO_HEMOCENTRO[hemocentroId] ?? `Hemocentro #${hemocentroId}`;
+export function nomeDoHemocentro(hemocentroId: number): string {
+  return nomesInstituicoes.get(hemocentroId) ?? `Hemocentro #${hemocentroId}`;
 }
 
 export function requisicaoParaSolicitacao(r: RequisicaoBack): Solicitacao {
@@ -144,11 +147,12 @@ export function requisicaoParaSolicitacao(r: RequisicaoBack): Solicitacao {
     hemocentro: r.hemocentroId != null ? nomeDoHemocentro(r.hemocentroId) : "",
     componente: COMPONENTE_DO_BACK[r.tipo],
     tipoSanguineo: tipoSanguineoDoBack(r.abo, r.rh),
-    quantidade: r.volumeMl, // aproximação: back mede em mL, front mostra "quantidade"
+    quantidade: Math.max(1, Math.ceil(r.volumeMl / VOLUME_PADRAO_ML[r.tipo])), // mL -> bolsas
     prioridade: PRIORIDADE_DO_BACK[r.prioridade],
     status: STATUS_DO_BACK[r.status],
     criadaEm: r.dataCriacao,
     observacoes: r.observacoes ?? "",
+    motivoRecusa: r.motivoRecusa ?? null,
   };
 }
 
@@ -173,7 +177,7 @@ export function novaSolicitacaoParaRequisicao(
     tipo,
     abo,
     rh,
-    volumeMl: dados.quantidade,
+    volumeMl: dados.quantidade * VOLUME_PADRAO_ML[tipo], // bolsas -> mL
     prioridade: PRIORIDADE_PARA_BACK[dados.prioridade],
     observacoes: dados.observacoes,
   };

@@ -256,6 +256,14 @@ E o motivo deve ficar registrado.
 - Quando houver várias bolsas compatíveis, devem ser priorizadas as que possuem validade mais próxima (FEFO).
 - A compatibilidade ABO/Rh será didática, conforme o escopo do projeto.
 
+### Tabela didática de compatibilidade (implementada em `Compatibilidade.java`)
+
+| Hemocomponente | ABO | Rh |
+|---|---|---|
+| Hemácias | O doa para todos; AB recebe de todos; iguais são compatíveis | Rh- doa para todos; Rh+ só para Rh+ |
+| Plasma e crioprecipitado | AB doa para todos; O recebe de todos; iguais são compatíveis | ignorado |
+| Plaquetas | igual ao plasma | igual às hemácias |
+
 ### Critérios de aceite
 
 **Cenário 1 — Encontrar bolsas compatíveis**

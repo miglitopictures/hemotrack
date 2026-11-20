@@ -1,0 +1,7 @@
+# gerados localmente ou com segredos: nada disso entra no build
+node_modules/
+dist/
+.tanstack/
+.env
+.env.*
+*.log

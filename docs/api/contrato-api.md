@@ -72,14 +72,24 @@ Todos os endpoints do nossa API. O detalhamento de cada rota (body, exemplos, ca
 | GET | `/requisicoes` | Listar `Requisicoes`. `HOSPITAL` vê as próprias; `HEMOCENTRO` vê as pendentes e as que aceitou. Aceita `?status&prioridade&page&size`. | Membro de `HOSPITAL`, Membro de `HEMOCENTRO` | — | `[{Requisicao}]` | 200, 403 |
 | POST | `/requisicoes` | Criar nova `Requisicao`. `status = ABERTA`. | Membro de `HOSPITAL` | `{RequisicaoRequest}` | `{Requisicao}` | 201, 400, 403 |
 | GET | `/requisicoes/{id}` | Retorna dados da `Requisicao` especificada. | Membro do `HOSPITAL` dono, Membro de `HEMOCENTRO` | — | `{Requisicao}` | 200, 403, 404 |
-| PATCH | `/requisicoes/{id}` | Atualizar dados da `Requisicao`. `409` se `status != ABERTA`. | Membro do `HOSPITAL` dono | `{prioridade, observacoes}` | `{Requisicao}` | 200, 400, 403, 404, 409 |
+| PUT | `/requisicoes/{id}` | Atualizar dados da `Requisicao`. `409` se `status != ABERTA`. | Membro do `HOSPITAL` dono | `{prioridade, observacoes}` | `{Requisicao}` | 200, 400, 403, 404, 409 |
 | DELETE | `/requisicoes/{id}` | Deletar uma `Requisicao` do sistema. | `ADMIN_SISTEMA` | — | — | 204, 403, 404, 409 |
 | PATCH | `/requisicoes/{id}/cancelar` | Cancela a requisição. `status = CANCELADA`. `409` se já `EM_TRANSITO` ou `ATENDIDA`. | Membro do `HOSPITAL` dono | — | `{Requisicao}` | 200, 403, 404, 409 |
-| PATCH | `/requisicoes/{id}/aceitar` | Aceita a requisição. `status = ACEITA` e define `hemocentroId`. `409` se já aceita por outro. | Membro de `HEMOCENTRO` | — | `{Requisicao}` | 200, 403, 404, 409 |
-| PATCH | `/requisicoes/{id}/recusar` | Recusa a requisição. `status = RECUSADA`. | Membro de `HEMOCENTRO` | `{motivoRecusa}` | `{Requisicao}` | 200, 400, 403, 404, 409 |
+| POST | `/requisicoes/{id}/aceitar` | Aceita a requisição. `status = ACEITA` e define `hemocentroId`. `409` se já aceita por outro. | Membro de `HEMOCENTRO` | — | `{Requisicao}` | 200, 403, 404, 409 |
+| POST | `/requisicoes/{id}/recusar` | Recusa a requisição. `status = RECUSADA`. | Membro de `HEMOCENTRO` | `{motivoRecusa}` | `{Requisicao}` | 200, 400, 403, 404, 409 |
+| GET | `/requisicoes/{id}/compativeis` | Hemocomponentes do hemocentro que servem para a requisição: mesmo tipo, `DISPONIVEL`, não vencidos e compatíveis em ABO/Rh, ordenados por validade (FEFO). `409` se a requisição não estiver `ACEITA`. | Membro do `HEMOCENTRO` dono | — | `[{Hemocomponente}]` | 200, 403, 404, 409 |
 | PATCH | `/requisicoes/{id}/alocar` | Aloca `Hemocomponentes` do próprio estoque. `status = ALOCADA`; hemocomponentes vão para `RESERVADO`. | Membro do `HEMOCENTRO` dono | `{hemocomponenteIds}` | `{Requisicao}` | 200, 400, 403, 404, 409 |
-| PATCH | `/requisicoes/{id}/enviar` | Despacha o lote. `status = EM_TRANSITO`. | Membro do `HEMOCENTRO` dono | — | `{Requisicao}` | 200, 403, 404, 409 |
-| PATCH | `/requisicoes/{id}/receber` | Confirma recebimento. `status = ATENDIDA` e transfere os `Hemocomponentes` para o estoque do `HOSPITAL`. | Membro do `HOSPITAL` dono | — | `{Requisicao}` | 200, 403, 404, 409 |
+| GET | `/requisicoes/{id}/rota` | Planeja a distribuição (HU07): origem = hemocentro da requisição, destino = hospital, rota de menor distância no mapa fixo de municípios (Dijkstra). `409` se a requisição não estiver `ALOCADA`. | Membro de instituição aprovada | — | `{RotaResponse}` | 200, 403, 404, 409, 422 |
+| PATCH | `/requisicoes/{id}/enviar` | Despacha o lote. `status = EM_TRANSITO`, grava `dataEnvio` e marca os hemocomponentes como `emTransito`. `409` se não estiver `ALOCADA`. | Membro do `HEMOCENTRO` dono | — | `{Requisicao}` | 200, 403, 404, 409 |
+| PATCH | `/requisicoes/{id}/receber` | Confirma recebimento. `status = ATENDIDA`, grava `dataEntrega` e transfere os `Hemocomponentes` para o estoque do `HOSPITAL`. | Membro do `HOSPITAL` dono | — | `{Requisicao}` | 200, 403, 404, 409 |
+| GET | `/requisicoes/{id}/monitoramento` | Monitora o transporte (HU08): status, localização e temperatura simuladas, com alerta fora da faixa. `409` se não estiver `EM_TRANSITO`. | Membro de instituição aprovada | — | `{MonitoramentoResponse}` | 200, 403, 404, 409 |
+| GET | `/requisicoes/{id}/bolsas` | Hemocomponentes reservados para a requisição (o lote), em qualquer etapa. | Membro de instituição aprovada | — | `[{Hemocomponente}]` | 200, 403, 404 |
+
+### `/indicadores`
+
+| Método | Rota | Descrição | Auth | Body | Response | Status |
+|---|---|---|---|---|---|---|
+| GET | `/indicadores` | Painel da operação (HU09): bolsas disponíveis e vencendo, requisições pendentes, em transporte e entregues, demanda por componente e estoque por tipo sanguíneo. Calculado na hora. | Autenticado | — | `{IndicadoresResponse}` | 200, 401 |
 
 ### Shapes citados
 
@@ -90,6 +100,9 @@ Todos os endpoints do nossa API. O detalhamento de cada rota (body, exemplos, ca
 | `Instituicao` | `{id, razaoSocial, cnpj, tipo, status, endereco, municipio, telefone}` · `tipo`: `HOSPITAL` \| `HEMOCENTRO` · `status`: `PENDENTE_APROVACAO` \| `APROVADA` |
 | `HemocomponenteRequest` | `{codigoBolsa, tipo, abo, rh, dataColeta, dataValidade}` |
 | `Hemocomponente` | `{id, codigoBolsa, tipo, abo, rh, dataColeta, dataValidade, status, instituicaoId}` |
+| `RotaResponse` | `{requisicaoId, origem: {instituicaoId, instituicao, municipio}, destino: {instituicaoId, instituicao, municipio}, locais, kmAcumulado, distanciaKm}` |
+| `MonitoramentoResponse` | `{requisicaoId, status, origem, destino, locais, kmAcumulado, localAtual, proximoLocal, progresso, kmPercorridos, distanciaKm, temperaturaC, faixa: {minC, maxC}, alertaTemperatura, historico: [{instante, temperaturaC}], atualizadoEm}` |
+| `IndicadoresResponse` | `{bolsasDisponiveis, bolsasVencendo, diasParaVencimento, requisicoesPendentes, requisicoesEmTransporte, requisicoesEntregues, demandaPorComponente: [{componente, pedidos, atendidos}], estoquePorTipoSanguineo: [{tipo, bolsas}], geradoEm}` |
 | `RequisicaoRequest` | `{itens: [{tipo, abo, rh, quantidade}], prioridade, observacoes}` |
 | `Requisicao` | `{id, hospitalId, hemocentroId, itens, prioridade, status, observacoes, motivoRecusa, hemocomponenteIds, criadaEm, atualizadaEm}` |
 
@@ -181,7 +194,18 @@ O que está no ar e onde o código diverge deste documento.
 | `GET /instituicoes/{id}/usuarios/{uid}` | **Pendente.** A listagem já traz tudo que o front consome. |
 | Token no cliente | O front guarda o JWT em `localStorage`, legível por qualquer JavaScript da página. Um XSS levaria o token junto; a mitigação real seria cookie `httpOnly`. |
 
-Rotas implementadas até aqui: `POST /auth/login`, `GET /auth/me`, `POST /instituicoes`, `GET /instituicoes`, `PATCH /instituicoes/{id}/aprovar`, `GET /instituicoes/{id}/usuarios`, `POST /instituicoes/{id}/usuarios`, `PATCH /instituicoes/{id}/usuarios/{uid}`. As demais seguem especificadas e pendentes.
+Rotas implementadas até aqui:
+
+- **Auth:** `POST /auth/login`, `GET /auth/me`
+- **Instituições:** `POST /instituicoes`, `GET /instituicoes`, `PATCH /instituicoes/{id}/aprovar`
+- **Membros:** `GET /instituicoes/{id}/usuarios`, `POST /instituicoes/{id}/usuarios`, `PATCH /instituicoes/{id}/usuarios/{uid}`
+- **Estoque:** `GET /instituicoes/{id}/estoque`, `POST /instituicoes/{id}/estoque`
+- **Requisições:** `GET /requisicoes`, `POST /requisicoes`, `GET /requisicoes/{id}`, `PUT /requisicoes/{id}`, `DELETE /requisicoes/{id}`, `POST /requisicoes/{id}/aceitar`, `POST /requisicoes/{id}/recusar`, `GET /requisicoes/{id}/compativeis`, `PATCH /requisicoes/{id}/alocar`, `GET /requisicoes/{id}/rota`, `PATCH /requisicoes/{id}/enviar`, `PATCH /requisicoes/{id}/receber`, `GET /requisicoes/{id}/monitoramento`, `GET /requisicoes/{id}/bolsas`
+- **Indicadores:** `GET /indicadores`
+
+Especificadas e ainda pendentes: `GET`/`PATCH`/`DELETE /instituicoes/{id}`, `GET /instituicoes/{id}/usuarios/{uid}`, `PATCH /usuarios/{id}`, `GET`/`PATCH`/`DELETE /instituicoes/{id}/estoque/{idHemoc}`, `GET /disponibilidade`, `GET /hemocomponentes/{id}/historico`, `PATCH /requisicoes/{id}/cancelar`.
+
+Fora deste contrato: `GET /relatorio/benchmark` e `POST /relatorio`, usados no relatório de paralelismo de SO (`docs/relatorio-paralelismo.md`).
 
 ---
 
@@ -508,14 +532,16 @@ Atualiza os próprios dados. Não altera `papel` nem `instituicaoId`.
 
 Estoque de hemocomponentes (HU02). É visão sobre `Hemocomponente.instituicaoId` — hospital também tem estoque, mas só hemocentro cadastra.
 
-### **GET** `/instituicoes/{id}/estoque`
-Lista os hemocomponentes da instituição.
+> **Implementado (Entrega 04):** `GET` e `POST`. `GET /{idHemoc}`, `PATCH` (descarte) e `DELETE` continuam só no contrato: a HU02 não pede, ficam para depois.
+>
+> **Situação na tela (`situacao`):** calculada, não gravada. `DISPONIVEL` (e dentro da validade), `RESERVADA` (`RESERVADO`), `UTILIZADA` (`TRANSFUNDIDO`), `VENCIDA` (`DISPONIVEL` com `dataValidade` <= hoje, cenário 3) e `DESCARTADA`. Vencida não aparece em `/compativeis`, então não serve para nova requisição.
 
-**@caller** `MEMBRO`
-#### `query`
-`tipo`, `abo`, `rh`, `status`, `page`, `size`
+### **GET** `/instituicoes/{id}/estoque`
+Lista os hemocomponentes da instituição, a validade mais próxima primeiro (FEFO). Filtros por query ainda não implementados.
+
+**@caller** `MEMBRO` da instituição (aprovada) ou `ADMIN_SISTEMA`
 #### `200` - HttpStatus.OK
-**@retorna** array de `Hemocomponente`
+**@retorna** array de `HemocomponenteResponse`
 ```json
 [
     {
@@ -524,13 +550,20 @@ Lista os hemocomponentes da instituição.
         "tipo": "HEMACIAS",
         "abo": "O",
         "rh": "NEGATIVO",
-        "dataColeta": "2026-09-01",
-        "dataValidade": "2026-10-13",
+        "volumeMl": 300.0,
+        "dataColeta": "2026-11-02",
+        "dataValidade": "2026-12-07",
         "status": "DISPONIVEL",
-        "instituicaoId": 20
+        "situacao": "DISPONIVEL",
+        "diasParaVencer": 34,
+        "emTransito": false,
+        "instituicaoId": 20,
+        "requisicaoAlocadaId": null
     }
 ]
 ```
+#### `403` - HttpStatus.FORBIDDEN
+estoque de outra instituição, ou instituição não aprovada
 #### `404` - HttpStatus.NOT_FOUND
 
 ---
@@ -538,7 +571,7 @@ Lista os hemocomponentes da instituição.
 ### **POST** `/instituicoes/{id}/estoque`
 Registra um novo hemocomponente. Nasce `DISPONIVEL` (HU02, cenário 1).
 
-**@caller** `MEMBRO` de `HEMOCENTRO`
+**@caller** `MEMBRO` de `HEMOCENTRO` (a própria instituição)
 #### `body`
 ```json
 {
@@ -546,14 +579,18 @@ Registra um novo hemocomponente. Nasce `DISPONIVEL` (HU02, cenário 1).
     "tipo": "HEMACIAS",
     "abo": "O",
     "rh": "NEGATIVO",
-    "dataColeta": "2026-09-01",
-    "dataValidade": "2026-10-13"
+    "dataColeta": "2026-11-02",
+    "dataValidade": "2026-12-07",
+    "volumeMl": 300
 }
 ```
+`volumeMl` é opcional: sem ele, usa o volume padrão do componente (hemácias 300, plasma 200, plaquetas 50, crio 15 mL). O código é gravado sem espaços e em maiúsculas.
 #### `201` - HttpStatus.CREATED
-**@retorna** `Location` + `Hemocomponente` com `status = DISPONIVEL`
+**@retorna** `Location` + `HemocomponenteResponse` com `situacao = DISPONIVEL`
 #### `400` - HttpStatus.BAD_REQUEST
-campo faltando, `dataColeta` no futuro ou `dataValidade` anterior à coleta
+campo faltando, `dataColeta` no futuro, `dataValidade` anterior à coleta ou bolsa já vencida (`errors[].campo` aponta `dataColeta` / `dataValidade`)
+#### `403` - HttpStatus.FORBIDDEN
+instituição é `HOSPITAL`, ou estoque de outra instituição
 #### `404` - HttpStatus.NOT_FOUND
 #### `409` - HttpStatus.CONFLICT
 `codigoBolsa` já existe
@@ -729,7 +766,7 @@ Detalhe da requisição (HU04, cenário 2).
 
 ---
 
-### **PATCH** `/requisicoes/{id}`
+### **PUT** `/requisicoes/{id}`
 Atualiza a requisição. Só `prioridade` e `observacoes`.
 
 **@caller** `MEMBRO` do `HOSPITAL` dono
@@ -749,7 +786,7 @@ Atualiza a requisição. Só `prioridade` e `observacoes`.
 
 ---
 
-### **PATCH** `/requisicoes/{id}/aceitar`
+### **POST** `/requisicoes/{id}/aceitar`
 Hemocentro assume a requisição: `status = ACEITA` e grava `hemocentroId` (HU05, cenário 2).
 
 **@caller** `MEMBRO` de `HEMOCENTRO`
@@ -761,7 +798,7 @@ Hemocentro assume a requisição: `status = ACEITA` e grava `hemocentroId` (HU05
 
 ---
 
-### **PATCH** `/requisicoes/{id}/recusar`
+### **POST** `/requisicoes/{id}/recusar`
 Recusa com motivo obrigatório (HU05, cenário 3). Terminal.
 
 **@caller** `MEMBRO` de `HEMOCENTRO`
@@ -804,6 +841,35 @@ requisição ou algum hemocomponente inexistente
 
 ---
 
+### **GET** `/requisicoes/{id}/rota`
+Planeja a distribuição (HU07). Origem e destino vêm da própria requisição: o município do hemocentro (`hemocentroId`) e o do hospital (`hospitalId`). A rota é a de menor distância no mapa fixo e simplificado de municípios de Pernambuco (`MapaTransporte`, Dijkstra em `GrafoTransporte`). É calculada na hora e não fica salva.
+
+O município é texto livre no cadastro, então a busca no mapa ignora acentos, maiúsculas e espaços extras; a resposta devolve o nome oficial.
+
+**@caller** membro de instituição aprovada
+#### `200` - HttpStatus.OK
+**@retorna** `RotaResponse`
+```json
+{
+    "requisicaoId": 42,
+    "origem":  { "instituicaoId": 7, "instituicao": "HEMOPE", "municipio": "Recife" },
+    "destino": { "instituicaoId": 3, "instituicao": "Hospital Regional do Agreste", "municipio": "Caruaru" },
+    "locais": ["Recife", "Jaboatão dos Guararapes", "Vitória de Santo Antão", "Gravatá", "Caruaru"],
+    "kmAcumulado": [0.0, 18.0, 58.0, 93.0, 143.0],
+    "distanciaKm": 143.0
+}
+```
+#### `404` - HttpStatus.NOT_FOUND
+requisição, hemocentro ou hospital inexistente
+#### `409` - HttpStatus.CONFLICT
+`status != ALOCADA` (HU07, cenário 2: só distribui depois que as bolsas foram selecionadas)
+#### `422` - HttpStatus.UNPROCESSABLE_CONTENT
+município do hemocentro ou do hospital fora do mapa de distribuição; a mensagem informa qual
+
+> Municípios do mapa: Recife, Olinda, Paulista, Igarassu, Jaboatão dos Guararapes, Cabo de Santo Agostinho, Camaragibe, São Lourenço da Mata, Vitória de Santo Antão, Gravatá, Caruaru, Garanhuns, Arcoverde, Serra Talhada, Salgueiro e Petrolina. Distâncias aproximadas em km.
+
+---
+
 ### **PATCH** `/requisicoes/{id}/enviar`
 Despacha o lote: `status = EM_TRANSITO` (o "Em transporte" do HU04).
 
@@ -825,6 +891,49 @@ Hospital confirma o recebimento: `status = ATENDIDA` e os hemocomponentes passam
 #### `404` - HttpStatus.NOT_FOUND
 #### `409` - HttpStatus.CONFLICT
 `status != EM_TRANSITO`
+
+---
+
+### **GET** `/requisicoes/{id}/monitoramento`
+Monitora o transporte em andamento (HU08). Nada é salvo: tudo é calculado na hora da consulta.
+
+- **Localização simulada:** o lote anda pela rota da HU07 (`GET /requisicoes/{id}/rota`) a uma velocidade fixa a partir de `dataEnvio` (`hemotrack.simulacao.km-por-minuto`, padrão 10). `localAtual` é o último município da rota já alcançado; `proximoLocal` fica `null` quando o lote chega ao destino. O transporte só termina quando o hospital chama `/receber`.
+- **Histórico:** `historico` traz uma leitura por minuto, contando para trás a partir de agora (no máximo 60, a última hora); a última é a leitura atual. Serve o gráfico da cadeia de frio.
+- **Temperatura simulada:** a leitura depende só da requisição e do minuto (mesma consulta no mesmo minuto, mesma leitura). Em cerca de 1 a cada 12 minutos sai acima da faixa, para o alerta aparecer.
+- **Faixas de transporte** (ANVISA): hemácias 1 a 10 °C; plaquetas 20 a 24 °C; plasma e crioprecipitado -18 °C ou menos (`minC = null`).
+
+**@caller** membro de instituição aprovada
+#### `200` - HttpStatus.OK
+**@retorna** `MonitoramentoResponse`
+```json
+{
+    "requisicaoId": 42,
+    "status": "EM_TRANSITO",
+    "origem": "Recife",
+    "destino": "Caruaru",
+    "locais": ["Recife", "Jaboatão dos Guararapes", "Vitória de Santo Antão", "Gravatá", "Caruaru"],
+    "kmAcumulado": [0.0, 18.0, 58.0, 93.0, 143.0],
+    "localAtual": "Vitória de Santo Antão",
+    "proximoLocal": "Gravatá",
+    "progresso": 41,
+    "kmPercorridos": 60.0,
+    "distanciaKm": 143.0,
+    "temperaturaC": 12.5,
+    "faixa": { "minC": 1.0, "maxC": 10.0 },
+    "alertaTemperatura": true,
+    "historico": [
+        { "instante": "2026-11-09T12:00:00Z", "temperaturaC": 5.1 },
+        { "instante": "2026-11-09T12:01:00Z", "temperaturaC": 4.7 },
+        { "instante": "2026-11-09T12:06:00Z", "temperaturaC": 12.5 }
+    ],
+    "atualizadoEm": "2026-11-09T12:06:00Z"
+}
+```
+#### `404` - HttpStatus.NOT_FOUND
+#### `409` - HttpStatus.CONFLICT
+`status != EM_TRANSITO` (ainda não despachada, ou já entregue)
+#### `422` - HttpStatus.UNPROCESSABLE_CONTENT
+município do hemocentro ou do hospital fora do mapa (mesma regra da rota)
 
 ---
 
@@ -851,9 +960,50 @@ há hemocomponente ainda `RESERVADO` para ela
 
 ---
 
+### **GET** `/indicadores`
+Painel de indicadores da operação (HU09), de todas as instituições. Nada fica salvo: cada `GET` recalcula a partir do banco, então uma requisição nova já aparece na próxima consulta (cenário 2).
+
+- `bolsasDisponiveis`: `DISPONIVEL` e não vencidas.
+- `bolsasVencendo`: disponíveis que vencem em até `diasParaVencimento` (7) dias.
+- `requisicoesPendentes` / `requisicoesEmTransporte` / `requisicoesEntregues`: `ABERTA` / `EM_TRANSITO` / `ATENDIDA`.
+- `demandaPorComponente`: pedidos (todas as requisições) e atendidos (`ATENDIDA`) por componente, do mais pedido para o menos; os 4 componentes sempre aparecem.
+- `estoquePorTipoSanguineo`: os 8 tipos, de `A+` a `O-`, inclusive os zerados.
+
+**@caller** qualquer usuário autenticado
+#### `200` - HttpStatus.OK
+```json
+{
+    "bolsasDisponiveis": 74,
+    "bolsasVencendo": 12,
+    "diasParaVencimento": 7,
+    "requisicoesPendentes": 5,
+    "requisicoesEmTransporte": 2,
+    "requisicoesEntregues": 7,
+    "demandaPorComponente": [
+        { "componente": "HEMACIAS", "pedidos": 12, "atendidos": 4 },
+        { "componente": "PLASMA", "pedidos": 4, "atendidos": 2 },
+        { "componente": "PLAQUETAS", "pedidos": 3, "atendidos": 1 },
+        { "componente": "CRIOPRECIPITADO", "pedidos": 1, "atendidos": 0 }
+    ],
+    "estoquePorTipoSanguineo": [
+        { "tipo": "A+", "bolsas": 25 }, { "tipo": "A-", "bolsas": 6 },
+        { "tipo": "B+", "bolsas": 6 },  { "tipo": "B-", "bolsas": 1 },
+        { "tipo": "AB+", "bolsas": 2 }, { "tipo": "AB-", "bolsas": 0 },
+        { "tipo": "O+", "bolsas": 27 }, { "tipo": "O-", "bolsas": 7 }
+    ],
+    "geradoEm": "2026-11-09T12:00:00Z"
+}
+```
+#### `401` - HttpStatus.UNAUTHORIZED
+sem token
+
+> Dados sintéticos (a HU pede): ver "Dados de demonstração" no README.
+
+---
+
 ## Resumo
 
-**30 rotas** em 8 recursos — ver a [visão macro](#visão-macro) no topo.
+**36 rotas** em 9 recursos — ver a [visão macro](#visão-macro) no topo.
 
 | Recurso | Rotas |
 |---|---|
@@ -864,7 +1014,8 @@ há hemocomponente ainda `RESERVADO` para ela
 | `/instituicoes/{id}/estoque` | 5 |
 | `/disponibilidade` | 1 |
 | `/hemocomponentes` | 1 |
-| `/requisicoes` | 11 |
+| `/requisicoes` | 15 |
+| `/indicadores` | 1 |
 
 Delete físico só para `ADMIN_SISTEMA`, e sempre com `409` quando quebraria rastreabilidade — o histórico de hemocomponente é append-only e nunca é apagado. Usuário não tem delete nenhum: o histórico aponta para `usuarioId`, então a saída é desativar.
 
@@ -873,13 +1024,13 @@ Delete físico só para `ADMIN_SISTEMA`, e sempre com `409` quando quebraria ras
 | HU | Coberta por |
 |---|---|
 | HU01 | `POST /instituicoes`, `POST /auth/login`, `GET /auth/me` |
-| HU02 | família `/instituicoes/{id}/estoque` |
+| HU02 | `GET` e `POST /instituicoes/{id}/estoque` |
 | HU03 | `POST /requisicoes` |
 | HU04 | `GET /requisicoes`, `GET /requisicoes/{id}` |
 | HU05 | `GET /requisicoes?status=ABERTA`, `/aceitar`, `/recusar` |
 | HU06 | `GET /instituicoes/{id}/estoque` (filtro + FEFO), `/alocar` |
-| HU07 | ✗ sem rota — falta `/requisicoes/{id}/rota` (grafo) |
-| HU08 | parcial: `/enviar` e `/receber` cobrem o status; falta telemetria (GPS/temperatura simulados) |
-| HU09 | ✗ sem rota — falta `/indicadores` |
+| HU07 | `GET /requisicoes/{id}/rota` |
+| HU08 | `/enviar`, `/receber`, `GET /requisicoes/{id}/monitoramento` |
+| HU09 | `GET /indicadores` |
 
-Nenhuma rota do contrato atual foi retirada para cobrir as três lacunas: elas entram como acréscimo, provavelmente na Entrega 04.
+Nenhuma rota do contrato atual foi retirada para cobrir as lacunas: elas entram como acréscimo na Entrega 04.

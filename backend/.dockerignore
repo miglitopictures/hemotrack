@@ -1,0 +1,9 @@
+# Nada disso entra no contexto do docker build:
+# - target/ e data/ sao gerados localmente (o jar e o banco H2 de dev)
+# - .env tem segredos e nunca pode parar dentro de uma imagem
+target/
+data/
+.env
+*.log
+.idea/
+.vscode/

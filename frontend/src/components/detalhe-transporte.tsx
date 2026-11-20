@@ -21,7 +21,7 @@ import {
   formatarData,
   formatarTemperatura,
   leiturasDoTransporte,
-  rotaSimplificada,
+  pontosDoTransporte,
   temperaturaAtual,
   temperaturaFora,
   timelineEtapas,
@@ -65,14 +65,17 @@ function Metric({
 export function DetalheTransporte({
   transporte: t,
   papel,
+  acoes,
 }: {
   transporte: Transporte;
   papel: "hospital" | "hemocentro";
+  /** Botões extras no cabeçalho (ex.: confirmar recebimento). */
+  acoes?: ReactNode;
 }) {
   const componente = componenteDoTransporte(t);
   const leituras = leiturasDoTransporte(t);
   const temp = temperaturaAtual(t);
-  const tempFora = temp !== null && temperaturaFora(componente, temp);
+  const tempFora = t.alertaTemperatura ?? (temp !== null && temperaturaFora(componente, temp));
   const alertas = alertasDoTransporte(t);
   const etapaAtual = timelineEtapas.indexOf(t.status);
 
@@ -97,7 +100,12 @@ export function DetalheTransporte({
       <PageHeader
         title={`Transporte ${t.id}`}
         subtitle={`Solicitação ${t.solicitacao} · ${t.veiculo} · ${componente}`}
-        actions={<StatusBadge status={t.status} />}
+        actions={
+          <div className="flex flex-wrap items-center gap-3">
+            {acoes}
+            <StatusBadge status={t.status} />
+          </div>
+        }
       />
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -107,7 +115,7 @@ export function DetalheTransporte({
             className="overflow-hidden rounded-2xl border border-border bg-card shadow-card"
           >
             <RotaMapa
-              pontos={rotaSimplificada}
+              pontos={pontosDoTransporte(t)}
               progresso={t.progresso}
               localizacao={t.localizacao}
               alerta={tempFora}
@@ -186,7 +194,23 @@ export function DetalheTransporte({
         <div className="space-y-6">
           <Panel title="Bolsas na remessa" description="Código, tipo e validade conferidos">
             <ul className="divide-y divide-border">
-              {t.bolsas.map((codigo) => {
+              {t.bolsasDetalhe?.map((b) => (
+                <li key={b.codigo} className="flex items-center gap-3 px-5 py-3.5">
+                  <span
+                    className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary-soft text-xs font-bold text-primary"
+                    aria-hidden="true"
+                  >
+                    {b.tipoSanguineo}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold">{b.codigo}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Validade {formatarData(b.validade)} · {b.diasParaVencer} dias
+                    </p>
+                  </div>
+                </li>
+              ))}
+              {t.bolsasDetalhe ? null : t.bolsas.map((codigo) => {
                 const b = bolsaPorCodigo(codigo);
                 return (
                   <li key={codigo} className="flex items-center gap-3 px-5 py-3.5">

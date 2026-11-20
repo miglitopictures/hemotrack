@@ -15,7 +15,16 @@ export type Status =
 
 export type Prioridade = "Rotina" | "Urgente" | "Emergência";
 
-export type StatusBolsa = "Disponível" | "Reservada" | "Vence em breve" | "Enviada";
+// HU02: Disponível, Reservada, Utilizada, Vencida (+ Descartada). "Vence em breve" é uma
+// Disponível perto da validade; "Enviada" é uma Reservada que está no caminhão (HU08).
+export type StatusBolsa =
+  | "Disponível"
+  | "Vence em breve"
+  | "Reservada"
+  | "Enviada"
+  | "Utilizada"
+  | "Vencida"
+  | "Descartada";
 
 export type Solicitacao = {
   id: string;
@@ -29,6 +38,7 @@ export type Solicitacao = {
   /** ISO 8601 — formate na exibição com formatarDataHora(). */
   criadaEm: string;
   observacoes: string;
+  motivoRecusa?: string | null;
 };
 
 export type Bolsa = {
@@ -41,6 +51,8 @@ export type Bolsa = {
   validade: string;
   status: StatusBolsa;
   armazenamento: string;
+  /** Dias até a validade calculados pelo back (hoje real). Os mocks não têm; usam diasParaVencer(). */
+  dias?: number;
 };
 
 export type Transporte = {
@@ -56,7 +68,21 @@ export type Transporte = {
   localizacao: string;
   /** Avisos operacionais que não vêm do sensor (trânsito, ocorrências). */
   observacoes: string[];
+
+  // Preenchidos quando o transporte vem do back (HU07/HU08). Os mocks antigos
+  // não têm esses campos, por isso as funções abaixo usam o mock como reserva.
+  hospitalId?: number;
+  hemocentroId?: number;
+  componente?: string;
+  temperatura?: number | null;
+  alertaTemperatura?: boolean;
+  leituras?: LeituraTemp[];
+  pontos?: PontoRota[];
+  bolsasDetalhe?: { codigo: string; tipoSanguineo: string; validade: string; diasParaVencer: number }[];
 };
+
+/** Ponto de passagem desenhado no mapa da rota. */
+export type PontoRota = { ponto: string; detalhe: string; km: number };
 
 export type LeituraTemp = { hora: string; valor: number };
 
@@ -110,11 +136,13 @@ const validadeEmDias: Record<string, number> = {
   Crioprecipitado: 365,
 };
 
+// Faixas de TRANSPORTE, iguais às do back (FaixaTemperatura.java, ANVISA).
+// Congelados não têm mínimo no back (-18 °C ou menos); -40 é só o piso do gráfico.
 export const limitesTemperatura: Record<string, { min: number; max: number }> = {
-  "Concentrado de hemácias": { min: 2, max: 6 },
+  "Concentrado de hemácias": { min: 1, max: 10 },
   "Concentrado de plaquetas": { min: 20, max: 24 },
-  "Plasma fresco congelado": { min: -40, max: -20 },
-  Crioprecipitado: { min: -40, max: -20 },
+  "Plasma fresco congelado": { min: -40, max: -18 },
+  Crioprecipitado: { min: -40, max: -18 },
 };
 
 export const motivosRecusa = [
@@ -403,16 +431,24 @@ export function temperaturaFora(componente: string, valor: number): boolean {
 
 /** Componente transportado, inferido pela solicitação vinculada. */
 export function componenteDoTransporte(t: Transporte): string {
+  if (t.componente) return t.componente;
   return solicitacaoPorId(t.solicitacao)?.componente ?? "Concentrado de hemácias";
 }
 
 export function leiturasDoTransporte(t: Transporte): LeituraTemp[] {
+  if (t.leituras) return t.leituras;
   return leiturasTemperatura[t.id] ?? [];
 }
 
 export function temperaturaAtual(t: Transporte): number | null {
+  if (t.temperatura !== undefined) return t.temperatura;
   const leituras = leiturasDoTransporte(t);
   return leituras.length > 0 ? leituras[leituras.length - 1]!.valor : null;
+}
+
+/** Pontos da rota: os do back (HU07) ou, nos mocks, a rota fixa de exemplo. */
+export function pontosDoTransporte(t: Transporte): PontoRota[] {
+  return t.pontos ?? rotaSimplificada;
 }
 
 export function formatarTemperatura(valor: number | null): string {
@@ -437,6 +473,8 @@ export function alertasDoTransporte(t: Transporte): string[] {
 }
 
 export function transporteComAlerta(t: Transporte): boolean {
+  // vindo do back, o alerta é sobre a leitura ATUAL (HU08, cenário 2)
+  if (t.alertaTemperatura !== undefined) return t.alertaTemperatura;
   const componente = componenteDoTransporte(t);
   return leiturasDoTransporte(t).some((l) => temperaturaFora(componente, l.valor));
 }

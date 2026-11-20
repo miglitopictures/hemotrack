@@ -30,18 +30,9 @@ import {
   eixoTema,
   tooltipTema,
 } from "@/components/ui-kit";
-import { listarSolicitacoes } from "@/lib/api";
-import {
-  bolsasVencendoEm,
-  demandaPorComponente,
-  desvioPadrao,
-  estoquePorTipo,
-  media,
-  mediana,
-  saidasSemana,
-  temposAtendimentoMin,
-  totalDisponivel,
-} from "@/lib/data";
+import { listarSolicitacoes, obterIndicadores } from "@/lib/api";
+// saidasSemana e temposAtendimentoMin ainda sao mocks: o back nao tem esses dados (ver TODO abaixo)
+import { desvioPadrao, media, mediana, saidasSemana, temposAtendimentoMin } from "@/lib/data";
 
 export const Route = createFileRoute("/hemocentro/indicadores")({
   head: () => ({
@@ -59,7 +50,14 @@ export const Route = createFileRoute("/hemocentro/indicadores")({
       },
     ],
   }),
-  loader: async () => ({ solicitacoes: await listarSolicitacoes() }),
+  // HU09: estoque, demanda e contagens vem de GET /indicadores (calculado na hora)
+  loader: async () => {
+    const [solicitacoes, indicadores] = await Promise.all([
+      listarSolicitacoes(),
+      obterIndicadores(),
+    ]);
+    return { solicitacoes, indicadores };
+  },
   pendingComponent: () => (
     <AppShell role="hemocentro">
       <SkeletonPagina />
@@ -82,10 +80,11 @@ const abas: { id: Aba; rotulo: string }[] = [
 ];
 
 function Indicadores() {
-  const { solicitacoes } = Route.useLoaderData();
+  const { solicitacoes, indicadores } = Route.useLoaderData();
   const [aba, setAba] = useState<Aba>("estoque");
 
-  const vencendo = bolsasVencendoEm(7).length;
+  const { totalDisponivel, vencendo, diasParaVencimento, estoquePorTipo, demandaPorComponente } =
+    indicadores;
   const pedidos = demandaPorComponente.reduce((a, b) => a + b.pedidos, 0);
   const atendidos = demandaPorComponente.reduce((a, b) => a + b.atendidos, 0);
   const taxa = pedidos > 0 ? ((atendidos / pedidos) * 100).toFixed(1) : "0,0";
@@ -147,7 +146,7 @@ function Indicadores() {
         </StaggerItem>
         <StaggerItem className="h-full">
           <StatCard
-            label="Vencem em 7 dias"
+            label={`Vencem em ${diasParaVencimento} dias`}
             value={vencendo}
             hint="Priorizar na próxima remessa"
             tone="warning"
@@ -194,7 +193,11 @@ function Indicadores() {
 
       {aba === "demanda" ? (
         <PainelAba id="demanda" className="space-y-6">
-          <Panel title="Saídas por dia da semana" description="Bolsas distribuídas">
+          {/* TODO(back): saidas por dia ainda e mock; daria para calcular a partir de dataEnvio (HU08) */}
+          <Panel
+            title="Saídas por dia da semana"
+            description="Bolsas distribuídas · dados ilustrativos"
+          >
             <Grafico
               titulo="Saídas por dia da semana"
               resumo={saidasSemana.map((d) => `${d.dia}: ${d.saidas}`).join(", ")}
@@ -258,9 +261,10 @@ function Indicadores() {
 
       {aba === "atendimento" ? (
         <PainelAba id="atendimento" className="grid gap-6 lg:grid-cols-2">
+          {/* TODO(back): tempos ainda sao mock; daria para calcular de dataCriacao ate dataEnvio (HU08) */}
           <Panel
             title="Tempo de atendimento"
-            description="Da criação da solicitação até o despacho (min)"
+            description="Da criação da solicitação até o despacho (min) · dados ilustrativos"
           >
             <Grafico
               titulo="Tempo de atendimento por pedido"

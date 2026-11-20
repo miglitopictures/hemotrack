@@ -95,7 +95,9 @@ function DetalhesSolicitacao() {
                 <XCircle className="mt-0.5 size-5 shrink-0 text-destructive" aria-hidden="true" />
                 <div>
                   <p className="text-sm font-semibold">Solicitação recusada pelo hemocentro</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{s.observacoes}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Motivo: {s.motivoRecusa ?? "não informado"}
+                  </p>
                 </div>
               </div>
             ) : (

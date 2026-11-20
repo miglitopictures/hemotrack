@@ -7,4 +7,8 @@ public enum StatusRequisicao {
     ATENDIDA,  // Entregue
     RECUSADA,  // hemocentro não consegue atender; exige `motivoRecusa` preenchido (HU05).
     CANCELADA, // cancelada pelo hospital antes de ser atendida.
+
+    // ATENCAO: o status e gravado como ORDINAL (posicao). Status novo entra SEMPRE no final
+    // (ver StatusRequisicaoTest), senao as requisicoes ja gravadas no banco mudam de status.
+    EM_TRANSITO, // lote despachado pelo hemocentro, a caminho do hospital (HU08).
 }

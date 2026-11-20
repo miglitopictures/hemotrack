@@ -12,9 +12,19 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.springframework.web.bind.annotation.PatchMapping;
+import com.hemotrack.backend.model.requisicao.dto.AlocacaoRequest;
+import com.hemotrack.backend.model.sangue.Hemocomponente;
+import com.hemotrack.backend.service.SelecaoService;
+
 import com.hemotrack.backend.model.requisicao.Requisicao;
 import com.hemotrack.backend.model.requisicao.dto.RecusaRequest;
 import com.hemotrack.backend.service.RequisicaoService;
+import com.hemotrack.backend.model.requisicao.dto.RotaResponse;
+import com.hemotrack.backend.service.RotaService;
+import com.hemotrack.backend.model.requisicao.dto.MonitoramentoResponse;
+import com.hemotrack.backend.service.MonitoramentoService;
+import com.hemotrack.backend.service.TransporteService;
 
 import jakarta.validation.Valid;
 
@@ -23,10 +33,19 @@ import jakarta.validation.Valid;
 public class RequisicaoController {
  
     private final RequisicaoService service;
+    private final SelecaoService selecaoService;
+    private final RotaService rotaService;
+    private final TransporteService transporteService;
+    private final MonitoramentoService monitoramentoService;
 
-    // instância de RequisicaoService é injetada pelo Spring no controller
-    RequisicaoController(RequisicaoService service) {
+    // instâncias injetadas pelo Spring no controller
+    RequisicaoController(RequisicaoService service, SelecaoService selecaoService, RotaService rotaService,
+                         TransporteService transporteService, MonitoramentoService monitoramentoService) {
         this.service = service;
+        this.selecaoService = selecaoService;
+        this.rotaService = rotaService;
+        this.transporteService = transporteService;
+        this.monitoramentoService = monitoramentoService;
     }
 
     
@@ -66,6 +85,49 @@ public class RequisicaoController {
     @PostMapping ("/{id}/recusar")
     Requisicao recusarRequisicao(@RequestBody RecusaRequest body, @PathVariable Long id) {
         return service.recusar(body.getMotivoRecusa(), id);
+    }
+
+
+    // HU06: bolsas compativeis para uma requisicao aceita, validade mais proxima primeiro
+    @GetMapping("/{id}/compativeis")
+    List<Hemocomponente> listarCompativeis(@PathVariable Long id) {
+        return selecaoService.listarCompativeis(id);
+    }
+
+    // HU06: reserva as bolsas escolhidas e marca a requisicao como ALOCADA
+    @PatchMapping("/{id}/alocar")
+    Requisicao alocar(@PathVariable Long id, @Valid @RequestBody AlocacaoRequest body) {
+        return selecaoService.alocar(id, body.hemocomponenteIds());
+    }
+
+    // HU07: rota do hemocentro ate o hospital; so para requisicao ALOCADA
+    @GetMapping("/{id}/rota")
+    RotaResponse planejarRota(@PathVariable Long id) {
+        return rotaService.planejar(id);
+    }
+
+    // HU08: hemocentro despacha o lote; ALOCADA -> EM_TRANSITO
+    @PatchMapping("/{id}/enviar")
+    Requisicao enviar(@PathVariable Long id) {
+        return transporteService.enviar(id);
+    }
+
+    // HU08: hospital confirma o recebimento; EM_TRANSITO -> ATENDIDA ("Entregue")
+    @PatchMapping("/{id}/receber")
+    Requisicao receber(@PathVariable Long id) {
+        return transporteService.receber(id);
+    }
+
+    // HU07/HU08: bolsas reservadas para a requisicao (o lote)
+    @GetMapping("/{id}/bolsas")
+    List<Hemocomponente> listarBolsas(@PathVariable Long id) {
+        return transporteService.listarBolsas(id);
+    }
+
+    // HU08: status, localizacao e temperatura simuladas do transporte em andamento
+    @GetMapping("/{id}/monitoramento")
+    MonitoramentoResponse monitorar(@PathVariable Long id) {
+        return monitoramentoService.monitorar(id);
     }
 
     // deletar uma requisicao {id}

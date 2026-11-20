@@ -1,8 +1,8 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
-import { DetalheTransporte } from "@/components/detalhe-transporte";
+import { MonitorTransporte } from "@/components/monitor-transporte";
 import { EstadoErro, SkeletonPagina } from "@/components/ui-kit";
-import { obterTransporte } from "@/lib/api";
+import { obterTransporte, transporteDaMinhaInstituicao } from "@/lib/api";
 
 export const Route = createFileRoute("/hemocentro/distribuicoes/$id")({
   head: () => ({
@@ -22,7 +22,7 @@ export const Route = createFileRoute("/hemocentro/distribuicoes/$id")({
   }),
   loader: async ({ params }) => {
     const transporte = await obterTransporte(params.id);
-    if (!transporte) throw notFound();
+    if (!transporte || !transporteDaMinhaInstituicao(transporte)) throw notFound();
     return { transporte };
   },
   pendingComponent: () => (
@@ -42,7 +42,7 @@ function MonitoramentoTransporte() {
   const { transporte } = Route.useLoaderData();
   return (
     <AppShell role="hemocentro">
-      <DetalheTransporte transporte={transporte} papel="hemocentro" />
+      <MonitorTransporte key={transporte.id} inicial={transporte} papel="hemocentro" />
     </AppShell>
   );
 }

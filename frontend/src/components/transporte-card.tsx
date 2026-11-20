@@ -21,7 +21,9 @@ export function TransporteCard({
   atraso?: number;
 }) {
   const temp = temperaturaAtual(t);
-  const fora = temp !== null && temperaturaFora(componenteDoTransporte(t), temp);
+  // vindo do back, o alerta é o da leitura atual (HU08); nos mocks, calcula pela faixa
+  const fora =
+    t.alertaTemperatura ?? (temp !== null && temperaturaFora(componenteDoTransporte(t), temp));
 
   return (
     <motion.div
@@ -84,9 +86,17 @@ export function TransporteCard({
           {formatarTemperatura(temp)}
         </span>
         <span className="text-muted-foreground">
-          {t.bolsas.length} bolsas · ETA {t.eta}
+          {t.bolsas.length} {t.bolsas.length === 1 ? "bolsa" : "bolsas"} · chegada {t.eta}
         </span>
-        {papel === "hospital" ? (
+        {papel === "hemocentro" && t.status === "Em separação" ? (
+          <Link
+            to="/hemocentro/distribuicoes/planejar"
+            search={{ sol: t.solicitacao }}
+            className="font-semibold text-primary hover:underline"
+          >
+            Planejar despacho
+          </Link>
+        ) : papel === "hospital" ? (
           <Link
             to="/hospital/transportes/$id"
             params={{ id: t.id }}

@@ -15,7 +15,8 @@ Uma aplicação web que gerencia e distribui hemocomponentes (bolsas de sangue) 
 |--------|-------|
 | **Backend (API)** | Java 21, Spring Boot 4, Spring Security + JWT, H2 (dev) / Postgres (prod), OpenTelemetry (OTLP), Grafana Cloud |
 | **Frontend (Interface)** | TypeScript, React 19, TanStack Router + TanStack Query, Vite, Tailwind CSS |
-| **CI/CD** | GitHub Actions (build e testes) + Render (deploy automático) |
+| **CI/CD** | GitHub Actions (build, testes e imagem Docker) + Render (deploy automático) |
+| **Containers** | Docker (multi-stage) + Docker Compose (Postgres + API + frontend com nginx) |
 | **Versionamento** | Git/GitHub |
 | **Docs** | Markdown |
 
@@ -48,14 +49,60 @@ Nesta entrega foram desenvolvidas as funcionalidades e os screencasts de criaç�
 
 ### Entrega 03 — 19/10
 
-Mais 2 histórias implementadas, commits semanais, novos screencasts e issue tracker atualizado.
+Nesta entrega foram implementadas as funcionalidades de cadastro e acesso à plataforma e de análise de requisições pelo hemocentro, incluindo:
+
+#### [Screencast da Entrega 03 (YouTube)](https://www.youtube.com/watch?v=iB-88JZbX7M)
+[![Alt](./assets/cadastro_e3-poo-imagem.png)](https://www.youtube.com/watch?v=iB-88JZbX7M)
+
+* HU01 — Cadastro e acesso à plataforma: o hospital ou hemocentro cadastra a instituição e o administrador, o administrador do HemoTrack aprova o cadastro e, no login, cada perfil é direcionado ao seu ambiente (hospital, hemocentro ou administração). O CNPJ é único: o cenário de CNPJ duplicado não aparece no vídeo, mas está implementado e coberto pelos testes automatizados (`CadastroServiceTest`).
+* HU05 — Analisar e aceitar ou recusar requisições: o hemocentro vê as requisições recebidas, aceita as que consegue atender ou recusa informando o motivo. O hospital acompanha a decisão: o status muda para "Aceita" (com o hemocentro responsável) ou "Recusada" (com o motivo registrado).
+
+Histórias completas: [docs/historias.md](https://github.com/miglitopictures/hemotrack/blob/main/docs/historias.md)
 
 ### Entrega 04 — 09/11
 
-Histórias restantes implementadas, versionamento contínuo, novos screencasts e issue tracker atualizado.
+Nesta entrega foram implementadas as histórias restantes, que completam o ciclo da bolsa de sangue: do estoque do hemocentro até a entrega no hospital, com indicadores da operação, incluindo:
+
+#### [Screencast do sistema da Entrega 04 (YouTube)](https://www.youtube.com/watch?v=TF_ChrQ34rE)
+[![Screencast do sistema da Entrega 04](https://img.youtube.com/vi/TF_ChrQ34rE/maxresdefault.jpg)](https://www.youtube.com/watch?v=TF_ChrQ34rE)
+
+#### [Screencast da explicação do código (YouTube)](https://www.youtube.com/watch?v=ZjZrRQ9FFD0)
+[![Explicação do código da Entrega 04](https://img.youtube.com/vi/ZjZrRQ9FFD0/maxresdefault.jpg)](https://www.youtube.com/watch?v=ZjZrRQ9FFD0)
+
+#### Histórias implementadas
+
+* HU02 — Gerenciamento do estoque de hemocomponentes: o hemocentro cadastra bolsas (identificação, hemocomponente, tipo sanguíneo, datas de coleta e validade) e visualiza o estoque com o status de cada uma (Disponível, Reservada, Utilizada, Vencida). Bolsas vencidas ou reservadas não ficam disponíveis para novas requisições.
+* HU06 — Selecionar hemocomponentes compatíveis: para uma requisição aceita, o hemocentro vê só as bolsas compatíveis e disponíveis (regras ABO/Rh por hemocomponente, em `Compatibilidade.java`), ordenadas pela validade mais próxima (FEFO), e reserva a quantidade solicitada.
+* HU07 — Planejar a distribuição: com as bolsas selecionadas, o sistema apresenta a origem (hemocentro), o destino (hospital da requisição) e uma rota calculada sobre um grafo simplificado. Requisição não aceita não pode ser distribuída.
+* HU08 — Monitorar o transporte: hospital e hemocentro acompanham o status, a localização (GPS simulado) e a temperatura simulada do transporte, com alerta quando a temperatura sai do intervalo da cadeia fria. Ao registrar a entrega, o transporte é finalizado e a requisição passa para "Entregue".
+* HU09 — Visualizar indicadores da operação: painel com bolsas disponíveis, bolsas próximas do vencimento, requisições pendentes, em transporte e entregues, componentes mais solicitados e estoque por tipo sanguíneo.
+
+Histórias completas: [docs/historias.md](https://github.com/miglitopictures/hemotrack/blob/main/docs/historias.md)
+
+- Issue / Bug tracker:
+
+  ![Issue tracker da Entrega 04](./assets/print-issues-entrega-4-poo.png)
 
 
 ## Como rodar na sua máquina
+
+### Jeito rápido: Docker Compose
+
+Com o [Docker](https://docs.docker.com/get-docker/) instalado, o banco (Postgres), a API e o frontend sobem com um comando, sem instalar Java nem Node:
+
+```bash
+git clone https://github.com/miglitopictures/hemotrack.git
+cd hemotrack
+cp .env.example .env      # preencha POSTGRES_PASSWORD, JWT_SECRET e ADMIN_SENHA
+docker compose up -d --build
+```
+
+- O build da imagem **roda todos os testes**: se algum falhar, a imagem não é gerada.
+- A API só sobe depois que o banco passa no healthcheck.
+- Conferir: `docker compose ps` (os três serviços `healthy`), a API em `http://localhost:8080/actuator/health` (`{"status":"UP"}`) e o sistema em `http://localhost:8081`.
+- Parar: `docker compose down` (os dados ficam no volume `dados-postgres`; `down -v` apaga).
+
+Para desenvolver (com recarregamento automático do código), siga o passo a passo completo a seguir.
 
 ### Pré-requisitos (instale antes de começar)
 
@@ -150,6 +197,27 @@ O sistema exige login, e toda instituição nova nasce pendente de aprovação.
 
 Cadastre **um hospital e um hemocentro** para ver os dois lados do sistema.
 
+### Dados de demonstração (opcional)
+
+Para não começar com o sistema vazio (indicadores, transportes, requisições em todas as etapas), suba o backend com o seed de dados sintéticos:
+
+```bash
+cd backend
+./mvnw spring-boot:run -Dspring-boot.run.arguments=--hemotrack.seed.dados-sinteticos=true
+```
+
+Cria 5 instituições já aprovadas, 80 bolsas e 20 requisições (abertas, aceitas, alocadas, 2 em transporte saindo de Recife, entregues e recusadas). Rodar de novo não duplica nada. Logins, todos com a senha `demo1234`:
+
+| Login | Instituição |
+|---|---|
+| `hemocentro@demo.hemotrack` | Hemocentro Capibaribe (Recife) |
+| `hemocentro.agreste@demo.hemotrack` | Hemocentro do Agreste (Caruaru) |
+| `hospital@demo.hemotrack` | Hospital Mar Azul (Olinda) |
+| `hospital.garanhuns@demo.hemotrack` | Hospital Regional Serra Verde (Garanhuns) |
+| `hospital.petrolina@demo.hemotrack` | Hospital do Sertao (Petrolina) |
+
+Desligado por padrão e nunca ligado no Render. Com Docker Compose, coloque `HEMOTRACK_SEED_DADOS_SINTETICOS=true` no `.env` da raiz antes do `docker compose up`.
+
 ### 6. Parar a aplicação
 
 `Ctrl+C` em cada terminal.
@@ -163,12 +231,16 @@ Cadastre **um hospital e um hemocentro** para ver os dois lados do sistema.
 
 ```
 hemotrack/
+├── .github/workflows/ci.yml   ← esteira: testes, build, imagem e deploy
 ├── backend/                    ← API REST em Java/Spring Boot
 │   ├── src/main/java/         ← código-fonte
+│   ├── src/test/java/         ← testes (unitário, integração e aceitação)
+│   ├── Dockerfile             ← imagem da API (multi-stage, roda os testes no build)
 │   ├── pom.xml                ← dependências Maven
 │   └── mvnw / mvnw.cmd        ← Maven (não instale, usa esse)
 ├── frontend/                   ← Interface em React/TypeScript/Vite (SPA)
 │   ├── src/
+│   ├── Dockerfile, nginx.conf ← imagem do frontend (build do Vite servido pelo nginx)
 │   ├── package.json           ← dependências npm
 │   └── vite.config.ts         ← configuração do Vite
 ├── docs/                       ← Documentação
@@ -176,8 +248,12 @@ hemotrack/
 │   ├── historias.md           ← histórias de usuário (HU01-HU09)
 │   ├── api/                   ← contrato da API e modelo de domínio
 │   ├── deploy.md              ← CI/CD, Render e variáveis de ambiente
+│   ├── desafio-pi.md          ← entrega do Desafio do PI (testes, pipeline, decisões)
+│   ├── evidencias/            ← prints das entregas E1, E2 e E3
 │   ├── telemetria.md          ← métricas via OpenTelemetry + Grafana Cloud
 │   └── notas/                 ← notas de design
+├── compose.yaml                ← Postgres + API + frontend com um comando
+├── .env.example                ← modelo das variáveis do Compose
 └── README.md                   ← você está aqui
 ```
 
@@ -188,20 +264,27 @@ hemotrack/
 | # | Descrição | Status |
 |---|-----------|--------|
 | HU01 | Cadastro e login de instituição | ✅ Pronto |
-| HU02 | Gerenciar estoque de hemocomponentes | ⏳ Em progresso |
+| HU02 | Gerenciar estoque de hemocomponentes | ✅ Pronto |
 | HU03 | Criar requisição de sangue | ✅ Pronto |
 | HU04 | Visualizar e acompanhar requisições | ✅ Pronto |
 | HU05 | Aceitar ou recusar requisições | ✅ Pronto |
-| HU06 | Selecionar bolsas compatíveis | ⏳ Em progresso |
-| HU07 | Planejar rota de distribuição | ⏳ Em progresso |
-| HU08 | Monitorar transporte em tempo real | ⏳ Em progresso |
-| HU09 | Dashboard de indicadores | ⏳ Em progresso |
+| HU06 | Selecionar bolsas compatíveis | ✅ Pronto |
+| HU07 | Planejar rota de distribuição | ✅ Pronto |
+| HU08 | Monitorar transporte em tempo real | ✅ Pronto |
+| HU09 | Dashboard de indicadores | ✅ Pronto |
 
 Ver detalhes completos em [`docs/historias.md`](./docs/historias.md).
 
 ---
 
 ## Dúvidas comuns
+
+### `permission denied while trying to connect to the docker API` (Linux)
+Seu usuário não está no grupo `docker`:
+```bash
+sudo usermod -aG docker $USER
+newgrp docker
+```
 
 ### A aplicação não abre no navegador
 Confirme que:
@@ -211,7 +294,7 @@ Confirme que:
 - Se ficar branco ou der erro 404, aguarde alguns segundos e recarregue (F5)
 
 ### Aparecem erros de CORS
-O CORS está configurado no backend (`config/WebConfig.java`) para aceitar chamadas de `localhost:8081`. Se o frontend rodou em outra porta, o CORS bloqueia.
+O CORS está configurado no backend (`config/WebConfig.java`). As origens liberadas vêm da variável `CORS_ALLOWED_ORIGINS` (separadas por vírgula); sem ela, valem `localhost:8081`, `5173` e `3000`. Se o frontend rodou em outra porta, o CORS bloqueia.
 
 ### Backend não sobe: `Could not resolve placeholder 'JWT_SECRET'`
 Falta o `backend/.env`, ou ele está sem a variável. Volte ao passo 2 — a
@@ -280,7 +363,41 @@ O token vale 8 horas. Os erros saem em `application/problem+json`, com `type`,
 
 O roteiro completo (cadastro → login → bloqueio → aprovação, com o status
 esperado de cada chamada) e a configuração passo a passo do Insomnia/Postman
-estão em [`docs/como-rodar.md`](./docs/como-rodar.md#6-testar-a-api).
+estão em [`docs/como-rodar.md`](./docs/como-rodar.md#4-testar-a-api).
+
+---
+
+## Desafio do PI: Container, TDD e Deploy
+
+Entrega da disciplina de Infraestrutura de Software (Unidade 2). Detalhes completos, story map, tabela de decisões e evidências em **[`docs/desafio-pi.md`](./docs/desafio-pi.md)**.
+
+- **Aplicação (frontend):** https://hemotrack-nrbm.onrender.com
+- **URL pública (API):** https://hemotrack-api-3ns9.onrender.com — verificação em [`/actuator/health`](https://hemotrack-api-3ns9.onrender.com/actuator/health)
+- **Evidências:** [`docs/evidencias/`](./docs/evidencias/)
+
+### Integrantes
+
+Ver [Desenvolvido por](#desenvolvido-por).
+
+### Como rodar
+
+`docker compose up -d --build` sobe Postgres, API e frontend do zero. Ver [Jeito rápido: Docker Compose](#jeito-rápido-docker-compose).
+
+### Testes
+
+`cd backend && ./mvnw test`. Três níveis: **unitário** (JUnit 5 + Mockito, regras de cada service), **integração** (Spring + H2 em memória: gravação via `@Transactional` e constraint de CNPJ) e **aceitação** (HTTP real, um cenário Dado/Quando/Então por história: HU01, HU03 e HU05). Três regras novas foram feitas com TDD, com commits `test:` antes de `feat:`. Story map, tarefas e o que ficou sem teste: [Testes](./docs/desafio-pi.md#testes).
+
+### Pipeline e deploy
+
+GitHub Actions: **build -> testes -> imagem Docker -> deploy no Render** (API e frontend). O deploy só roda em push na `main` com tudo verde; a `main` é protegida (GitHub Flow: PR com checks obrigatórios). Segredos no GitHub Secrets e nas variáveis do Render. Rollback pelo painel do Render ou com `git revert`. Ver [Pipeline e deploy](./docs/desafio-pi.md#pipeline-e-deploy) e [`docs/deploy.md`](./docs/deploy.md).
+
+### Decisões
+
+Imagem base, multi-stage, volume, rede do Compose, fluxo de branch, CI/CD, provedor e segredos: [tabela de decisões](./docs/desafio-pi.md#decisões).
+
+### Uso de IA
+
+Claude (Anthropic) usado e declarado; a IA rascunhou, o grupo executou, revisou e assina. Prompts principais e como validamos: [Uso de IA](./docs/desafio-pi.md#uso-de-ia).
 
 ---
 
@@ -300,9 +417,8 @@ estão em [`docs/como-rodar.md`](./docs/como-rodar.md#6-testar-a-api).
 
 ## Próximas etapas
 
-- Implementar HU02 (estoque real)
-- Conectar HU06 (seleção de bolsas compatíveis)
-- Implementar algoritmo de rota (HU07)
-- Dashboard de indicadores (HU09)
+- Estoque: descarte de bolsa (`PATCH`), filtros e paginação
+- Calcular no back os gráficos ainda ilustrativos dos Indicadores (saídas por dia, tempo de atendimento)
+- Gravar o veículo escolhido no despacho (hoje só aparece no front)
 
 Para detalhes de cada história, ver [`docs/historias.md`](./docs/historias.md).

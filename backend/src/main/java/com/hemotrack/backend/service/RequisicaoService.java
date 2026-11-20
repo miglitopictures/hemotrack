@@ -22,6 +22,10 @@ public class RequisicaoService {
     }
 
     public Requisicao salvar(Requisicao requisicao) {
+        // volume zero ou negativo nao tem sentido clinico: rejeita antes de chegar ao banco.
+        if (requisicao.getVolumeMl() <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Volume da requisição deve ser maior que zero");
+        }
         return repository.save(requisicao);
     }
 
@@ -32,6 +36,12 @@ public class RequisicaoService {
 
     public Requisicao atualizar(Requisicao novaRequisicao, Long id) {
         Requisicao requisicao = buscarPorId(id);
+
+        // so requisicao ABERTA pode ser alterada; depois de aceita/recusada/atendida, ela esta fechada.
+        if (requisicao.getStatus() != StatusRequisicao.ABERTA) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Requisição não está aberta");
+        }
+
         // note(mig): no momento só atualizamos a prioridade. temos que pensar melhor sobre isso no desenho da API.
         requisicao.setPrioridade(novaRequisicao.getPrioridade());
         return repository.save(requisicao);

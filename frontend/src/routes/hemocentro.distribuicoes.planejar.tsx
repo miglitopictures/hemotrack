@@ -25,13 +25,14 @@ import {
   StaggerItem,
   fadeUp,
 } from "@/components/ui-kit";
-import { despacharRemessa, listarSolicitacoes, obterSolicitacao, obterTransporteDaSolicitacao } from "@/lib/api";
 import {
-  etapasDistribuicao,
-  limitesTemperatura,
-  rotaSimplificada,
-  veiculos,
-} from "@/lib/data";
+  despacharRemessa,
+  listarSolicitacoes,
+  obterRotaDaSolicitacao,
+  obterSolicitacao,
+  obterTransporteDaSolicitacao,
+} from "@/lib/api";
+import { etapasDistribuicao, limitesTemperatura, veiculos } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/hemocentro/distribuicoes/planejar")({
@@ -60,16 +61,22 @@ export const Route = createFileRoute("/hemocentro/distribuicoes/planejar")({
     if (deps.sol) {
       const solicitacao = await obterSolicitacao(deps.sol);
       if (!solicitacao) throw notFound();
-      const transporte = await obterTransporteDaSolicitacao(solicitacao.id);
-      return { solicitacao, transporte: transporte ?? null };
+      const [transporte, rota] = await Promise.all([
+        obterTransporteDaSolicitacao(solicitacao.id),
+        obterRotaDaSolicitacao(solicitacao.id),
+      ]);
+      return { solicitacao, transporte: transporte ?? null, rota };
     }
     // Sem parâmetro: cai na primeira remessa em separação, mas deixando claro.
     const lista = await listarSolicitacoes();
     const solicitacao =
       lista.find((s) => s.status === "Em separação") ?? lista.find((s) => s.status === "Aceita");
     if (!solicitacao) throw notFound();
-    const transporte = await obterTransporteDaSolicitacao(solicitacao.id);
-    return { solicitacao, transporte: transporte ?? null };
+    const [transporte, rota] = await Promise.all([
+      obterTransporteDaSolicitacao(solicitacao.id),
+      obterRotaDaSolicitacao(solicitacao.id),
+    ]);
+    return { solicitacao, transporte: transporte ?? null, rota };
   },
   pendingComponent: () => (
     <AppShell role="hemocentro">
@@ -85,7 +92,7 @@ export const Route = createFileRoute("/hemocentro/distribuicoes/planejar")({
 });
 
 function PlanejarDistribuicao() {
-  const { solicitacao: sol, transporte } = Route.useLoaderData();
+  const { solicitacao: sol, transporte, rota } = Route.useLoaderData();
   const navigate = useNavigate();
 
   const [concluidas, setConcluidas] = useState<string[]>([]);
@@ -93,9 +100,19 @@ function PlanejarDistribuicao() {
   const [despachando, setDespachando] = useState(false);
   const [despachado, setDespachado] = useState(false);
 
-  const distancia = rotaSimplificada[rotaSimplificada.length - 1]?.km ?? 0;
+  // HU07: rota do back (GET /requisicoes/{id}/rota); null enquanto as bolsas não foram separadas
+  const pontos = rota?.pontos ?? [];
+  const distancia = rota?.distanciaKm ?? 0;
+  // estimativa de estrada a 60 km/h (o monitoramento usa a velocidade da simulação)
+  const minutosEstimados = Math.round(distancia);
+  const tempoEstimado =
+    rota === null
+      ? "—"
+      : minutosEstimados >= 60
+        ? `${Math.floor(minutosEstimados / 60)} h ${minutosEstimados % 60} min`
+        : `${minutosEstimados} min`;
   const limite = limitesTemperatura[sol.componente];
-  const tudoPronto = concluidas.length === etapasDistribuicao.length;
+  const tudoPronto = concluidas.length === etapasDistribuicao.length && rota !== null;
 
   // Agora cada etapa é um checkbox independente — antes clicar na etapa 3
   // marcava as anteriores e não dava para desfazer.
@@ -109,6 +126,7 @@ function PlanejarDistribuicao() {
       const remessa = await despacharRemessa({ solicitacao: sol.id, veiculo });
       setDespachado(true);
       toast.success(`Remessa ${remessa.id} despachada`, { description: veiculo });
+      void navigate({ to: "/hemocentro/distribuicoes/$id", params: { id: remessa.id } });
     } catch (e) {
       toast.error("Não foi possível despachar", {
         description: e instanceof Error ? e.message : "Erro inesperado.",
@@ -154,8 +172,8 @@ function PlanejarDistribuicao() {
         <StaggerItem className="h-full">
           <StatCard
             label="Distância da rota"
-            value={`${distancia} km`}
-            hint={`${rotaSimplificada.length} pontos de passagem`}
+            value={rota ? `${distancia} km` : "—"}
+            hint={rota ? `${pontos.length} pontos de passagem` : "Rota disponível após separar as bolsas"}
             tone="teal"
             icon={<RouteIcon className="size-4" />}
           />
@@ -163,8 +181,8 @@ function PlanejarDistribuicao() {
         <StaggerItem className="h-full">
           <StatCard
             label="Tempo estimado"
-            value="34 min"
-            hint="Preparo + trajeto"
+            value={tempoEstimado}
+            hint="Estrada a 60 km/h"
             tone="warning"
             icon={<Clock className="size-4" />}
           />
@@ -218,13 +236,21 @@ function PlanejarDistribuicao() {
             </ul>
           </Panel>
 
-          <Panel title="Rota simplificada" description="Hemocentro → hospital solicitante">
+          <Panel
+            title="Rota planejada"
+            description="Menor caminho no mapa de municípios (HU07) · hemocentro → hospital"
+          >
+            {rota === null ? (
+              <p className="px-5 py-6 text-sm text-muted-foreground">
+                A rota aparece quando as bolsas da solicitação forem separadas (status Em separação).
+              </p>
+            ) : null}
             <ol className="relative space-y-6 p-5 pl-8">
               <span
                 className="absolute bottom-7 left-[1.6rem] top-7 w-0.5 bg-border"
                 aria-hidden="true"
               />
-              {rotaSimplificada.map((p, i) => (
+              {pontos.map((p, i) => (
                 <motion.li
                   key={p.ponto}
                   initial={{ opacity: 0, x: 12 }}
@@ -238,7 +264,7 @@ function PlanejarDistribuicao() {
                       "relative z-10 grid size-7 shrink-0 place-items-center rounded-full border-2 bg-card",
                       i === 0
                         ? "border-teal text-teal"
-                        : i === rotaSimplificada.length - 1
+                        : i === pontos.length - 1
                           ? "border-primary bg-primary text-primary-foreground"
                           : "border-border text-muted-foreground",
                     )}
@@ -301,8 +327,7 @@ function PlanejarDistribuicao() {
             </p>
             <motion.button
               type="button"
-              whileHover={tudoPronto ? { y: -2 } : undefined}
-              whileTap={tudoPronto ? { scale: 0.96 } : undefined}
+              {...(tudoPronto ? { whileHover: { y: -2 }, whileTap: { scale: 0.96 } } : {})}
               onClick={despachar}
               disabled={!tudoPronto || despachando || despachado}
               className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-card disabled:cursor-not-allowed disabled:opacity-50"
@@ -316,7 +341,9 @@ function PlanejarDistribuicao() {
             </motion.button>
             {!tudoPronto ? (
               <p className="mt-2 text-center text-xs text-muted-foreground">
-                Conclua as {etapasDistribuicao.length} etapas de preparo para liberar o despacho.
+                {rota === null
+                  ? "Separe as bolsas da solicitação antes de despachar."
+                  : `Conclua as ${etapasDistribuicao.length} etapas de preparo para liberar o despacho.`}
               </p>
             ) : null}
             {despachado && transporte ? (
@@ -325,7 +352,7 @@ function PlanejarDistribuicao() {
                 animate={{ opacity: 1, y: 0 }}
                 className="mt-4 rounded-xl border border-success/20 bg-success-soft px-3 py-2.5 text-xs font-medium text-success"
               >
-                Remessa despachada (protótipo) com {veiculo}.{" "}
+                Remessa despachada com {veiculo}.{" "}
                 <button
                   type="button"
                   onClick={() =>

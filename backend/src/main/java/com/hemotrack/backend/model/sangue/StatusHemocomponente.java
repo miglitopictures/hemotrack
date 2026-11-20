@@ -1,7 +1,9 @@
 package com.hemotrack.backend.model.sangue;
 
 public enum StatusHemocomponente {
-    EM_ANALISE, // Acabou de ser processado, sera analisado em laboratorio do hemocentro.
-    APTO,       // Pode ser alocado com seguranca.
-    DESCARTADO  // Nao passou na analise laboratorial.
+    DISPONIVEL,   // no estoque, pode ser alocado.
+    RESERVADO,    // alocado a uma requisicao (HU06).
+    DESCARTADO,   // descartado pelo hemocentro.
+    TRANSFUNDIDO  // utilizado no hospital.
+    // vencido nao e status gravado: e calculado por dataValidade (estaVencido).
 }
