@@ -39,6 +39,8 @@ services:
       GRAFANA_OTLP_ENABLED: "false"
       # HU09: dados sinteticos de demonstracao (ver README)
       HEMOTRACK_SEED_DADOS_SINTETICOS: ${HEMOTRACK_SEED_DADOS_SINTETICOS:-false}
+      # HU08: velocidade do transporte simulado (padrao 10 km/min)
+      HEMOTRACK_SIMULACAO_KMPORMINUTO: ${HEMOTRACK_SIMULACAO_KMPORMINUTO:-10}
       # origens do front liberadas no CORS; o padrao ja inclui localhost:8081 (servico web)
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8081,http://localhost:5173,http://localhost:3000}
     depends_on:
