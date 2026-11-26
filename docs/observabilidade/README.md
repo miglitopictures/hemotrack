@@ -198,8 +198,10 @@ explicitamente apenas no cAdvisor; o Alloy continua lendo apenas o volume de log
 ## Antes de integrar a main (Render)
 
 A API passa a oferecer `GET /health` com apenas o status agregado (HTTP 200/503).
-No painel do Render, altere Health Check Path de `/actuator/health` para `/health`
-antes do merge/deploy. O Actuator completo permanece interno em 8082. O laboratorio
+No painel do Render, deixe Health Check Path temporariamente vazio (TCP).
+Integre a branch, aguarde o deploy e confirme HTTP 200 em `/health`.
+Depois configure Health Check Path como `/health`. Nao aponte para a rota nova
+enquanto a versao antiga ainda estiver publicada. O Actuator completo permanece interno em 8082. O laboratorio
 nao modifica automaticamente o painel do Render nem seus segredos.
 
 ## Documentos para o grupo

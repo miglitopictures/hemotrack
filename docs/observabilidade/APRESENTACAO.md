@@ -184,7 +184,9 @@ Nao simule resultados ao vivo nem atribua ao ambiente uma validacao que nao ocor
 
 ## Integracao com a main e Render
 
-A alteracao de observabilidade esta em branch separada para revisao. Antes do merge,
-o responsavel pelo Render deve mudar Health Check Path para `/health`; a sonda
+A alteracao de observabilidade esta em branch separada para revisao. Na migracao,
+o responsavel pelo Render deve deixar Health Check Path temporariamente vazio (TCP),
+publicar a nova versao e testar `/health` (HTTP 200). So depois deve configurar
+Health Check Path como `/health`; a sonda
 publica minima retorna somente UP/DOWN (200/503), sem expor o Actuator.
 O PDF privado inclui a conta do professor; nao deve entrar no repositorio publico.

@@ -27,7 +27,8 @@
 
 ## Antes de entregar / integrar
 
-1. Responsavel pelo Render: trocar Health Check Path para /health antes do merge.
+1. Render: deixar Health Check Path temporariamente vazio (TCP), publicar a nova
+   versao, testar /health (HTTP 200) e depois configurar esse caminho na verificacao.
 2. Revisar as alteracoes da branch; conferir checks do PR; integrar quando aprovado.
 3. Confirmar a janela exata de correcao e manter Mac, Docker e tunel ligados.
 4. Conferir novamente a URL e o login Viewer. Quick Tunnel pode mudar ao reiniciar.

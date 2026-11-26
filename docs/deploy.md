@@ -1,6 +1,6 @@
 # Deploy e Pipeline de CI/CD — HemoTrack
 
-> Migração da entrega de observabilidade: antes de integrar a branch, altere no Render o **Health Check Path para `/health`**. O Actuator completo passou para 8082 interna; `/health` retorna apenas o estado agregado (200/503), sem detalhes. O laboratório não altera as credenciais do Render.
+> Migração da entrega de observabilidade: para migrar, deixe temporariamente o **Health Check Path vazio** (verificacao TCP), publique a versao nova e confirme que `GET /health` retorna HTTP 200. So entao configure **Health Check Path como `/health`**. Nao aponte a verificacao para `/health` enquanto o Render executar a versao antiga. O Actuator completo passou para 8082 interna; `/health` retorna apenas o estado agregado (200/503), sem detalhes. O laboratório não altera as credenciais do Render.
 
 ## Aplicação em produção
 
