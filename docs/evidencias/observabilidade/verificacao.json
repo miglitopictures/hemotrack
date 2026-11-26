@@ -1,0 +1,26 @@
+{
+  "verificado_em": "2026-11-26T12:06:02.397370+00:00",
+  "targets": [
+    {
+      "job": "cadvisor",
+      "estado": "up"
+    },
+    {
+      "job": "hemotrack-backend",
+      "estado": "up"
+    },
+    {
+      "job": "node-exporter",
+      "estado": "up"
+    },
+    {
+      "job": "prometheus",
+      "estado": "up"
+    }
+  ],
+  "logs_com_traceId": true,
+  "trace_id": "5ece7255783b29ea3ad4109962b2ae69",
+  "spans_no_trace": 15,
+  "metrica_negocio_positiva": true,
+  "containers_identificados": 13
+}

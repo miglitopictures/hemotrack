@@ -1,0 +1,10 @@
+local.file_match "api" {
+  path_targets = [{"__path__" = "/var/log/hemotrack/hemotrack.json", "application" = "hemotrack-backend"}]
+}
+loki.source.file "api" {
+  targets    = local.file_match.api.targets
+  forward_to = [loki.write.local.receiver]
+}
+loki.write "local" {
+  endpoint { url = "http://loki:3100/loki/api/v1/push" }
+}

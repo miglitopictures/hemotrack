@@ -1,0 +1,13 @@
+NAME                        IMAGE                            COMMAND                  SERVICE         CREATED          STATUS                    PORTS
+hemotrack-alloy-1           grafana/alloy:v1.7.4             "/bin/alloy run --st…"   alloy           7 hours ago      Up 7 hours
+hemotrack-api-1             hemotrack-api                    "sh -c 'unset $(env …"   api             51 seconds ago   Up 50 seconds (healthy)   127.0.0.1:8080->8080/tcp
+hemotrack-cadvisor-1        ghcr.io/google/cadvisor:0.60.4   "/usr/bin/entrypoint…"   cadvisor        7 hours ago      Up 7 hours (healthy)      8080/tcp
+hemotrack-carga-1           python:3.13-alpine               "python /scripts/car…"   carga           7 hours ago      Up 7 hours
+hemotrack-db-1              postgres:16-alpine               "docker-entrypoint.s…"   db              7 hours ago      Up 7 hours (healthy)      5432/tcp
+hemotrack-grafana-1         grafana/grafana:11.6.0           "/run.sh"                grafana         6 minutes ago    Up 6 minutes              127.0.0.1:3000->3000/tcp
+hemotrack-loki-1            grafana/loki:3.4.2               "/usr/bin/loki -conf…"   loki            7 hours ago      Up 7 hours                3100/tcp
+hemotrack-node-exporter-1   prom/node-exporter:v1.9.0        "/bin/node_exporter …"   node-exporter   7 hours ago      Up 7 hours                9100/tcp
+hemotrack-prometheus-1      prom/prometheus:v3.2.1           "/bin/prometheus --c…"   prometheus      1 second ago     Up Less than a second     9090/tcp
+hemotrack-tempo-1           grafana/tempo:2.7.2              "/tempo -config.file…"   tempo           7 hours ago      Up 7 hours
+hemotrack-tunnel-1          cloudflare/cloudflared:latest    "cloudflared tunnel …"   tunnel          9 minutes ago    Up 9 minutes
+hemotrack-web-1             hemotrack-web                    "/docker-entrypoint.…"   web             7 hours ago      Up 7 hours (healthy)      127.0.0.1:8081->80/tcp

@@ -6,7 +6,7 @@ Este documento detalha a entrega do desafio. O resumo das seções pedidas está
 
 - **Repositório:** https://github.com/miglitopictures/hemotrack
 - **Aplicação (frontend):** https://hemotrack-nrbm.onrender.com
-- **URL pública (API):** https://hemotrack-api-3ns9.onrender.com — verificação em [`/actuator/health`](https://hemotrack-api-3ns9.onrender.com/actuator/health)
+- **URL pública (API):** https://hemotrack-api-3ns9.onrender.com — verificação em [`/health`](https://hemotrack-api-3ns9.onrender.com/health)
 - **Integrantes:** ver [Desenvolvido por](../README.md#desenvolvido-por)
 - **Como rodar:** ver [Jeito rápido: Docker Compose](../README.md#jeito-rápido-docker-compose)
 
@@ -190,7 +190,7 @@ Todas as imagens estão em [`evidencias/`](./evidencias/).
 
 ![docker compose ps com os três serviços healthy](./evidencias/e1-compose-ps.png)
 
-**API do Compose respondendo** em `localhost:8080/actuator/health`.
+**API do Compose respondendo** em `localhost:8080/health`.
 
 ![API local respondendo UP](./evidencias/e1-api-health.png)
 
@@ -228,7 +228,7 @@ Todas as imagens estão em [`evidencias/`](./evidencias/).
 
 ![Execução verde com o deploy concluído](./evidencias/e3-verde-deploy.png)
 
-**Produção no ar:** https://hemotrack-api-3ns9.onrender.com/actuator/health
+**Produção no ar:** https://hemotrack-api-3ns9.onrender.com/health
 
 ![Produção respondendo UP](./evidencias/e3-producao-up.png)
 

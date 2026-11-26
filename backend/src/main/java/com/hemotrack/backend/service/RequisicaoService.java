@@ -16,9 +16,11 @@ import com.hemotrack.backend.repositories.RequisicaoRepository;
 @Service 
 public class RequisicaoService {
     private final RequisicaoRepository repository;
+    private final TelemetriaService telemetria;
 
-    public RequisicaoService(RequisicaoRepository repository) {
+    public RequisicaoService(RequisicaoRepository repository, TelemetriaService telemetria) {
         this.repository = repository;
+        this.telemetria = telemetria;
     }
 
     public Requisicao salvar(Requisicao requisicao) {
@@ -26,12 +28,16 @@ public class RequisicaoService {
         if (requisicao.getVolumeMl() <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Volume da requisição deve ser maior que zero");
         }
-        return repository.save(requisicao);
+        return telemetria.observar("criacao", () -> {
+            Requisicao salva = repository.save(requisicao);
+            telemetria.requisicaoCriada();
+            return salva;
+        });
     }
 
     public Requisicao buscarPorId(Long id) {
-        return repository.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Requisição não encontrada"));
+        return telemetria.consultar(() -> repository.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Requisição não encontrada")));
     }
 
     public Requisicao atualizar(Requisicao novaRequisicao, Long id) {
@@ -77,10 +83,8 @@ public class RequisicaoService {
 
 
     public List<Requisicao> listarTodos(Long hospitalId) {
-    if (hospitalId != null) {
-        return repository.findByHospitalId(hospitalId);
-    }
-    return repository.findAll();
+    return telemetria.consultar(() -> hospitalId != null
+        ? repository.findByHospitalId(hospitalId) : repository.findAll());
 }
 
     public  void remover(Long id) {

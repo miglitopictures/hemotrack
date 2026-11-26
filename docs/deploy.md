@@ -1,12 +1,14 @@
 # Deploy e Pipeline de CI/CD — HemoTrack
 
+> Migração da entrega de observabilidade: antes de integrar a branch, altere no Render o **Health Check Path para `/health`**. O Actuator completo passou para 8082 interna; `/health` retorna apenas o estado agregado (200/503), sem detalhes. O laboratório não altera as credenciais do Render.
+
 ## Aplicação em produção
 
 **Aplicação (frontend):** https://hemotrack-nrbm.onrender.com
 
 **API:** https://hemotrack-api-3ns9.onrender.com
 
-Endpoint de verificação de saúde: `GET /actuator/health` → retorna `{"status":"UP"}` quando o backend e a conexão com o banco estão funcionando.
+Endpoint de verificação de saúde: `GET /health` → retorna `{"status":"UP"}` quando o backend e a conexão com o banco estão funcionando.
 
 > **Nota sobre cold start:** a API roda no plano gratuito do Render, que "dorme" após ~15 minutos sem tráfego. A primeira requisição depois disso pode demorar 30–60 segundos para responder enquanto o serviço acorda. Se for demonstrar ao vivo, acesse a URL alguns minutos antes. O frontend (Static Site) não dorme.
 
@@ -65,7 +67,7 @@ Esse desenho garante que nenhum deploy acontece se os testes falharem, e que o d
 | Dockerfile Path | `backend/Dockerfile` (padrão) |
 | Branch | `main` |
 | Region | Virginia (US East), a mesma do banco no Neon |
-| Health Check Path | `/actuator/health` |
+| Health Check Path | `/health` |
 | Auto-Deploy | Off (quem dispara é o job `deploy` da esteira) |
 | Plano | Free (0.1 CPU / 512 MB RAM) |
 
@@ -118,7 +120,7 @@ Sem elas, a aplicação sobe e avisa no log, mas nenhum `ADMIN_SISTEMA` é criad
 3. Criar um Web Service no [Render](https://render.com), apontando para este repositório, com:
    - Root Directory: `backend`
    - Environment: Docker
-   - Region: Virginia; Health Check Path: `/actuator/health`; Auto-Deploy: Off
+   - Region: Virginia; Health Check Path: `/health`; Auto-Deploy: Off
 4. Adicionar as variáveis de ambiente obrigatórias (`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`) nas configurações do serviço. As `ADMIN_*` e `GRAFANA_*` são opcionais.
 5. Copiar o **Deploy Hook** (Render → o serviço → Settings) e salvá-lo como secret `RENDER_DEPLOY_HOOK_URL` no GitHub (Settings → Secrets and variables → Actions).
 6. Criar um **Static Site** no Render para o frontend:
@@ -144,7 +146,7 @@ O job `deploy` só dispara o hook: ele reporta sucesso assim que o Render aceita
 Por isso, ao introduzir qualquer configuração obrigatória nova, a variável precisa existir no Render **antes** do merge na `main`. Depois de um deploy, a verificação rápida é:
 
 ```bash
-curl https://hemotrack-api-3ns9.onrender.com/actuator/health
+curl https://hemotrack-api-3ns9.onrender.com/health
 ```
 
 Esperado: `{"status":"UP"}`. Se não responder (descontado o cold start de 30–60s), veja os logs em Render → o serviço → **Logs**.

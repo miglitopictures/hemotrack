@@ -27,7 +27,7 @@ services:
   api:
     build: ./backend
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     environment:
       # perfil prod (definido no ENTRYPOINT do Dockerfile) le estas variaveis
       DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-hemotrack}
@@ -37,19 +37,22 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_SENHA: ${ADMIN_SENHA:-}
       GRAFANA_OTLP_ENABLED: "false"
+      SPRING_PROFILES_ACTIVE: prod,observabilidade
       # HU09: dados sinteticos de demonstracao (ver README)
       HEMOTRACK_SEED_DADOS_SINTETICOS: ${HEMOTRACK_SEED_DADOS_SINTETICOS:-false}
       # HU08: velocidade do transporte simulado (padrao 10 km/min)
       HEMOTRACK_SIMULACAO_KMPORMINUTO: ${HEMOTRACK_SIMULACAO_KMPORMINUTO:-10}
       # origens do front liberadas no CORS; o padrao ja inclui localhost:8081 (servico web)
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8081,http://localhost:5173,http://localhost:3000}
+    volumes:
+      - logs-api:/app/logs
     depends_on:
       db:
         # so inicia a API depois que o healthcheck do banco passar
         condition: service_healthy
     healthcheck:
       # /actuator/health devolve {"status":"UP"} quando a API e a conexao com o banco estao ok
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:8082/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -64,7 +67,7 @@ services:
         VITE_API_URL: http://localhost:8080
     ports:
       # 8081 ja esta liberada no CORS da API (padrao do CORS_ALLOWED_ORIGINS)
-      - "8081:80"
+      - "127.0.0.1:8081:80"
     depends_on:
       api:
         condition: service_healthy
@@ -76,5 +79,101 @@ services:
       retries: 5
     restart: unless-stopped
 
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=7d"]
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.6.0
+    ports: ["127.0.0.1:3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?defina GRAFANA_ADMIN_PASSWORD no .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      # Grafana 11: Viewer pode usar Explore, sem salvar alteracoes.
+      GF_USERS_VIEWERS_CAN_EDIT: "true"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on: [prometheus, loki, tempo]
+    restart: unless-stopped
+
+  node-exporter:
+    image: prom/node-exporter:v1.9.0
+    command: ["--path.rootfs=/host"]
+    pid: host
+    volumes: ["/:/host:ro"]
+    restart: unless-stopped
+
+  cadvisor:
+    image: ghcr.io/google/cadvisor:0.60.4
+    command: ["--docker_only=true", "--housekeeping_interval=15s", "--containerd=${CADVISOR_CONTAINERD_SOCKET:-/rootfs/run/containerd/containerd.sock}"]
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk:/dev/disk:ro
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:3.4.2
+    command: ["-config.file=/etc/loki/config.yml"]
+    volumes:
+      - ./loki/loki.yml:/etc/loki/config.yml:ro
+      - loki-data:/loki
+    restart: unless-stopped
+
+  alloy:
+    image: grafana/alloy:v1.7.4
+    command: ["run", "--storage.path=/var/lib/alloy/data", "/etc/alloy/config.alloy"]
+    volumes:
+      - ./loki/config.alloy:/etc/alloy/config.alloy:ro
+      - logs-api:/var/log/hemotrack:ro
+      - alloy-data:/var/lib/alloy/data
+    depends_on: [loki]
+    restart: unless-stopped
+
+  tempo:
+    image: grafana/tempo:2.7.2
+    command: ["-config.file=/etc/tempo/config.yml"]
+    volumes:
+      - ./tempo/tempo.yml:/etc/tempo/config.yml:ro
+      - tempo-data:/var/tempo
+    restart: unless-stopped
+
+  carga:
+    image: python:3.13-alpine
+    command: ["python", "/scripts/carga.py"]
+    environment:
+      API_URL: http://api:8080
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?defina ADMIN_EMAIL para a carga}
+      ADMIN_SENHA: ${ADMIN_SENHA:?defina ADMIN_SENHA para a carga}
+    volumes: ["./scripts:/scripts:ro"]
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  tunnel:
+    image: cloudflare/cloudflared:2026.11.2
+    profiles: [remoto]
+    command: ["tunnel", "--no-autoupdate", "--url", "http://grafana:3000"]
+    depends_on: [grafana]
+    restart: unless-stopped
+
 volumes:
+  logs-api:
+  prometheus-data:
+  grafana-data:
+  loki-data:
+  alloy-data:
+  tempo-data:
   dados-postgres:

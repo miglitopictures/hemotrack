@@ -10,6 +10,15 @@ on:
 
 ## O que?
 jobs:
+  observability-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Compose and Prometheus configuration
+        run: |
+          docker compose --env-file .env.example config --quiet
+          docker run --rm --entrypoint /bin/promtool -v "$PWD/prometheus:/etc/prometheus:ro" prom/prometheus:v3.2.1 check config /etc/prometheus/prometheus.yml
+
   build-and-test:
     runs-on: ubuntu-latest
 
