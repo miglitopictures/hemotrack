@@ -1,0 +1,4 @@
+# Somente para capturar a tela Targets. Nao usar para acesso remoto.
+services:
+  prometheus:
+    ports: ["127.0.0.1:9090:9090"]

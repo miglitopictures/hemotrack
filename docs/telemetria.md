@@ -1,5 +1,7 @@
 # Telemetria
 
+> Para a entrega de Infraestrutura de Comunicacao, use a [stack local completa](observabilidade/README.md) e o [guia de apresentacao](observabilidade/APRESENTACAO.md). Abaixo fica o historico da integracao opcional com Grafana Cloud. O perfil `observabilidade` habilita traces no laboratorio; o Render continua sem esse perfil.
+
 ![Dashboard Grafana do Hemotrack](../assets/grafana_funcional_hemotrack.png)
 
 O backend exporta métricas no padrão **OpenTelemetry (OTLP)** para o **Grafana Cloud**, onde são consultadas e visualizadas. É o primeiro passo da HU08 (monitorar transporte) e da HU09 (indicadores).

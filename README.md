@@ -5,6 +5,15 @@
 
 ![Logo Hemotrack](./assets/Cover_Hemotrack.png)
 
+## Entrega final: observabilidade
+
+A stack local agora inclui Prometheus, Grafana, Node Exporter, cAdvisor, Loki,
+Tempo, Alloy e carga sintetica, alem de banco, API e frontend.
+Veja [como executar e validar](docs/observabilidade/README.md) e o
+[guia de apresentacao para o grupo](docs/observabilidade/APRESENTACAO.md).
+Configure tambem `GRAFANA_ADMIN_PASSWORD`, `ADMIN_EMAIL` e `ADMIN_SENHA` no `.env`.
+O Actuator usa a porta interna 8082; `/actuator/**` nao e servido pela porta publica.
+
 ## O que é o HemoTrack?
 
 Uma aplicação web que gerencia e distribui hemocomponentes (bolsas de sangue) entre hemocentros e hospitais. O sistema controla estoque, recebe requisições de hospitais, seleciona bolsas compatíveis (por tipo sanguíneo e validade), calcula rotas de entrega respeitando a cadeia fria, e monitora a temperatura durante o transporte.
@@ -99,7 +108,7 @@ docker compose up -d --build
 
 - O build da imagem **roda todos os testes**: se algum falhar, a imagem não é gerada.
 - A API só sobe depois que o banco passa no healthcheck.
-- Conferir: `docker compose ps` (os três serviços `healthy`), a API em `http://localhost:8080/actuator/health` (`{"status":"UP"}`) e o sistema em `http://localhost:8081`.
+- Conferir: `docker compose ps` (os três serviços `healthy`), a API `healthy` pelo healthcheck interno em 8082 e o sistema em `http://localhost:8081`.
 - Parar: `docker compose down` (os dados ficam no volume `dados-postgres`; `down -v` apaga).
 
 Para desenvolver (com recarregamento automático do código), siga o passo a passo completo a seguir.
@@ -372,7 +381,7 @@ estão em [`docs/como-rodar.md`](./docs/como-rodar.md#4-testar-a-api).
 Entrega da disciplina de Infraestrutura de Software (Unidade 2). Detalhes completos, story map, tabela de decisões e evidências em **[`docs/desafio-pi.md`](./docs/desafio-pi.md)**.
 
 - **Aplicação (frontend):** https://hemotrack-nrbm.onrender.com
-- **URL pública (API):** https://hemotrack-api-3ns9.onrender.com — verificação em [`/actuator/health`](https://hemotrack-api-3ns9.onrender.com/actuator/health)
+- **URL pública (API):** https://hemotrack-api-3ns9.onrender.com — verificação em [`/health`](https://hemotrack-api-3ns9.onrender.com/health)
 - **Evidências:** [`docs/evidencias/`](./docs/evidencias/)
 
 ### Integrantes

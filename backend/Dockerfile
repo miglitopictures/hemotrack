@@ -27,11 +27,12 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
 # roda sem root: se a aplicacao for comprometida, o processo nao tem poder de administrador no container
-RUN addgroup -S hemotrack && adduser -S hemotrack -G hemotrack
+RUN addgroup -S hemotrack && adduser -S hemotrack -G hemotrack \
+    && mkdir -p /app/logs && chown hemotrack:hemotrack /app/logs
 COPY --from=build /app/target/*.jar app.jar
 USER hemotrack
 
-EXPOSE 8080
+EXPOSE 8080 8082
 # mesma limpeza das OTEL_* na execucao (o Render tambem as injeta no container em producao).
 # "exec" faz o java substituir o shell e receber os sinais de parada direto.
-ENTRYPOINT ["sh", "-c", "unset $(env | grep -o '^OTEL_[A-Za-z0-9_]*'); exec java -jar app.jar --spring.profiles.active=prod"]
+ENTRYPOINT ["sh", "-c", "unset $(env | grep -o '^OTEL_[A-Za-z0-9_]*'); exec java -jar app.jar --spring.profiles.active=${SPRING_PROFILES_ACTIVE:-prod}"]

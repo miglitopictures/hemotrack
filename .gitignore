@@ -156,3 +156,5 @@ AGENTS.md
 MUDANCAS.md
 
 docs/api/membros.sh
+# Evidencias locais podem conter credenciais do acesso do professor.
+docs/acesso-professor.local.*

@@ -18,6 +18,9 @@ import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import io.micrometer.observation.ObservationRegistry;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
@@ -40,6 +43,10 @@ class RequisicaoServiceTest {
     @Mock 
     private RequisicaoRepository repository;
     
+    @Spy
+    private TelemetriaService telemetria = new TelemetriaService(
+        new SimpleMeterRegistry(), ObservationRegistry.create());
+
     /* Service Verdadeiro */
     // o service eh o que estamos testando.
     // queremos avaliar seu comportamento a partir
