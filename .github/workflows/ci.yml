@@ -101,3 +101,35 @@ jobs:
         run: curl -f -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
       - name: Trigger Render deploy (frontend)
         run: curl -f -X POST "${{ secrets.RENDER_FRONTEND_DEPLOY_HOOK_URL }}"
+  
+  ## TESTE DE FUMACA: roda depois do deploy e confirma que a versao NOVA responde.
+  ## O Render demora para construir e subir (no plano Free, minutos), e enquanto isso continua
+  ## servindo a versao anterior: por isso espera o /health informar o commit deste push.
+  smoke:
+    needs: [deploy]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      API_URL: https://hemotrack-api-3ns9.onrender.com
+
+    steps:
+      - name: Espera a versao nova entrar no ar
+        run: |
+          for i in $(seq 1 60); do
+            corpo=$(curl -s --max-time 10 "$API_URL/health" || true)
+            echo "tentativa $i: $corpo"
+            if echo "$corpo" | grep -q "\"versao\":\"$GITHUB_SHA\"" && echo "$corpo" | grep -q '"status":"UP"'; then
+              echo "versao $GITHUB_SHA no ar"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "a versao $GITHUB_SHA nao respondeu em 15 minutos"
+          exit 1
+
+      - name: Rota protegida exige autenticacao
+        run: |
+          status=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/requisicoes")
+          echo "GET /requisicoes sem token: $status"
+          test "$status" = "401"
